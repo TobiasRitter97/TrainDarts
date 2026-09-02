@@ -81,7 +81,7 @@ export const api = {
     return fetch(`${BASE}/games`).then((res) => asJson<GameDefinition[]>(res));
   },
 
-  getBoardInfo(): Promise<{ boardHost: string; boardPort: number; calibrationUrl: string }> {
+  getBoardInfo(): Promise<{ boardHost: string; boardPort: number; calibrationUrl: string; hasControlApi: boolean }> {
     return fetch(`${BASE}/board/info`).then((res) => asJson(res));
   },
 

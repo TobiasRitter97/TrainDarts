@@ -35,6 +35,12 @@
   color: var(--c-text-muted);
 }
 
+.board-control-hint {
+  color: var(--c-text-faint);
+  font-size: var(--fs-xs);
+  font-style: italic;
+}
+
 .board-control-error {
   color: var(--c-danger-strong);
   font-size: var(--fs-xs);

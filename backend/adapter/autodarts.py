@@ -55,6 +55,24 @@ class AutodartsAdapter:
     def calibration_url(self) -> str:
         return f"http://{self.board_host}:{self.board_port}"
 
+    async def has_control_api(self) -> bool:
+        """Prueft live, ob unter board_host tatsaechlich die REST-
+        Steuer-API des echten Board Managers antwortet (CLAUDE.md
+        "Verifizierte Board-Manager-REST-API"). Der lokale
+        Wurf-Simulator (tools/board_simulator.py) bildet nur die
+        WS-Events nach, hat aber kein /api/ping - darüber lassen sich
+        Simulator und echtes Board unterscheiden, statt aufgrund des
+        Hostnamens zu raten (der ist auf dem Pi in Produktion ebenso
+        "localhost" wie hier im Dev-Betrieb fuer den Simulator)."""
+        url = f"http://{self.board_host}:{self.board_port}/api/ping"
+        timeout = aiohttp.ClientTimeout(total=2)
+        try:
+            async with aiohttp.ClientSession(timeout=timeout) as session:
+                async with session.get(url) as resp:
+                    return resp.status == 200
+        except Exception:
+            return False
+
     async def start(self) -> None:
         await self._control("PUT", "/api/start")
 

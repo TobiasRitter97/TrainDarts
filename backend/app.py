@@ -108,10 +108,12 @@ async def list_games(_request: web.Request) -> web.Response:
 # verifizierten Endpunkte (/api/start, /api/stop, /api/reset).
 async def board_info(request: web.Request) -> web.Response:
     adapter: AutodartsAdapter = request.app["adapter"]
+    has_control_api = await adapter.has_control_api()
     return web.json_response({
         "boardHost": adapter.board_host,
         "boardPort": adapter.board_port,
         "calibrationUrl": adapter.calibration_url(),
+        "hasControlApi": has_control_api,
     })
 
 

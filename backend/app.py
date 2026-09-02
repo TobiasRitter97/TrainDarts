@@ -139,7 +139,7 @@ async def _board_control(request: web.Request, action: str) -> web.Response:
 
 # ---------------------------------------------------------------- WebSocket
 async def ws_handler(request: web.Request) -> web.WebSocketResponse:
-    ws = web.WebSocketResponse()
+    ws = web.WebSocketResponse(heartbeat=30)
     await ws.prepare(request)
     ws_clients.add(ws)
     adapter: AutodartsAdapter = request.app["adapter"]

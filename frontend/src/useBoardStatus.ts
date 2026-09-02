@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { getWsUrl } from "./wsUrl";
 
 export type BoardStatus = "connected" | "reconnecting" | "disconnected";
 
@@ -13,7 +14,7 @@ export function useBoardStatus(): BoardStatus {
     let ws: WebSocket | null = null;
 
     function connect() {
-      ws = new WebSocket(`ws://${location.host}/ws`);
+      ws = new WebSocket(getWsUrl());
       ws.onmessage = (event) => {
         const msg = JSON.parse(event.data);
         if (msg.type === "board_status") {

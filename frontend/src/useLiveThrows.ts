@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { getWsUrl } from "./wsUrl";
 
 export type LiveThrows = {
   throws: string[];
@@ -18,7 +19,7 @@ export function useLiveThrows(): LiveThrows {
     let ws: WebSocket | null = null;
 
     function connect() {
-      ws = new WebSocket(`ws://${location.host}/ws`);
+      ws = new WebSocket(getWsUrl());
       ws.onmessage = (event) => {
         const msg = JSON.parse(event.data);
         if (msg.type === "live") {

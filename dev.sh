@@ -28,4 +28,5 @@ else
   echo "         (siehe Anleitung im Chat) - es laeuft vorerst nur das Backend."
 fi
 
+
 wait

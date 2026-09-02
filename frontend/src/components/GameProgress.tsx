@@ -1,10 +1,15 @@
 type Props = {
-  turnCount: number;
+  round: number;
+  legNumber: number | null;
 };
 
-// SPEC §12: Rundenanzeige. In Phase 6 nur die laufende Nummer ohne
-// Gesamtzahl - die haengt von Game Settings/Duration ab, was erst mit
-// der Game Engine (Phase 7) ausgewertet wird.
-export function GameProgress({ turnCount }: Props) {
-  return <div className="game-progress">ROUND {turnCount + 1}</div>;
+// SPEC §12: Rundenanzeige, jetzt aus der echten Game Engine (Phase 7).
+// Leg-Nummer nur bei Spielen mit Legs (170).
+export function GameProgress({ round, legNumber }: Props) {
+  return (
+    <div className="game-progress">
+      ROUND {round}
+      {legNumber !== null && ` · LEG ${legNumber}`}
+    </div>
+  );
 }

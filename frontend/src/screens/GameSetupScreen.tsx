@@ -17,6 +17,8 @@ export function GameSetupScreen({ gameId, onBack, onStart }: Props) {
   const [game, setGame] = useState<GameDefinition | null>(null);
   const [players, setPlayers] = useState<Profile[]>([]);
   const [settings, setSettings] = useState<Record<string, unknown>>({});
+  const [starting, setStarting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     setGame(null);
@@ -29,6 +31,20 @@ export function GameSetupScreen({ gameId, onBack, onStart }: Props) {
 
   if (!game) {
     return <p className="screen-note">Lade Spiel…</p>;
+  }
+
+  async function handleStart() {
+    if (!game) return;
+    setStarting(true);
+    setError(null);
+    try {
+      await api.createMatch(game.id, players.map((p) => p.id), settings);
+      onStart(game, players, settings);
+    } catch {
+      setError("Match konnte nicht gestartet werden.");
+    } finally {
+      setStarting(false);
+    }
   }
 
   return (
@@ -53,12 +69,14 @@ export function GameSetupScreen({ gameId, onBack, onStart }: Props) {
         </>
       )}
 
+      {error && <p className="screen-error">{error}</p>}
+
       <button
         className="btn-primary continue-btn"
-        disabled={players.length === 0}
-        onClick={() => onStart(game, players, settings)}
+        disabled={players.length === 0 || starting}
+        onClick={handleStart}
       >
-        START GAME
+        {starting ? "STARTE…" : "START GAME"}
       </button>
     </div>
   );

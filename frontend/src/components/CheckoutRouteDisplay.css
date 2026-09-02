@@ -1,0 +1,19 @@
+.checkout-route {
+  text-align: center;
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: var(--sp-3);
+}
+
+.checkout-route-label {
+  font-size: var(--fs-xs);
+  color: var(--c-text-faint);
+  letter-spacing: 0.1em;
+}
+
+.checkout-route-path {
+  font-size: var(--fs-lg);
+  font-weight: var(--fw-strong);
+  color: var(--c-accent);
+}

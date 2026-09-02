@@ -1,8 +1,10 @@
 """SQLite-Setup. Schema wie in docs/ARCHITEKTUR.md Abschnitt 8 beschlossen."""
+import os
 import sqlite3
 from pathlib import Path
 
-DB_PATH = Path(__file__).resolve().parent.parent.parent / "data" / "darts.db"
+_default_path = Path(__file__).resolve().parent.parent.parent / "data" / "darts.db"
+DB_PATH = Path(os.environ.get("DARTS_DB_PATH", _default_path))
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS profiles (

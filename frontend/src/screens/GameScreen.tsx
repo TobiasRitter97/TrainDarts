@@ -1,32 +1,48 @@
-import { GameDefinition, Profile } from "../api";
-import { useLiveThrows } from "../useLiveThrows";
+import { api, GameDefinition, Profile } from "../api";
+import { useMatchState } from "../useMatchState";
 import { BoardControlBar } from "../components/BoardControlBar";
 import { PlayerScoreboard } from "../components/PlayerScoreboard";
+import { CheckoutRouteDisplay } from "../components/CheckoutRouteDisplay";
 import { GameProgress } from "../components/GameProgress";
 import { GameActions } from "../components/GameActions";
+import { ResultScreen } from "./ResultScreen";
 import "./GameScreen.css";
 
 type Props = {
   game: GameDefinition;
   players: Profile[];
+  settings: Record<string, unknown>;
   onExit: () => void;
 };
 
 // Einheitlicher Game Screen (SPEC §12/§13) - dasselbe Layout fuer
-// jedes Spiel. Verbunden mit den echten Board-Events ueber
-// useLiveThrows(); Punktestand, Target und Spielerwechsel sind
-// bewusst Dummy, bis die Game Engine in Phase 7 entsteht.
-export function GameScreen({ game, players, onExit }: Props) {
-  const live = useLiveThrows();
-  const activeIndex = players.length > 0 ? live.turnCount % players.length : 0;
-  const activePlayer = players[activeIndex];
-  const darts = [live.throws[0] ?? null, live.throws[1] ?? null, live.throws[2] ?? null];
+// jedes Spiel. Zeigt den echten Match-Zustand aus der Game Engine
+// (Phase 7): Punktestand, aktiver Spieler, Target, Checkout-Vorschlag,
+// die drei Dart-Felder der laufenden Aufnahme und die Runde. Bei
+// Spielende wechselt der Screen automatisch zum Result Screen.
+export function GameScreen({ game, players, settings, onExit }: Props) {
+  const match = useMatchState();
 
   function handleExit() {
-    if (confirm("Spiel verlassen? Der aktuelle Stand geht verloren (noch keine Speicherung, folgt in Phase 7).")) {
+    if (confirm("Spiel verlassen? Der Fortschritt geht verloren (noch keine Speicherung, folgt in Phase 8).")) {
       onExit();
     }
   }
+
+  async function handleRematch() {
+    await api.createMatch(game.id, players.map((p) => p.id), settings);
+  }
+
+  if (!match) {
+    return <p className="screen-note">Warte auf Spielstart…</p>;
+  }
+
+  if (match.finished) {
+    return <ResultScreen match={match} onRematch={handleRematch} onExit={onExit} />;
+  }
+
+  const darts = [match.currentVisitThrows[0] ?? null, match.currentVisitThrows[1] ?? null, match.currentVisitThrows[2] ?? null];
+  const activePlayer = match.players.find((p) => p.id === match.activePlayerId);
 
   return (
     <div className="game-screen">
@@ -35,14 +51,20 @@ export function GameScreen({ game, players, onExit }: Props) {
         <BoardControlBar />
       </header>
 
-      <PlayerScoreboard players={players} activeIndex={activeIndex} />
+      <PlayerScoreboard players={match.players} activePlayerId={match.activePlayerId} />
 
       <section className="active-player-panel">
         <div className="active-player-label">CURRENT PLAYER</div>
         <div className="active-player-name">{activePlayer?.name ?? "—"}</div>
-        <div className="target-label">TARGET</div>
-        <div className="target-value">—</div>
+        {match.target && (
+          <>
+            <div className="target-label">TARGET</div>
+            <div className="target-value">{match.target}</div>
+          </>
+        )}
       </section>
+
+      <CheckoutRouteDisplay route={match.checkoutSuggestion} />
 
       <section className="current-throw-panel">
         {darts.map((label, i) => (
@@ -53,7 +75,7 @@ export function GameScreen({ game, players, onExit }: Props) {
         ))}
       </section>
 
-      <GameProgress turnCount={live.turnCount} />
+      <GameProgress round={match.round} legNumber={match.legNumber} />
 
       <GameActions onExit={handleExit} />
     </div>

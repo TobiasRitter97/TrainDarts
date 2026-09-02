@@ -42,6 +42,39 @@ export function defaultSettingsValues(schema: SettingField[]): Record<string, un
   return values;
 }
 
+// Live-Zustand eines Matches, wie ihn MatchEngine.to_dict() liefert
+// (backend/engine/engine.py). Kommt per WebSocket (useMatchState) und
+// einmalig als REST-Antwort beim Anlegen.
+export type MatchPlayer = {
+  id: string;
+  name: string;
+  score: number | null;
+  legsWon: number | null;
+  highestCheckout: number | null;
+  runsCompleted: number | null;
+  totalScore: number | null;
+  bestRun: number | null;
+  successfulCheckouts: number | null;
+  attempts: number | null;
+};
+
+export type MatchState = {
+  matchId: string;
+  gameId: string;
+  gameName: string;
+  engineFamily: string;
+  players: MatchPlayer[];
+  activePlayerId: string;
+  currentVisitThrows: string[];
+  target: string | null;
+  checkoutSuggestion: string[] | null;
+  round: number;
+  legNumber: number | null;
+  finished: boolean;
+  winnerId: string | null;
+  winnerName: string | null;
+};
+
 const BASE = "/api";
 
 async function asJson<T>(res: Response): Promise<T> {
@@ -95,5 +128,17 @@ export const api = {
 
   resetBoard(): Promise<{ ok: boolean }> {
     return fetch(`${BASE}/board/reset`, { method: "POST" }).then((res) => asJson(res));
+  },
+
+  createMatch(gameId: string, playerIds: string[], settings: Record<string, unknown>): Promise<{ matchId: string; state: MatchState }> {
+    return fetch(`${BASE}/matches`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ gameId, playerIds, settings }),
+    }).then((res) => asJson(res));
+  },
+
+  getActiveMatch(): Promise<MatchState | null> {
+    return fetch(`${BASE}/matches/active`).then((res) => asJson(res));
   },
 };

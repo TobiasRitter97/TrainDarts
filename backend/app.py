@@ -10,12 +10,14 @@ import asyncio
 import json
 import logging
 import os
+import uuid
 from pathlib import Path
 
 from aiohttp import web
 
 from backend.adapter.autodarts import AutodartsAdapter
 from backend.config import games as games_config
+from backend.engine.engine import MatchEngine
 from backend.persistence import models
 from backend.persistence.db import init_db
 
@@ -32,6 +34,11 @@ ws_clients: set[web.WebSocketResponse] = set()
 # einfacher Zaehler, der bei jedem Takeout hochzaehlt. Echte Turn-/
 # Score-Logik kommt erst mit der Game Engine in Phase 7.
 live_state: dict = {"throws": [], "turnCount": 0}
+
+# Es laeuft immer nur ein Match gleichzeitig (ein Board = ein aktives
+# Spiel, docs/ARCHITEKTUR.md Abschnitt 6). Noch ohne Persistenz/
+# Event-Log (siehe engine.py) - kommt mit Correction/Undo in Phase 8.
+active_match: MatchEngine | None = None
 
 
 def live_snapshot() -> dict:
@@ -101,6 +108,46 @@ async def list_games(_request: web.Request) -> web.Response:
     return web.json_response(games_config.list_games())
 
 
+# ---------------------------------------------------------------- Matches
+async def create_match(request: web.Request) -> web.Response:
+    global active_match
+    body = await request.json()
+    game_id = body.get("gameId")
+    player_ids = body.get("playerIds") or []
+    settings = body.get("settings") or {}
+
+    game = games_config.get_game(game_id)
+    if not game:
+        return web.json_response({"error": "unbekanntes Spiel"}, status=400)
+    if not game.get("implemented"):
+        return web.json_response({"error": "Spiel noch nicht implementiert"}, status=400)
+    if not player_ids:
+        return web.json_response({"error": "mindestens 1 Spieler noetig"}, status=400)
+
+    players = []
+    for pid in player_ids:
+        profile = models.get_profile(pid)
+        if not profile:
+            return web.json_response({"error": f"Profil {pid} nicht gefunden"}, status=400)
+        players.append({
+            "id": profile["id"],
+            "name": profile["name"],
+            "color": profile["color"],
+            "initials": profile["initials"],
+        })
+
+    match_id = str(uuid.uuid4())
+    active_match = MatchEngine(match_id, game, players, settings)
+    await broadcast({"type": "match_state", "data": active_match.to_dict()})
+    return web.json_response({"matchId": match_id, "state": active_match.to_dict()}, status=201)
+
+
+async def get_active_match(_request: web.Request) -> web.Response:
+    if active_match is None:
+        return web.json_response(None)
+    return web.json_response(active_match.to_dict())
+
+
 # ---------------------------------------------------------------- Board control
 # Proxy zum Board Manager, damit der Browser weiterhin nur mit unserem
 # Backend spricht (CLAUDE.md: "Browser spricht NUR mit unserem Backend,
@@ -147,6 +194,8 @@ async def ws_handler(request: web.Request) -> web.WebSocketResponse:
     adapter: AutodartsAdapter = request.app["adapter"]
     await ws.send_str(json.dumps({"type": "board_status", "data": {"status": adapter.get_status()}}))
     await ws.send_str(json.dumps({"type": "live", "data": live_snapshot()}))
+    if active_match is not None:
+        await ws.send_str(json.dumps({"type": "match_state", "data": active_match.to_dict()}))
     try:
         async for _msg in ws:
             pass  # Korrektur-/Undo-Kommandos folgen ab Phase 7/8
@@ -166,6 +215,9 @@ def make_app() -> web.Application:
     app.router.add_post("/api/profiles/{guest_id}/merge-into/{profile_id}", merge_profile)
 
     app.router.add_get("/api/games", list_games)
+
+    app.router.add_post("/api/matches", create_match)
+    app.router.add_get("/api/matches/active", get_active_match)
 
     app.router.add_get("/api/board/info", board_info)
     app.router.add_post("/api/board/start", board_start)
@@ -199,9 +251,12 @@ def make_app() -> web.Application:
         log.info("Board-Status: %s", status)
         asyncio.ensure_future(broadcast({"type": "board_status", "data": {"status": status}}))
 
-    def on_throw(label: str, _raw: dict) -> None:
+    def on_throw(label: str, raw: dict) -> None:
         live_state["throws"] = [*live_state["throws"], label]
         asyncio.ensure_future(broadcast({"type": "live", "data": live_snapshot()}))
+        if active_match is not None:
+            active_match.handle_throw(label, raw)
+            asyncio.ensure_future(broadcast({"type": "match_state", "data": active_match.to_dict()}))
 
     def on_takeout() -> None:
         live_state["throws"] = []

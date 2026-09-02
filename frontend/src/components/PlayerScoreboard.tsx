@@ -1,21 +1,20 @@
-import { Profile } from "../api";
+import { MatchPlayer } from "../api";
 
 type Props = {
-  players: Profile[];
-  activeIndex: number;
+  players: MatchPlayer[];
+  activePlayerId: string;
 };
 
 // SPEC §12/§13: alle Spieler auf einen Blick, aktiver Spieler klar
 // erkennbar (Accent-Border + leichte Hintergrundaenderung, keine
-// Animation). Score ist in Phase 6 bewusst Dummy (0) - echte
-// Punktestaende kommen mit der Game Engine in Phase 7.
-export function PlayerScoreboard({ players, activeIndex }: Props) {
+// Animation). Score kommt jetzt aus der echten Game Engine (Phase 7).
+export function PlayerScoreboard({ players, activePlayerId }: Props) {
   return (
     <div className="player-scoreboard">
-      {players.map((player, i) => (
-        <div key={player.id} className={`scoreboard-tile ${i === activeIndex ? "active" : ""}`}>
+      {players.map((player) => (
+        <div key={player.id} className={`scoreboard-tile ${player.id === activePlayerId ? "active" : ""}`}>
           <div className="scoreboard-name">{player.name}</div>
-          <div className="scoreboard-score">0</div>
+          <div className="scoreboard-score">{player.score ?? "—"}</div>
         </div>
       ))}
     </div>

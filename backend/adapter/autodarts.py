@@ -39,11 +39,13 @@ class AutodartsAdapter:
         board_port: int = 3180,
         on_status_change: Callable[[str], None] | None = None,
         on_throw: Callable[[str, dict], None] | None = None,
+        on_takeout: Callable[[], None] | None = None,
     ):
         self.board_host = board_host
         self.board_port = board_port
         self.on_status_change = on_status_change
         self.on_throw = on_throw
+        self.on_takeout = on_takeout
         self.status = "disconnected"
         self._seen_throws = 0
 
@@ -109,6 +111,8 @@ class AutodartsAdapter:
         event = d.get("event")
         if event == "Takeout finished":
             self._seen_throws = 0
+            if self.on_takeout:
+                self.on_takeout()
             return
         if event == "Throw detected":
             throws = d.get("throws", [])

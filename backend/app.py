@@ -27,6 +27,19 @@ BOARD_HOST = os.environ.get("DARTS_BOARD_HOST", "localhost")
 
 ws_clients: set[web.WebSocketResponse] = set()
 
+# Rohe Live-Wurfanzeige fuer den einheitlichen Game Screen (Phase 6).
+# Bewusst ohne Spiellogik: nur die Darts der laufenden Aufnahme und ein
+# einfacher Zaehler, der bei jedem Takeout hochzaehlt. Echte Turn-/
+# Score-Logik kommt erst mit der Game Engine in Phase 7.
+live_state: dict = {"throws": [], "turnCount": 0}
+
+
+def live_snapshot() -> dict:
+    """Kopie statt Referenz - sonst kann ein spaeter geplanter Broadcast
+    (asyncio.ensure_future) bereits den Stand eines noch spaeteren Wurfs
+    zeigen, wenn zwei Throws sehr schnell hintereinander eintreffen."""
+    return {"throws": list(live_state["throws"]), "turnCount": live_state["turnCount"]}
+
 
 async def broadcast(payload: dict) -> None:
     if not ws_clients:
@@ -131,6 +144,7 @@ async def ws_handler(request: web.Request) -> web.WebSocketResponse:
     ws_clients.add(ws)
     adapter: AutodartsAdapter = request.app["adapter"]
     await ws.send_str(json.dumps({"type": "board_status", "data": {"status": adapter.get_status()}}))
+    await ws.send_str(json.dumps({"type": "live", "data": live_snapshot()}))
     try:
         async for _msg in ws:
             pass  # Korrektur-/Undo-Kommandos folgen ab Phase 7/8
@@ -183,7 +197,21 @@ def make_app() -> web.Application:
         log.info("Board-Status: %s", status)
         asyncio.ensure_future(broadcast({"type": "board_status", "data": {"status": status}}))
 
-    adapter = AutodartsAdapter(board_host=BOARD_HOST, on_status_change=on_status_change)
+    def on_throw(label: str, _raw: dict) -> None:
+        live_state["throws"] = [*live_state["throws"], label]
+        asyncio.ensure_future(broadcast({"type": "live", "data": live_snapshot()}))
+
+    def on_takeout() -> None:
+        live_state["throws"] = []
+        live_state["turnCount"] += 1
+        asyncio.ensure_future(broadcast({"type": "live", "data": live_snapshot()}))
+
+    adapter = AutodartsAdapter(
+        board_host=BOARD_HOST,
+        on_status_change=on_status_change,
+        on_throw=on_throw,
+        on_takeout=on_takeout,
+    )
     app["adapter"] = adapter
 
     async def start_adapter(app: web.Application) -> None:

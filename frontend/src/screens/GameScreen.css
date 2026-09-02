@@ -1,0 +1,165 @@
+.game-screen {
+  max-width: 1100px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-6);
+}
+
+.game-screen-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-bottom: var(--sp-5);
+  border-bottom: 1px solid var(--c-border);
+}
+
+.game-screen-title {
+  font-size: var(--fs-lg);
+  font-weight: var(--fw-strong);
+  letter-spacing: 0.04em;
+}
+
+/* ---------- Scoreboard ---------- */
+.player-scoreboard {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: var(--sp-4);
+}
+
+.scoreboard-tile {
+  text-align: center;
+  background: var(--c-surface);
+  border: 2px solid var(--c-border);
+  border-radius: var(--radius-lg);
+  padding: var(--sp-4);
+  transition: border-color 200ms ease-out, background 200ms ease-out;
+}
+
+.scoreboard-tile.active {
+  border-color: var(--c-accent);
+  background: linear-gradient(180deg, rgba(217, 164, 65, 0.14), rgba(217, 164, 65, 0.03));
+}
+
+.scoreboard-name {
+  font-size: var(--fs-md);
+  font-weight: var(--fw-strong);
+  color: var(--c-text-muted);
+}
+
+.scoreboard-tile.active .scoreboard-name {
+  color: var(--c-accent-strong);
+}
+
+.scoreboard-score {
+  font-size: var(--fs-xl);
+  font-weight: var(--fw-display);
+  margin-top: var(--sp-1);
+}
+
+/* ---------- Active Player + Target ---------- */
+.active-player-panel {
+  text-align: center;
+  padding: var(--sp-6) 0;
+  border-top: 1px solid var(--c-border);
+  border-bottom: 1px solid var(--c-border);
+}
+
+.active-player-label,
+.target-label {
+  font-size: var(--fs-sm);
+  color: var(--c-text-muted);
+  letter-spacing: 0.1em;
+}
+
+.active-player-name {
+  font-size: var(--fs-xl);
+  font-weight: var(--fw-display);
+  color: var(--c-accent-strong);
+  margin: var(--sp-1) 0 var(--sp-5);
+}
+
+.target-value {
+  font-size: var(--fs-display);
+  font-weight: var(--fw-display);
+  line-height: 1;
+  margin-top: var(--sp-1);
+}
+
+/* ---------- Current Throw ---------- */
+.current-throw-panel {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--sp-4);
+}
+
+.dart-slot {
+  text-align: center;
+}
+
+.dart-slot-label {
+  font-size: var(--fs-xs);
+  color: var(--c-text-faint);
+  letter-spacing: 0.1em;
+  margin-bottom: var(--sp-2);
+}
+
+.dart-chip {
+  min-height: 72px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--c-border);
+  background: var(--c-surface);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: var(--fs-lg);
+  font-weight: var(--fw-display);
+}
+
+.dart-chip.filled {
+  border-color: var(--c-accent);
+  color: var(--c-accent-strong);
+}
+
+.dart-chip.empty {
+  color: var(--c-text-faint);
+  border-style: dashed;
+}
+
+/* ---------- Progress ---------- */
+.game-progress {
+  text-align: center;
+  font-size: var(--fs-sm);
+  color: var(--c-text-muted);
+  letter-spacing: 0.08em;
+}
+
+/* ---------- Actions ---------- */
+.game-actions {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--sp-3);
+  padding-top: var(--sp-5);
+  border-top: 1px solid var(--c-border);
+}
+
+.action-btn {
+  font-family: inherit;
+  min-height: var(--touch-min);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--c-border-strong);
+  background: var(--c-surface);
+  color: var(--c-text);
+  font-size: var(--fs-md);
+  font-weight: var(--fw-strong);
+  cursor: pointer;
+}
+
+.action-btn:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.action-btn-menu {
+  background: var(--c-surface-raised);
+}

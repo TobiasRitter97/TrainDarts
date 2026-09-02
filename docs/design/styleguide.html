@@ -240,6 +240,98 @@
   }
   .segment-grid button { width: 100%; }
 
+  /* ---------- DartboardPicker ---------- */
+  .dartboard-picker {
+    display: flex;
+    gap: var(--sp-6);
+    flex-wrap: wrap;
+    align-items: flex-start;
+  }
+  .dartboard-stage {
+    position: relative;
+    width: min(360px, 90vw);
+    flex-shrink: 0;
+    touch-action: none;
+  }
+  #dartboard-svg { width: 100%; height: auto; display: block; -webkit-user-select: none; user-select: none; }
+  .board-segment { cursor: pointer; transition: filter var(--anim-fast) var(--anim-ease-out); }
+  .board-segment:hover { filter: brightness(1.15); }
+  .board-segment.active-hit { filter: brightness(1.45); }
+  .board-number-label { fill: var(--c-text); font-size: 11px; font-weight: 700; pointer-events: none; }
+
+  .dart-magnifier {
+    position: absolute;
+    width: 150px;
+    height: 150px;
+    border-radius: 50%;
+    border: 3px solid var(--c-accent);
+    box-shadow: 0 8px 24px rgba(0,0,0,.5);
+    overflow: hidden;
+    pointer-events: none;
+    display: none;
+    background: var(--c-bg);
+    transform: translate(-50%, -125%);
+    z-index: 5;
+  }
+  .dart-magnifier svg { width: 100%; height: 100%; }
+  .dart-magnifier::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: 50%;
+    box-shadow: inset 0 0 0 1px rgba(237,228,206,.25);
+  }
+
+  .dart-confirm {
+    position: absolute;
+    transform: translate(-50%, -50%);
+    background: var(--c-surface-raised);
+    border: 1px solid var(--c-accent);
+    border-radius: var(--radius-md);
+    padding: var(--sp-3) var(--sp-4);
+    display: none;
+    text-align: center;
+    box-shadow: 0 8px 24px rgba(0,0,0,.5);
+    z-index: 6;
+    min-width: 190px;
+  }
+  .dart-confirm .label { font-size: var(--fs-lg); font-weight: var(--fw-display); color: var(--c-accent-strong); margin-bottom: 2px; }
+  .dart-confirm .q { font-size: var(--fs-xs); color: var(--c-text-muted); margin-bottom: var(--sp-3); }
+  .dart-confirm .row { display: flex; gap: var(--sp-2); }
+  .dart-confirm .row button { flex: 1; padding: 0 var(--sp-2); font-size: var(--fs-sm); }
+
+  .dartboard-side {
+    display: flex;
+    flex-direction: column;
+    gap: var(--sp-4);
+    min-width: 170px;
+  }
+  .dartboard-side .current {
+    background: var(--c-surface);
+    border: 1px solid var(--c-border);
+    border-radius: var(--radius-md);
+    padding: var(--sp-4);
+    text-align: center;
+  }
+  .dartboard-side .current .val { font-size: var(--fs-xl); font-weight: var(--fw-display); color: var(--c-accent); line-height: 1; }
+  .dartboard-side .current .cap { font-size: var(--fs-xs); color: var(--c-text-muted); text-transform: uppercase; letter-spacing: .08em; }
+  .dartboard-side .btn-row { flex-direction: column; align-items: stretch; }
+
+  .fallback-block {
+    margin-top: var(--sp-6);
+    padding-top: var(--sp-5);
+    border-top: 1px dashed var(--c-border);
+  }
+  .fallback-block .tag {
+    display: inline-block;
+    font-size: var(--fs-xs);
+    color: var(--c-text-muted);
+    border: 1px solid var(--c-border-strong);
+    border-radius: var(--radius-full);
+    padding: 2px 10px;
+    margin-bottom: var(--sp-3);
+  }
+
   /* ---------- Touch target demo ---------- */
   .touch-demo { display: flex; gap: var(--sp-4); align-items: center; flex-wrap: wrap; }
   .touch-box {
@@ -383,23 +475,64 @@
 </section>
 
 <section>
-  <h2>Modal (z. B. Dart-Korrektur)</h2>
-  <p class="note">Zentrale Correction-UI (SPEC §14) und der neue Fortsetzen-Dialog nach einem Neustart nutzen dasselbe Modal-Muster: erhöhte Fläche, große Touch-Targets.</p>
-  <div class="modal-demo">
-    <div class="modal">
-      <h3>DART 2 korrigieren</h3>
-      <div class="segment-grid">
-        <button class="btn-secondary">SINGLE</button>
-        <button class="btn-secondary">DOUBLE</button>
-        <button class="btn-secondary">TRIPLE</button>
+  <h2>Dart-Korrektur &amp; manuelle Eingabe — DartboardPicker</h2>
+  <p class="note">Primäre Eingabe über ein antippbares Dartboard (SPEC §14/§15) statt einer reinen Listenauswahl — ein Feld erkennt man auf dem Board sofort wieder. Antippen und halten zeigt eine Lupe für die schmalen Double-/Triple-Ringe; beim Loslassen erscheint eine Bestätigung, bevor der Wert übernommen wird. Diese Komponente (<code>DartboardPicker</code>) wird identisch in der Korrektur und bei <code>+ DART</code> verwendet. Probier es aus: auf dem Board tippen/klicken und halten.</p>
+
+  <div class="dartboard-picker">
+    <div class="dartboard-stage" id="dartboard-stage">
+      <svg id="dartboard-svg" viewBox="0 0 400 400"></svg>
+      <div class="dart-magnifier" id="dart-magnifier">
+        <svg id="dart-mag-svg" viewBox="0 0 400 400"></svg>
+      </div>
+      <div class="dart-confirm" id="dart-confirm">
+        <div class="label" id="dart-confirm-label">T20</div>
+        <div class="q">übernehmen?</div>
+        <div class="row">
+          <button class="btn-primary" id="dart-confirm-yes">Übernehmen</button>
+          <button class="btn-secondary" id="dart-confirm-no">Abbrechen</button>
+        </div>
+      </div>
+    </div>
+    <div class="dartboard-side">
+      <div class="current">
+        <div class="cap">Zuletzt übernommen</div>
+        <div class="val" id="dart-picked">—</div>
       </div>
       <div class="btn-row">
-        <button class="btn-outline">MISS</button>
-        <button class="btn-outline">BULL</button>
-        <button class="btn-outline">BOUNCER</button>
+        <button class="btn-outline" id="dart-miss">MISS</button>
+        <button class="btn-outline" id="dart-bouncer">BOUNCER</button>
       </div>
-      <div style="margin-top:var(--sp-5)">
-        <button class="btn-primary" style="width:100%">CORRECT DART</button>
+    </div>
+  </div>
+
+  <div class="fallback-block">
+    <span class="tag">Fallback</span>
+    <p class="note">Alternative Eingabe über Segment-Typ + Zahl bleibt erhalten, falls das Board unpraktisch ist. Beide Wege bedienen dieselbe Auswahl-Funktion.</p>
+    <div class="segment-grid" style="max-width:360px">
+      <button class="btn-secondary">SINGLE</button>
+      <button class="btn-secondary">DOUBLE</button>
+      <button class="btn-secondary">TRIPLE</button>
+    </div>
+    <div class="btn-row">
+      <button class="btn-outline">1</button>
+      <button class="btn-outline">2</button>
+      <button class="btn-outline">…</button>
+      <button class="btn-outline">20</button>
+      <button class="btn-outline">BULL</button>
+    </div>
+  </div>
+</section>
+
+<section>
+  <h2>Modal-Muster (z. B. Fortsetzen-Dialog nach Neustart)</h2>
+  <p class="note">Dasselbe erhöhte Modal-Muster nutzt z. B. der beschlossene Fortsetzen-Dialog nach einem Pi-Neustart (docs/ARCHITEKTUR.md, Abschnitt 8).</p>
+  <div class="modal-demo">
+    <div class="modal">
+      <h3>Angefangenes Spiel fortsetzen?</h3>
+      <p class="fs-md" style="color:var(--c-text-muted); margin: 0 0 var(--sp-5)">170 · Tobias, Rebecca · Round 4</p>
+      <div class="btn-row">
+        <button class="btn-primary" style="flex:1">Fortsetzen</button>
+        <button class="btn-secondary" style="flex:1">Verwerfen</button>
       </div>
     </div>
   </div>
@@ -429,6 +562,183 @@
 <footer>
   Phase 3 — Design System · Tokens: <code>docs/design/tokens.css</code> · Erklärung: <code>docs/DESIGN.md</code>
 </footer>
+
+<script>
+(function () {
+  const NS = "http://www.w3.org/2000/svg";
+  const NUM_ORDER = [20, 1, 18, 4, 13, 6, 10, 15, 2, 17, 3, 19, 7, 16, 8, 11, 14, 9, 12, 5];
+  const CX = 200, CY = 200;
+  const R = { bull: 6.35, outerBull: 16, tripleIn: 99, tripleOut: 107, doubleIn: 162, doubleOut: 170, label: 185, edge: 196 };
+
+  function polar(cx, cy, r, angleDeg) {
+    const rad = (angleDeg - 90) * Math.PI / 180;
+    return [cx + r * Math.cos(rad), cy + r * Math.sin(rad)];
+  }
+
+  function sectorPath(rIn, rOut, a0, a1) {
+    const [x1, y1] = polar(CX, CY, rOut, a0);
+    const [x2, y2] = polar(CX, CY, rOut, a1);
+    const [x3, y3] = polar(CX, CY, rIn, a1);
+    const [x4, y4] = polar(CX, CY, rIn, a0);
+    return `M ${x1.toFixed(2)} ${y1.toFixed(2)} A ${rOut} ${rOut} 0 0 1 ${x2.toFixed(2)} ${y2.toFixed(2)} ` +
+           `L ${x3.toFixed(2)} ${y3.toFixed(2)} A ${rIn} ${rIn} 0 0 0 ${x4.toFixed(2)} ${y4.toFixed(2)} Z`;
+  }
+
+  function addSector(parent, rIn, rOut, a0, a1, fill, label) {
+    const p = document.createElementNS(NS, "path");
+    p.setAttribute("d", sectorPath(rIn, rOut, a0, a1));
+    p.style.fill = fill;
+    p.setAttribute("class", "board-segment");
+    p.dataset.label = label;
+    parent.appendChild(p);
+  }
+
+  function buildBoard(svgEl) {
+    const root = document.createElementNS(NS, "g");
+    root.setAttribute("id", "board-root");
+
+    const bg = document.createElementNS(NS, "circle");
+    bg.setAttribute("cx", CX); bg.setAttribute("cy", CY); bg.setAttribute("r", R.edge);
+    bg.style.fill = "var(--c-surface)";
+    bg.style.stroke = "var(--c-border-strong)";
+    bg.style.strokeWidth = "2";
+    bg.setAttribute("class", "board-segment");
+    bg.dataset.label = "MISS";
+    root.appendChild(bg);
+
+    NUM_ORDER.forEach((num, i) => {
+      const a0 = -9 + i * 18, a1 = 9 + i * 18;
+      const even = i % 2 === 0;
+      const singleFill = even ? "var(--c-surface)" : "var(--c-text)";
+      const ringFill = even ? "var(--c-danger)" : "var(--c-success)";
+
+      addSector(root, R.outerBull, R.tripleIn, a0, a1, singleFill, `S${num}`);
+      addSector(root, R.tripleIn, R.tripleOut, a0, a1, ringFill, `T${num}`);
+      addSector(root, R.tripleOut, R.doubleIn, a0, a1, singleFill, `S${num}`);
+      addSector(root, R.doubleIn, R.doubleOut, a0, a1, ringFill, `D${num}`);
+
+      const [lx, ly] = polar(CX, CY, R.label, i * 18);
+      const t = document.createElementNS(NS, "text");
+      t.setAttribute("x", lx.toFixed(2)); t.setAttribute("y", ly.toFixed(2));
+      t.setAttribute("text-anchor", "middle");
+      t.setAttribute("dominant-baseline", "middle");
+      t.setAttribute("class", "board-number-label");
+      t.textContent = num;
+      root.appendChild(t);
+    });
+
+    const outerBull = document.createElementNS(NS, "circle");
+    outerBull.setAttribute("cx", CX); outerBull.setAttribute("cy", CY); outerBull.setAttribute("r", R.outerBull);
+    outerBull.style.fill = "var(--c-success)";
+    outerBull.setAttribute("class", "board-segment");
+    outerBull.dataset.label = "S25";
+    root.appendChild(outerBull);
+
+    const bullseye = document.createElementNS(NS, "circle");
+    bullseye.setAttribute("cx", CX); bullseye.setAttribute("cy", CY); bullseye.setAttribute("r", R.bull);
+    bullseye.style.fill = "var(--c-danger)";
+    bullseye.setAttribute("class", "board-segment");
+    bullseye.dataset.label = "BULL";
+    root.appendChild(bullseye);
+
+    svgEl.appendChild(root);
+  }
+
+  const svgMain = document.getElementById("dartboard-svg");
+  const stage = document.getElementById("dartboard-stage");
+  const magnifier = document.getElementById("dart-magnifier");
+  const magSvg = document.getElementById("dart-mag-svg");
+  const confirmBox = document.getElementById("dart-confirm");
+  const confirmLabel = document.getElementById("dart-confirm-label");
+  const pickedEl = document.getElementById("dart-picked");
+  if (!svgMain) return;
+
+  buildBoard(svgMain);
+  const magUse = document.createElementNS(NS, "use");
+  magUse.setAttribute("href", "#board-root");
+  magSvg.appendChild(magUse);
+
+  function svgPoint(svg, clientX, clientY) {
+    const pt = svg.createSVGPoint();
+    pt.x = clientX; pt.y = clientY;
+    const ctm = svg.getScreenCTM();
+    if (!ctm) return { x: CX, y: CY };
+    return pt.matrixTransform(ctm.inverse());
+  }
+
+  let activeSegment = null;
+  let pointerId = null;
+
+  function setActive(seg) {
+    if (activeSegment && activeSegment !== seg) activeSegment.classList.remove("active-hit");
+    activeSegment = seg;
+    if (seg) seg.classList.add("active-hit");
+  }
+
+  function updateFromPoint(clientX, clientY) {
+    const target = document.elementFromPoint(clientX, clientY);
+    const seg = target && target.classList && target.classList.contains("board-segment") ? target : null;
+    setActive(seg);
+
+    const stageRect = stage.getBoundingClientRect();
+    magnifier.style.left = (clientX - stageRect.left) + "px";
+    magnifier.style.top = (clientY - stageRect.top) + "px";
+    magnifier.style.display = "block";
+
+    const p = svgPoint(svgMain, clientX, clientY);
+    const Z = 32;
+    magSvg.setAttribute("viewBox", `${(p.x - Z).toFixed(1)} ${(p.y - Z).toFixed(1)} ${Z * 2} ${Z * 2}`);
+  }
+
+  function onDown(e) {
+    e.preventDefault();
+    pointerId = e.pointerId;
+    svgMain.setPointerCapture(pointerId);
+    confirmBox.style.display = "none";
+    updateFromPoint(e.clientX, e.clientY);
+    window.addEventListener("pointermove", onMove);
+    window.addEventListener("pointerup", onUp);
+  }
+  function onMove(e) {
+    if (e.pointerId !== pointerId) return;
+    updateFromPoint(e.clientX, e.clientY);
+  }
+  function onUp(e) {
+    if (e.pointerId !== pointerId) return;
+    window.removeEventListener("pointermove", onMove);
+    window.removeEventListener("pointerup", onUp);
+    magnifier.style.display = "none";
+    if (activeSegment) showConfirm(e.clientX, e.clientY, activeSegment);
+  }
+
+  function showConfirm(clientX, clientY, seg) {
+    const stageRect = stage.getBoundingClientRect();
+    let x = clientX - stageRect.left;
+    let y = clientY - stageRect.top;
+    x = Math.min(Math.max(x, 95), stageRect.width - 95);
+    y = Math.min(Math.max(y, 45), stageRect.height - 15);
+    confirmBox.style.left = x + "px";
+    confirmBox.style.top = y + "px";
+    confirmLabel.textContent = seg.dataset.label;
+    confirmBox.style.display = "block";
+  }
+
+  svgMain.addEventListener("pointerdown", onDown);
+
+  document.getElementById("dart-confirm-yes").addEventListener("click", () => {
+    pickedEl.textContent = confirmLabel.textContent;
+    hideConfirm();
+  });
+  document.getElementById("dart-confirm-no").addEventListener("click", hideConfirm);
+  function hideConfirm() {
+    confirmBox.style.display = "none";
+    setActive(null);
+  }
+
+  document.getElementById("dart-miss").addEventListener("click", () => { pickedEl.textContent = "MISS"; });
+  document.getElementById("dart-bouncer").addEventListener("click", () => { pickedEl.textContent = "BOUNCER"; });
+})();
+</script>
 
 </body>
 </html>

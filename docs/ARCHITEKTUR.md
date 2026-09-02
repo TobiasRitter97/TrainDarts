@@ -138,6 +138,59 @@ Jede Familie implementiert dasselbe Reducer-Interface
 (`createInitialPlayerState`, `handleThrow`, `isVisitComplete`,
 `isFinished`, `getWinner`, `getDisplayData`, `getStatistics`).
 
+### 4.1 Checkout-Vorschläge (CheckoutRoute)
+
+**Entscheidung (02.09.2026):** Für alle Checkout-basierten Spiele
+(170, 121, Catch 40, Catch 40 Easy, Random Checkout, 60 +/-) wird der
+empfohlene Weg zum Ziel angezeigt, z. B. "T20 T20 BULL" bei Rest 170 —
+wie in Autodarts üblich.
+
+**Zentrale, spielunabhängige Logik**, genutzt von den Engine-Familien
+`x01`, `checkout_range` und `random_checkout` — keine Neuimplementierung
+pro Spiel:
+
+```
+suggestRoute(remainingScore, dartsLeft, doubleOut) -> [str] | None
+```
+
+- Eingabe: aktueller Restscore, Anzahl noch verfügbarer Darts in der
+  laufenden Aufnahme, Double-Out an/aus
+- Ausgabe: empfohlene Dart-Folge (z. B. `["T20", "T20", "BULL"]`) oder
+  `None`, wenn mit den verbleibenden Darts kein Finish mehr möglich ist
+  (z. B. Rest 169 bei 3 Darts, oder Rest 41 bei nur noch 1 Dart übrig)
+- Wird nach JEDEM geworfenen Dart neu aufgerufen, nicht nur einmal pro
+  Aufnahme — Restscore und `dartsLeft` ändern sich mit jedem Wurf
+
+**Etablierte Finishwege, keine Eigenkreation:** Es wird eine
+Standard-Checkout-Tabelle verwendet, wie sie im Dartsport üblich ist
+(z. B. 170 = T20 T20 Bull, 100 = T20 D20), keine algorithmisch
+"irgendwie richtige", aber unübliche Route. Separate Tabellen für 1, 2
+und 3 verbleibende Darts, da sich der sinnvolle Vorschlag mit jedem
+Dart der Aufnahme ändert (z. B. nach einem verfehlten ersten Pfeil auf
+T20 bei Rest 170 sind nur noch 2 Darts übrig → anderer Vorschlag als
+mit 3 Darts). Bekannte "Bogey Numbers" (z. B. 169, 168, 166, 165, 163,
+162, 159 bei 3 Darts/Double-Out) liefern bewusst `None`.
+
+**Ein-/Ausblenden, zweistufig** (Anforderung von Tobias):
+
+1. **Game Setup** (SPEC §32): Einstellung pro Spiel, ob
+   Checkout-Vorschläge grundsätzlich aktiv sind — Teil des
+   `settingsSchema` der jeweiligen `GameDefinition`.
+2. **Laufendes Spiel**: schneller Toggle (Antippen der Anzeige oder
+   Menüpunkt), ohne das Spiel zu unterbrechen. Reine UI-Einstellung,
+   erzeugt kein Event im Match-Log, da sie den Spielzustand nicht
+   verändert.
+
+Beide Einstellungen werden je Profil gemerkt (lokal im Browser oder am
+Profil), statt bei jedem Spiel erneut gefragt zu werden.
+
+**Anzeige:** Komponente `CheckoutRoute` (SPEC §31) an fester Position
+im einheitlichen Game Screen (SPEC §12), deutlich zurückhaltender als
+der Restscore — Design-System Abschnitt "Typografie": `--fs-lg` statt
+`--fs-display`, damit die Hierarchie klar bleibt (Restscore zuerst
+lesbar, Vorschlag klar untergeordnet, aber weiterhin aus der Ferne
+lesbar).
+
 ---
 
 ## 5. Spielerprofile
@@ -215,6 +268,52 @@ Spielzustand durchwirken, nicht nur den einen Wurf ändern.
 3. Kompletter Replay des Event-Logs → neuer autoritativer GameState
 4. Neuer State per Live-WebSocket an alle verbundenen Clients
 5. Statistiken sind Teil des Replays, nie separat gepflegt
+
+### 7.1 Eingabe-Komponente: DartboardPicker
+
+**Entscheidung (02.09.2026):** Die Segment-Auswahl in Schritt 1 läuft
+primär über ein anklickbares SVG-Dartboard statt über eine reine
+Segment-Typ/Zahl-Liste. Grund: auf einem Dartboard erkennt man ein
+Feld sofort visuell wieder, das ist schneller und intuitiver als sich
+z. B. "Triple, dann 20" aus zwei Listen zusammenzusuchen.
+
+**Komponente `DartboardPicker`** (SPEC §31 Komponentenliste ergänzt):
+eine einzige wiederverwendbare Komponente, die an zwei Stellen
+eingesetzt wird:
+
+- in der zentralen `DartCorrection`-UI (SPEC §14, einen erkannten Wurf
+  korrigieren)
+- bei `+ DART` für die manuelle Eingabe eines nicht erkannten Wurfs
+  (SPEC §15) — technisch identisch, da ein manuell erfasster Dart
+  danach wie ein automatisch erkannter behandelt wird
+
+Anforderungen an `DartboardPicker`:
+
+1. **Alle Felder einzeln antippbar**: 20× Single innen, 20× Single
+   außen, 20× Double, 20× Triple, Outer Bull, Bullseye — als eigene
+   klickbare SVG-Flächen, nicht als grobe Zonen.
+2. **Präzision bei schmalen Ringen** (Double/Triple sind nur wenige
+   Millimeter breit): beim Antippen erscheint eine Lupe (vergrößerter
+   Ausschnitt um den Finger/Cursor), die live mitwandert, solange der
+   Finger auf dem Board bleibt.
+3. **Bestätigung vor Übernahme**: nach dem Loslassen erscheint eine
+   kurze Bestätigungsanzeige direkt am Board, z. B. "T20 —
+   übernehmen?" mit den Optionen Übernehmen/Abbrechen — verhindert,
+   dass ein leicht daneben getroffenes Feld ungewollt übernommen wird.
+4. **MISS und BOUNCER** stehen als eigene, große Buttons neben dem
+   Board (keine Fläche auf dem Board dafür nötig, kein
+   Zoom/Bestätigung nötig, da eindeutig).
+5. **Fallback bleibt erhalten**: die bisherige Auswahl über
+   Segment-Typ (Single/Double/Triple) + Zahl (1–20) bleibt als
+   Alternative bestehen, für Fälle wo das Board unpraktisch ist (z. B.
+   sehr kleiner Bildschirm) oder falls sich in der Praxis zeigt, dass
+   sie in bestimmten Situationen schneller ist. Beide bedienen
+   dieselbe Auswahl-Funktion (`onSelect(segment)`), keine doppelte
+   Logik.
+
+Eine erste optische und funktionale Vorschau (Board, Lupe,
+Bestätigung, MISS/BOUNCER, Fallback-Liste) liegt in
+`docs/design/styleguide.html`.
 
 ---
 
@@ -319,6 +418,7 @@ starten, Highscores abrufen).
         engine.py                # MultiplayerEngine: Turn/Runde, Replay-Treiber
         events.py                # Event-Typen + (De-)Serialisierung
         turns.py                 # Visit/Runden-Logik, Zufallssequenzen (Fairness)
+        checkout.py              # CheckoutRoute: Standard-Finishtabellen (Abschnitt 4.1)
       games/
         base.py                  # GameDefinition-Interface
         x01.py                   # → 170
@@ -336,13 +436,14 @@ starten, Highscores abrufen).
 
     frontend/src/
       app/                       # App-Shell, Routing, WS-Client, globaler Store
-      design/                    # Design-Tokens (Inhalt folgt in Phase 3)
+      design/                    # Design-Tokens (siehe docs/design/tokens.css)
       components/                # GameHub, GameCard, PlayerSelector, PlayerProfile,
                                   # GameSetup, GameSettings, GameShell, GameHeader,
                                   # PlayerScoreboard, ActivePlayer, TargetDisplay,
                                   # CurrentThrow, DartChip, DartCorrection,
-                                  # CheckoutRoute, GameProgress, GameStats,
-                                  # GameActions, BoardStatus, ResultScreen, Leaderboard
+                                  # DartboardPicker (Abschnitt 7.1), CheckoutRoute,
+                                  # GameProgress, GameStats, GameActions, BoardStatus,
+                                  # ResultScreen, Leaderboard
       screens/                   # GameHubScreen, GameSetupScreen, GameScreen,
                                   # ResultScreen, ProfileScreen
 

@@ -1,0 +1,96 @@
+"""
+AutodartsAdapter — verbindet sich mit dem Board Manager
+(ws://<host>:3180/api/events) und normalisiert Würfe.
+
+Übernimmt die am echten Board verifizierten Mechanismen aus dem
+Prototyp (docs/reference/darts_web.py): Reconnect alle 3s,
+Deduplizierung über throws[seen:], Takeout-Reset, Segment→Label.
+Siehe CLAUDE.md "Verifizierte Autodarts-Anbindung" und
+docs/ARCHITEKTUR.md Abschnitt 6. Keine Autodarts-Endpunkte erfinden.
+"""
+from __future__ import annotations
+
+import asyncio
+import json
+import logging
+from typing import Callable
+
+import websockets
+
+log = logging.getLogger("darts.adapter")
+
+
+def throw_label(segment: dict) -> str:
+    number = segment.get("number", 0)
+    multi = segment.get("multiplier", 0)
+    if not number or not multi:
+        return "MISS"
+    if number == 25:
+        return "BULL" if multi == 2 else "S25"
+    prefix = {1: "S", 2: "D", 3: "T"}.get(multi, "?")
+    return f"{prefix}{number}"
+
+
+class AutodartsAdapter:
+    def __init__(
+        self,
+        board_host: str = "localhost",
+        board_port: int = 3180,
+        on_status_change: Callable[[str], None] | None = None,
+        on_throw: Callable[[str, dict], None] | None = None,
+    ):
+        self.board_host = board_host
+        self.board_port = board_port
+        self.on_status_change = on_status_change
+        self.on_throw = on_throw
+        self.status = "disconnected"
+        self._seen_throws = 0
+
+    def get_status(self) -> str:
+        return self.status
+
+    def _set_status(self, status: str) -> None:
+        if status == self.status:
+            return
+        self.status = status
+        if self.on_status_change:
+            self.on_status_change(status)
+
+    async def run(self) -> None:
+        """Läuft endlos, reconnectet selbstständig — wie im Prototyp."""
+        url = f"ws://{self.board_host}:{self.board_port}/api/events"
+        while True:
+            try:
+                self._set_status("reconnecting")
+                async with websockets.connect(url, open_timeout=5) as ws:
+                    log.info("Board Manager verbunden: %s", url)
+                    self._set_status("connected")
+                    self._seen_throws = 0
+                    async for message in ws:
+                        self._handle_message(message)
+            except asyncio.CancelledError:
+                raise
+            except Exception as exc:
+                log.info("Board Manager nicht erreichbar (%s) — neuer Versuch in 3s", type(exc).__name__)
+                self._set_status("disconnected")
+                await asyncio.sleep(3)
+
+    def _handle_message(self, message: str) -> None:
+        try:
+            data = json.loads(message)
+        except json.JSONDecodeError:
+            return
+        if data.get("type") != "state":
+            return
+        d = data.get("data", {})
+        event = d.get("event")
+        if event == "Takeout finished":
+            self._seen_throws = 0
+            return
+        if event == "Throw detected":
+            throws = d.get("throws", [])
+            for t in throws[self._seen_throws:]:
+                label = throw_label(t.get("segment", {}))
+                if self.on_throw:
+                    self.on_throw(label, t)
+            self._seen_throws = len(throws)

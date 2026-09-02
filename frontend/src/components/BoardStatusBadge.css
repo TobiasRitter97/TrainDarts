@@ -1,0 +1,30 @@
+.board-status {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  font-size: var(--fs-sm);
+  color: var(--c-text-muted);
+  letter-spacing: 0.05em;
+}
+
+.board-status-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--c-status-disconnected);
+}
+
+.board-status-dot.connected {
+  background: var(--c-status-connected);
+  box-shadow: 0 0 0 3px rgba(30, 138, 76, 0.2);
+}
+
+.board-status-dot.reconnecting {
+  background: var(--c-status-reconnecting);
+  box-shadow: 0 0 0 3px rgba(217, 164, 65, 0.2);
+}
+
+.board-status-dot.disconnected {
+  background: var(--c-status-disconnected);
+  box-shadow: 0 0 0 3px rgba(200, 50, 43, 0.2);
+}

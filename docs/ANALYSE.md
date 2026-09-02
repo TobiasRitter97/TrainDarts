@@ -82,4 +82,5 @@ einzige Wahrheit für die Trainingsspiele.
 
 Phase 2 gemäß SPEC §42: Zielarchitektur im Detail (konkrete Module,
 Datenmodelle, WS-Protokoll zwischen Backend und Frontend), danach
-Phase 3 Design-System.
+Phase 3 Design-System. Das Ergebnis von Phase 2 liegt in
+`docs/ARCHITEKTUR.md`.

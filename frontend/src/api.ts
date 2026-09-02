@@ -80,4 +80,20 @@ export const api = {
   listGames(): Promise<GameDefinition[]> {
     return fetch(`${BASE}/games`).then((res) => asJson<GameDefinition[]>(res));
   },
+
+  getBoardInfo(): Promise<{ boardHost: string; boardPort: number; calibrationUrl: string }> {
+    return fetch(`${BASE}/board/info`).then((res) => asJson(res));
+  },
+
+  startBoard(): Promise<{ ok: boolean }> {
+    return fetch(`${BASE}/board/start`, { method: "POST" }).then((res) => asJson(res));
+  },
+
+  stopBoard(): Promise<{ ok: boolean }> {
+    return fetch(`${BASE}/board/stop`, { method: "POST" }).then((res) => asJson(res));
+  },
+
+  resetBoard(): Promise<{ ok: boolean }> {
+    return fetch(`${BASE}/board/reset`, { method: "POST" }).then((res) => asJson(res));
+  },
 };

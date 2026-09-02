@@ -55,6 +55,39 @@ Diese Fakten wurden am echten Board gemessen und sind verbindlich:
 - Funktionierender Referenzcode: `docs/reference/darts_web.py`
   (der Prototyp — Doppel-Training mit Web-UI, läuft auf dem Pi).
 
+### Verifizierte Board-Manager-REST-API (Start/Stop/Reset)
+
+Zusätzlich zur WebSocket-Schnittstelle bietet der Board Manager eine
+REST-API unter `http://<board-host>:3180/api/...`. Verifiziert am
+02.09.2026 gegen den echten, produktiv laufenden Board Manager unter
+`192.168.188.97:3180` — nicht durch Raten der Pfade, sondern durch
+Analyse des offiziellen Board-Manager-Web-UI-Bundles
+(`http://<board-host>:3180/assets/index-*.js`), das exakt diese Pfade
+selbst verwendet:
+
+- `GET /api/ping` → Text `"pong"`, HTTP 200 (Health-Check)
+- `GET /api/state` → JSON `{connected, running, status, event,
+  numThrows, throws[]}` (aktueller Board-Zustand, read-only)
+- `PUT /api/start` → HTTP 200, leerer Body. Setzt `running: true`,
+  `status: "Throw"`, `event: "Started"`.
+- `PUT /api/stop` → HTTP 200, leerer Body. Setzt `running: false`,
+  `status: "Stopped"`, `event: "Stopped"`, `numThrows: 0`.
+- `POST /api/reset` → HTTP 200, leerer Body. `event: "Manual reset"`,
+  `numThrows: 0` (setzt die aktuelle Aufnahme zurück).
+
+Alle vier Aufrufe wurden einzeln gegen das echte Board getestet und
+funktionieren wie oben beschrieben; der Board-Zustand wurde danach in
+den ursprünglich vorgefundenen Zustand (`Stopped`) zurückversetzt.
+
+Kalibrierung (`/config/calibration*`, `/cams/calibrate/*`) wurde im
+UI-Bundle ebenfalls gefunden, aber NICHT nachgebaut — dafür öffnet die
+Anwendung stattdessen die echte Board-Manager-Oberfläche
+(`http://<board-host>:3180`) in einem neuen Tab.
+
+`POST /api/restart` existiert laut Bundle ebenfalls, wurde aber nicht
+getestet (nicht angefragt, vermutlich einschneidender als Start/Stop/
+Reset) und wird bis auf Weiteres nicht verwendet.
+
 ## Beschlossene Architektur (Details in docs/ANALYSE.md)
 
 - Backend Python 3 / aiohttp auf dem Pi: AutodartsAdapter, GameEngine,

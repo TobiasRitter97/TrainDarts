@@ -11,6 +11,59 @@ Nur 170, Bob's 27 und Random Checkout sind aktuell "implemented": True
 """
 from __future__ import annotations
 
+
+def x01_settings_schema() -> list[dict]:
+    """Gemeinsames Settings-Schema fuer alle Spiele der x01-Familie
+    (SPEC §17). Kuenftige X01-Varianten rufen diese Funktion auf statt
+    das Schema zu kopieren - so bleiben Match-Mode-Optionen wie
+    "First to X Legs" an einer Stelle gepflegt."""
+    return [
+        {"key": "doubleOut", "label": "Double Out", "type": "toggle", "default": True},
+        {
+            "key": "matchMode",
+            "label": "Match Mode",
+            "type": "select",
+            "options": [
+                {"value": "1_leg", "label": "1 Leg"},
+                {"value": "bo3", "label": "Best of 3 Legs"},
+                {"value": "bo5", "label": "Best of 5 Legs"},
+                {"value": "bo7", "label": "Best of 7 Legs"},
+                {"value": "custom", "label": "First to X Legs"},
+                {"value": "endless", "label": "Endless"},
+            ],
+            "default": "bo3",
+        },
+        {
+            "key": "customLegsToWin",
+            "label": "Legs zum Sieg (X)",
+            "type": "number",
+            "default": 3,
+            "min": 1,
+            "max": 25,
+            "showIf": {"key": "matchMode", "equals": "custom"},
+        },
+        {"key": "setsEnabled", "label": "Sets aktivieren", "type": "toggle", "default": False},
+        {
+            "key": "legsPerSet",
+            "label": "Legs pro Set",
+            "type": "number",
+            "default": 3,
+            "min": 1,
+            "max": 9,
+            "showIf": {"key": "setsEnabled", "equals": True},
+        },
+        {
+            "key": "setsToWin",
+            "label": "Sets zum Sieg",
+            "type": "number",
+            "default": 2,
+            "min": 1,
+            "max": 9,
+            "showIf": {"key": "setsEnabled", "equals": True},
+        },
+    ]
+
+
 GAMES: list[dict] = [
     {
         "id": "170",
@@ -22,41 +75,7 @@ GAMES: list[dict] = [
         "playerRange": [1, 4],
         "implemented": True,
         "durationModes": ["legs", "sets", "endless"],
-        "settingsSchema": [
-            {"key": "doubleOut", "label": "Double Out", "type": "toggle", "default": True},
-            {
-                "key": "matchMode",
-                "label": "Match Mode",
-                "type": "select",
-                "options": [
-                    {"value": "1_leg", "label": "1 Leg"},
-                    {"value": "bo3", "label": "Best of 3 Legs"},
-                    {"value": "bo5", "label": "Best of 5 Legs"},
-                    {"value": "bo7", "label": "Best of 7 Legs"},
-                    {"value": "endless", "label": "Endless"},
-                ],
-                "default": "bo3",
-            },
-            {"key": "setsEnabled", "label": "Sets aktivieren", "type": "toggle", "default": False},
-            {
-                "key": "legsPerSet",
-                "label": "Legs pro Set",
-                "type": "number",
-                "default": 3,
-                "min": 1,
-                "max": 9,
-                "showIf": {"key": "setsEnabled", "equals": True},
-            },
-            {
-                "key": "setsToWin",
-                "label": "Sets zum Sieg",
-                "type": "number",
-                "default": 2,
-                "min": 1,
-                "max": 9,
-                "showIf": {"key": "setsEnabled", "equals": True},
-            },
-        ],
+        "settingsSchema": x01_settings_schema(),
     },
     {
         "id": "bobs27",

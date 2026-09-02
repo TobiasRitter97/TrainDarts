@@ -1,0 +1,41 @@
+.board-control-bar {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-4);
+}
+
+.board-control-buttons {
+  display: flex;
+  gap: var(--sp-2);
+}
+
+.board-btn {
+  font-family: inherit;
+  min-height: 32px;
+  padding: 0 var(--sp-3);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--c-border);
+  background: var(--c-surface);
+  color: var(--c-text-muted);
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-strong);
+  letter-spacing: 0.05em;
+  cursor: pointer;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+}
+
+.board-btn:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.calibration-link {
+  color: var(--c-text-muted);
+}
+
+.board-control-error {
+  color: var(--c-danger-strong);
+  font-size: var(--fs-xs);
+}

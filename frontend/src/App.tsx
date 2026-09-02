@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { BoardStatusBadge } from "./components/BoardStatusBadge";
+import { BoardControlBar } from "./components/BoardControlBar";
 import { GameHubScreen } from "./screens/GameHubScreen";
 import { GameSetupScreen } from "./screens/GameSetupScreen";
 import "./App.css";
@@ -13,7 +13,7 @@ export default function App() {
     <div className="app-shell">
       <header className="app-header">
         <div className="app-title">DARTS TRAINING PLATFORM</div>
-        <BoardStatusBadge />
+        <BoardControlBar />
       </header>
       <main className="app-main">
         {view.screen === "hub" && (

@@ -88,6 +88,42 @@ async def list_games(_request: web.Request) -> web.Response:
     return web.json_response(games_config.list_games())
 
 
+# ---------------------------------------------------------------- Board control
+# Proxy zum Board Manager, damit der Browser weiterhin nur mit unserem
+# Backend spricht (CLAUDE.md: "Browser spricht NUR mit unserem Backend,
+# nie mit dem Board Manager"). Nutzt ausschliesslich die in CLAUDE.md
+# verifizierten Endpunkte (/api/start, /api/stop, /api/reset).
+async def board_info(request: web.Request) -> web.Response:
+    adapter: AutodartsAdapter = request.app["adapter"]
+    return web.json_response({
+        "boardHost": adapter.board_host,
+        "boardPort": adapter.board_port,
+        "calibrationUrl": adapter.calibration_url(),
+    })
+
+
+async def board_start(request: web.Request) -> web.Response:
+    return await _board_control(request, "start")
+
+
+async def board_stop(request: web.Request) -> web.Response:
+    return await _board_control(request, "stop")
+
+
+async def board_reset(request: web.Request) -> web.Response:
+    return await _board_control(request, "reset")
+
+
+async def _board_control(request: web.Request, action: str) -> web.Response:
+    adapter: AutodartsAdapter = request.app["adapter"]
+    try:
+        await getattr(adapter, action)()
+    except Exception as exc:
+        log.warning("Board-Steuerung '%s' fehlgeschlagen: %s", action, exc)
+        return web.json_response({"error": f"Board nicht erreichbar ({type(exc).__name__})"}, status=502)
+    return web.json_response({"ok": True})
+
+
 # ---------------------------------------------------------------- WebSocket
 async def ws_handler(request: web.Request) -> web.WebSocketResponse:
     ws = web.WebSocketResponse()
@@ -114,6 +150,11 @@ def make_app() -> web.Application:
     app.router.add_post("/api/profiles/{guest_id}/merge-into/{profile_id}", merge_profile)
 
     app.router.add_get("/api/games", list_games)
+
+    app.router.add_get("/api/board/info", board_info)
+    app.router.add_post("/api/board/start", board_start)
+    app.router.add_post("/api/board/stop", board_stop)
+    app.router.add_post("/api/board/reset", board_reset)
 
     app.router.add_get("/ws", ws_handler)
 

@@ -15,6 +15,7 @@ import json
 import logging
 from typing import Callable
 
+import aiohttp
 import websockets
 
 log = logging.getLogger("darts.adapter")
@@ -48,6 +49,28 @@ class AutodartsAdapter:
 
     def get_status(self) -> str:
         return self.status
+
+    def calibration_url(self) -> str:
+        return f"http://{self.board_host}:{self.board_port}"
+
+    async def start(self) -> None:
+        await self._control("PUT", "/api/start")
+
+    async def stop(self) -> None:
+        await self._control("PUT", "/api/stop")
+
+    async def reset(self) -> None:
+        await self._control("POST", "/api/reset")
+
+    async def _control(self, method: str, path: str) -> None:
+        """Board-Steuerung ueber die verifizierte REST-API des Board
+        Managers (CLAUDE.md "Verifizierte Board-Manager-REST-API").
+        Nur start/stop/reset - keine weiteren Endpunkte erfinden."""
+        url = f"http://{self.board_host}:{self.board_port}{path}"
+        timeout = aiohttp.ClientTimeout(total=5)
+        async with aiohttp.ClientSession(timeout=timeout) as session:
+            async with session.request(method, url) as resp:
+                resp.raise_for_status()
 
     def _set_status(self, status: str) -> None:
         if status == self.status:

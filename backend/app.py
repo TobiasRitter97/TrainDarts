@@ -201,7 +201,14 @@ def make_app() -> web.Application:
 def main() -> None:
     init_db()
     app = make_app()
-    log.info("Backend: http://localhost:%d  (Board Manager erwartet unter %s:3180)", PORT, BOARD_HOST)
+    if BOARD_HOST in ("localhost", "127.0.0.1"):
+        board_desc = f"{BOARD_HOST}:3180 (lokaler Wurf-Simulator erwartet, tools/board_simulator.py)"
+    else:
+        board_desc = f"{BOARD_HOST}:3180 (echtes Board)"
+    log.info("=" * 60)
+    log.info("Backend:       http://localhost:%d", PORT)
+    log.info("Board Manager: %s", board_desc)
+    log.info("=" * 60)
     web.run_app(app, port=PORT, print=None)
 
 

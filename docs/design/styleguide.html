@@ -1,0 +1,434 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<title>Darts Training Platform — Styleguide</title>
+<link rel="stylesheet" href="tokens.css">
+<style>
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--c-bg);
+    color: var(--c-text);
+    font-family: var(--font-family);
+    padding: var(--sp-6) var(--sp-5) var(--sp-8);
+  }
+  h1 {
+    font-size: var(--fs-xl);
+    font-weight: var(--fw-display);
+    margin: 0 0 var(--sp-2);
+  }
+  .lead {
+    color: var(--c-text-muted);
+    font-size: var(--fs-md);
+    max-width: 62ch;
+    margin: 0 0 var(--sp-7);
+  }
+  section {
+    margin-bottom: var(--sp-8);
+  }
+  h2 {
+    font-size: var(--fs-lg);
+    font-weight: var(--fw-strong);
+    border-bottom: 1px solid var(--c-border);
+    padding-bottom: var(--sp-3);
+    margin: 0 0 var(--sp-5);
+  }
+  .note {
+    color: var(--c-text-muted);
+    font-size: var(--fs-sm);
+    margin: 0 0 var(--sp-5);
+    max-width: 70ch;
+    line-height: 1.6;
+  }
+
+  /* ---------- Farben ---------- */
+  .swatches {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+    gap: var(--sp-4);
+  }
+  .swatch {
+    border: 1px solid var(--c-border);
+    border-radius: var(--radius-md);
+    overflow: hidden;
+    background: var(--c-surface);
+  }
+  .swatch .fill {
+    height: 64px;
+  }
+  .swatch .label {
+    padding: var(--sp-3);
+    font-size: var(--fs-xs);
+  }
+  .swatch .label b {
+    display: block;
+    font-size: var(--fs-sm);
+    font-weight: var(--fw-strong);
+    margin-bottom: 2px;
+  }
+  .swatch .label code {
+    color: var(--c-text-muted);
+  }
+
+  /* ---------- Typografie ---------- */
+  .type-row {
+    display: flex;
+    align-items: baseline;
+    gap: var(--sp-5);
+    padding: var(--sp-3) 0;
+    border-bottom: 1px solid var(--c-border);
+  }
+  .type-row .label {
+    width: 110px;
+    flex-shrink: 0;
+    color: var(--c-text-muted);
+    font-size: var(--fs-xs);
+  }
+  .fs-display { font-size: var(--fs-display); font-weight: var(--fw-display); line-height: 1; }
+  .fs-xl { font-size: var(--fs-xl); font-weight: var(--fw-display); line-height: 1; }
+  .fs-lg { font-size: var(--fs-lg); font-weight: var(--fw-strong); }
+  .fs-md { font-size: var(--fs-md); font-weight: var(--fw-regular); }
+  .fs-sm { font-size: var(--fs-sm); color: var(--c-text-muted); }
+  .fs-xs { font-size: var(--fs-xs); color: var(--c-text-faint); }
+
+  /* ---------- Buttons ---------- */
+  .btn-row { display: flex; flex-wrap: wrap; gap: var(--sp-4); align-items: center; }
+  button {
+    font-family: inherit;
+    font-size: var(--fs-md);
+    font-weight: var(--fw-strong);
+    min-height: var(--touch-min);
+    padding: 0 var(--sp-5);
+    border-radius: var(--radius-md);
+    border: 1px solid var(--c-border);
+    background: var(--c-surface);
+    color: var(--c-text);
+    cursor: pointer;
+    transition: transform var(--anim-fast) var(--anim-ease-out);
+  }
+  button:active { transform: scale(.97); }
+  .btn-primary { background: var(--c-accent); border-color: var(--c-accent); color: #1a1500; }
+  .btn-secondary { background: var(--c-surface); border-color: var(--c-border-strong); }
+  .btn-success { background: var(--c-success); border-color: var(--c-success); color: #fff; }
+  .btn-outline { background: transparent; border-color: var(--c-accent); color: var(--c-accent); }
+
+  /* ---------- Scores ---------- */
+  .score-demo {
+    display: flex;
+    gap: var(--sp-6);
+    align-items: flex-end;
+    flex-wrap: wrap;
+  }
+  .score-demo .target {
+    text-align: center;
+  }
+  .score-demo .target .num {
+    font-size: var(--fs-display);
+    font-weight: var(--fw-display);
+    color: var(--c-accent);
+    line-height: 1;
+  }
+  .score-demo .target .label {
+    font-size: var(--fs-sm);
+    color: var(--c-text-muted);
+    letter-spacing: .08em;
+    text-transform: uppercase;
+  }
+  .dart-chips { display: flex; gap: var(--sp-3); }
+  .chip {
+    padding: var(--sp-3) var(--sp-4);
+    border-radius: var(--radius-sm);
+    background: var(--c-surface);
+    border: 1px solid var(--c-border);
+    font-weight: var(--fw-strong);
+    font-size: var(--fs-lg);
+    min-width: var(--touch-min);
+    min-height: var(--touch-min);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .chip.hit { border-color: var(--c-success); color: var(--c-success-strong); }
+  .chip.triple { border-color: var(--c-info); color: var(--c-info); }
+  .chip.miss { color: var(--c-text-faint); }
+
+  /* ---------- Cards ---------- */
+  .cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: var(--sp-4);
+  }
+  .card {
+    background: var(--c-surface);
+    border: 1px solid var(--c-border);
+    border-radius: var(--radius-lg);
+    padding: var(--sp-5);
+    transition: transform var(--anim-fast) var(--anim-ease-out);
+  }
+  .card:hover { transform: translateY(-2px); border-color: var(--c-border-strong); }
+  .card .icon { font-size: 32px; margin-bottom: var(--sp-3); }
+  .card .title { font-size: var(--fs-lg); font-weight: var(--fw-strong); margin-bottom: 2px; }
+  .card .category { color: var(--c-text-muted); font-size: var(--fs-sm); margin-bottom: var(--sp-4); }
+  .card .best { font-size: var(--fs-xs); color: var(--c-text-faint); text-transform: uppercase; letter-spacing: .08em; }
+  .card .best b { display: block; font-size: var(--fs-lg); color: var(--c-accent); font-weight: var(--fw-display); }
+
+  /* ---------- Player States ---------- */
+  .players {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: var(--sp-4);
+  }
+  .player {
+    background: var(--c-surface);
+    border: 2px solid var(--c-border);
+    border-radius: var(--radius-md);
+    padding: var(--sp-4);
+    text-align: center;
+    transition: border-color var(--anim-med) var(--anim-ease-in-out),
+                background var(--anim-med) var(--anim-ease-in-out);
+  }
+  .player.active {
+    border-color: var(--c-accent);
+    background: linear-gradient(180deg, rgba(217,164,65,.14), rgba(217,164,65,.03));
+  }
+  .player .name { font-weight: var(--fw-strong); font-size: var(--fs-md); }
+  .player.active .name { color: var(--c-accent-strong); }
+  .player .value { font-size: var(--fs-xl); font-weight: var(--fw-display); margin-top: var(--sp-1); }
+  .player .indicator {
+    display: inline-block;
+    font-size: var(--fs-xs);
+    color: var(--c-accent);
+    text-transform: uppercase;
+    letter-spacing: .1em;
+    margin-top: var(--sp-2);
+    visibility: hidden;
+  }
+  .player.active .indicator { visibility: visible; }
+
+  /* ---------- Statusfarben ---------- */
+  .status-row { display: flex; gap: var(--sp-6); flex-wrap: wrap; }
+  .status { display: flex; align-items: center; gap: var(--sp-2); font-size: var(--fs-sm); color: var(--c-text-muted); }
+  .dot { width: 10px; height: 10px; border-radius: 50%; }
+  .dot.connected { background: var(--c-status-connected); box-shadow: 0 0 0 3px rgba(30,138,76,.2); }
+  .dot.reconnecting { background: var(--c-status-reconnecting); box-shadow: 0 0 0 3px rgba(217,164,65,.2); }
+  .dot.disconnected { background: var(--c-status-disconnected); box-shadow: 0 0 0 3px rgba(200,50,43,.2); }
+
+  /* ---------- Modal ---------- */
+  .modal-demo {
+    background: rgba(0,0,0,.55);
+    border-radius: var(--radius-lg);
+    padding: var(--sp-6);
+    display: flex;
+    justify-content: center;
+  }
+  .modal {
+    background: var(--c-surface-raised);
+    border: 1px solid var(--c-border-strong);
+    border-radius: var(--radius-lg);
+    padding: var(--sp-6);
+    max-width: 420px;
+    width: 100%;
+  }
+  .modal h3 { margin: 0 0 var(--sp-4); font-size: var(--fs-lg); }
+  .segment-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: var(--sp-3);
+    margin: var(--sp-4) 0;
+  }
+  .segment-grid button { width: 100%; }
+
+  /* ---------- Touch target demo ---------- */
+  .touch-demo { display: flex; gap: var(--sp-4); align-items: center; flex-wrap: wrap; }
+  .touch-box {
+    width: var(--touch-min);
+    height: var(--touch-min);
+    border-radius: var(--radius-sm);
+    background: var(--c-accent);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #1a1500;
+    font-weight: var(--fw-strong);
+    font-size: var(--fs-xs);
+  }
+
+  footer {
+    color: var(--c-text-faint);
+    font-size: var(--fs-xs);
+    border-top: 1px solid var(--c-border);
+    padding-top: var(--sp-5);
+  }
+</style>
+</head>
+<body>
+
+<h1>Darts Training Platform — Styleguide</h1>
+<p class="lead">
+  Lebendige Vorschau der Design-Tokens aus <code>tokens.css</code>.
+  Diese Seite bindet die echten Tokens ein — ändert sich dort ein
+  Wert, ändert er sich automatisch auch hier. Details und Begründung
+  zu jedem Baustein stehen in <code>docs/DESIGN.md</code>.
+</p>
+
+<section>
+  <h2>Farben</h2>
+  <p class="note">Dark Mode, hoher Kontrast, angelehnt an Sisal-Matte und Spinnendraht am echten Board. Rot/Grün/Gold/Blau sind bewusst zurückhaltend eingesetzt statt als Neon-Flächen (SPEC §11).</p>
+  <div class="swatches">
+    <div class="swatch"><div class="fill" style="background:var(--c-bg)"></div><div class="label"><b>Background</b><code>--c-bg</code></div></div>
+    <div class="swatch"><div class="fill" style="background:var(--c-surface)"></div><div class="label"><b>Surface</b><code>--c-surface</code></div></div>
+    <div class="swatch"><div class="fill" style="background:var(--c-surface-raised)"></div><div class="label"><b>Surface Raised</b><code>--c-surface-raised</code></div></div>
+    <div class="swatch"><div class="fill" style="background:var(--c-border)"></div><div class="label"><b>Border</b><code>--c-border</code></div></div>
+    <div class="swatch"><div class="fill" style="background:var(--c-text)"></div><div class="label"><b>Text</b><code>--c-text</code></div></div>
+    <div class="swatch"><div class="fill" style="background:var(--c-text-muted)"></div><div class="label"><b>Text Muted</b><code>--c-text-muted</code></div></div>
+    <div class="swatch"><div class="fill" style="background:var(--c-accent)"></div><div class="label"><b>Accent (Gold)</b><code>--c-accent</code></div></div>
+    <div class="swatch"><div class="fill" style="background:var(--c-success)"></div><div class="label"><b>Success</b><code>--c-success</code></div></div>
+    <div class="swatch"><div class="fill" style="background:var(--c-danger)"></div><div class="label"><b>Danger</b><code>--c-danger</code></div></div>
+    <div class="swatch"><div class="fill" style="background:var(--c-info)"></div><div class="label"><b>Info / Triple</b><code>--c-info</code></div></div>
+  </div>
+</section>
+
+<section>
+  <h2>Typografie</h2>
+  <p class="note">Systemschrift (kein Web-Font-Download nötig — schnell auf dem Pi). Große Zahlen sind Pflicht, damit alles aus mehreren Metern lesbar bleibt (SPEC §39).</p>
+  <div class="type-row"><div class="label">Display</div><div class="fs-display">170</div></div>
+  <div class="type-row"><div class="label">XL (Score)</div><div class="fs-xl">143</div></div>
+  <div class="type-row"><div class="label">LG (Header)</div><div class="fs-lg">BOB'S 27</div></div>
+  <div class="type-row"><div class="label">MD (Text)</div><div class="fs-md">Standardtext für Buttons und Beschreibungen</div></div>
+  <div class="type-row"><div class="label">SM (Label)</div><div class="fs-sm">Sekundärlabel, z. B. "Round 8 / 21"</div></div>
+  <div class="type-row"><div class="label">XS (Meta)</div><div class="fs-xs">Meta-Info, z. B. Zeitstempel</div></div>
+</section>
+
+<section>
+  <h2>Buttons</h2>
+  <p class="note">Alle Buttons erfüllen die Mindest-Touch-Größe (56px). UNDO ist bewusst nicht als "gefährlicher" roter Button gestaltet, da es eine häufige, normale Aktion ist (SPEC §16).</p>
+  <div class="btn-row">
+    <button class="btn-primary">START GAME</button>
+    <button class="btn-secondary">MENU</button>
+    <button class="btn-outline">UNDO</button>
+    <button class="btn-success">CORRECT DART</button>
+  </div>
+</section>
+
+<section>
+  <h2>Scores &amp; Darts</h2>
+  <p class="note">Zielanzeige und Wurf-Chips wie im einheitlichen Game Screen (SPEC §12). Trefferfarben sind Feedback, keine Deko: grün = Treffer, blau = Triple, gedämpft = Miss.</p>
+  <div class="score-demo">
+    <div class="target"><div class="num">D16</div><div class="label">Target</div></div>
+    <div class="dart-chips">
+      <div class="chip hit">D16</div>
+      <div class="chip triple">T20</div>
+      <div class="chip miss">MISS</div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <h2>Game Cards</h2>
+  <p class="note">Große, anklickbare Kachel pro Spiel (SPEC §9, §10) — Icon, Name, Kategorie, persönlicher Highscore.</p>
+  <div class="cards">
+    <div class="card">
+      <div class="icon">🎯</div>
+      <div class="title">Bob's 27</div>
+      <div class="category">Double Training</div>
+      <div class="best">Best<b>426</b></div>
+    </div>
+    <div class="card">
+      <div class="icon">🔢</div>
+      <div class="title">170</div>
+      <div class="category">Checkout Training</div>
+      <div class="best">Best<b>3 Legs</b></div>
+    </div>
+    <div class="card">
+      <div class="icon">🎲</div>
+      <div class="title">Random Checkout</div>
+      <div class="category">Checkout Training</div>
+      <div class="best">Best<b>87%</b></div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <h2>Player States</h2>
+  <p class="note">Aktiver Spieler durch Accent-Border + leichte Hintergrundänderung erkennbar, keine übertriebene Animation (SPEC §13).</p>
+  <div class="players">
+    <div class="player active">
+      <div class="name">TOBIAS</div>
+      <div class="value">143</div>
+      <div class="indicator">● Am Zug</div>
+    </div>
+    <div class="player">
+      <div class="name">REBECCA</div>
+      <div class="value">91</div>
+      <div class="indicator">● Am Zug</div>
+    </div>
+    <div class="player">
+      <div class="name">MAX</div>
+      <div class="value">122</div>
+      <div class="indicator">● Am Zug</div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <h2>Statusfarben (Board-Verbindung)</h2>
+  <p class="note">Dezent, nicht aufdringlich (SPEC §37) — ein kleiner Punkt reicht.</p>
+  <div class="status-row">
+    <div class="status"><span class="dot connected"></span> CONNECTED</div>
+    <div class="status"><span class="dot reconnecting"></span> RECONNECTING</div>
+    <div class="status"><span class="dot disconnected"></span> DISCONNECTED</div>
+  </div>
+</section>
+
+<section>
+  <h2>Modal (z. B. Dart-Korrektur)</h2>
+  <p class="note">Zentrale Correction-UI (SPEC §14) und der neue Fortsetzen-Dialog nach einem Neustart nutzen dasselbe Modal-Muster: erhöhte Fläche, große Touch-Targets.</p>
+  <div class="modal-demo">
+    <div class="modal">
+      <h3>DART 2 korrigieren</h3>
+      <div class="segment-grid">
+        <button class="btn-secondary">SINGLE</button>
+        <button class="btn-secondary">DOUBLE</button>
+        <button class="btn-secondary">TRIPLE</button>
+      </div>
+      <div class="btn-row">
+        <button class="btn-outline">MISS</button>
+        <button class="btn-outline">BULL</button>
+        <button class="btn-outline">BOUNCER</button>
+      </div>
+      <div style="margin-top:var(--sp-5)">
+        <button class="btn-primary" style="width:100%">CORRECT DART</button>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <h2>Touch Targets</h2>
+  <p class="note">Mindestgröße 56×56px für jedes interaktive Element — auf einem Tablet neben der Scheibe muss jeder Button auch im Stehen sicher treffbar sein.</p>
+  <div class="touch-demo">
+    <div class="touch-box">56×56</div>
+    <span class="fs-sm">= <code>--touch-min</code>, gilt für Buttons, Dart-Chips, Korrektur-Optionen</span>
+  </div>
+</section>
+
+<section>
+  <h2>Responsive-Prioritäten (SPEC §39)</h2>
+  <p class="note">Das Layout wird für den größten Bildschirm entworfen und bricht kontrolliert nach unten um — nicht umgekehrt:</p>
+  <ol class="fs-md" style="line-height:2; padding-left: 1.2em;">
+    <li>16:9 Dart Display / TV <span class="fs-xs">(Referenzlayout)</span></li>
+    <li>Tablet Landscape</li>
+    <li>Desktop</li>
+    <li>Tablet Portrait <span class="fs-xs">(Scoreboard bricht um)</span></li>
+    <li>Smartphone <span class="fs-xs">(einspaltig, niedrigste Priorität)</span></li>
+  </ol>
+</section>
+
+<footer>
+  Phase 3 — Design System · Tokens: <code>docs/design/tokens.css</code> · Erklärung: <code>docs/DESIGN.md</code>
+</footer>
+
+</body>
+</html>

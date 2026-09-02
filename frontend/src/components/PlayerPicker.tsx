@@ -1,16 +1,22 @@
 import { useEffect, useState, FormEvent } from "react";
 import { api, Profile } from "../api";
-import "./PlayerSelectionScreen.css";
+import "./PlayerPicker.css";
 
-const MAX_PLAYERS = 4;
 const DEFAULT_COLOR = "#d9a441";
 
-export function PlayerSelectionScreen() {
+type Props = {
+  selected: Profile[];
+  onChange: (next: Profile[]) => void;
+  max?: number;
+};
+
+// Wiederverwendbare Spielerauswahl (SPEC §5/§6), eingebettet im
+// Game-Setup-Screen. Steuert sich komplett ueber selected/onChange,
+// damit der Setup-Screen den gewaehlten Zustand kennt.
+export function PlayerPicker({ selected, onChange, max = 4 }: Props) {
   const [profiles, setProfiles] = useState<Profile[]>([]);
-  const [selected, setSelected] = useState<Profile[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [confirmed, setConfirmed] = useState(false);
 
   const [showCreate, setShowCreate] = useState(false);
   const [newName, setNewName] = useState("");
@@ -23,11 +29,6 @@ export function PlayerSelectionScreen() {
   const [editName, setEditName] = useState("");
 
   useEffect(() => {
-    refresh();
-  }, []);
-
-  function refresh() {
-    setLoading(true);
     api
       .listProfiles()
       .then((list) => {
@@ -36,7 +37,7 @@ export function PlayerSelectionScreen() {
       })
       .catch(() => setError("Profile konnten nicht geladen werden. Läuft das Backend?"))
       .finally(() => setLoading(false));
-  }
+  }, []);
 
   function isSelected(id: string) {
     return selected.some((p) => p.id === id);
@@ -44,24 +45,22 @@ export function PlayerSelectionScreen() {
 
   function toggleSelect(profile: Profile) {
     if (isSelected(profile.id)) {
-      setSelected((prev) => prev.filter((p) => p.id !== profile.id));
-    } else if (selected.length < MAX_PLAYERS) {
-      setSelected((prev) => [...prev, profile]);
+      onChange(selected.filter((p) => p.id !== profile.id));
+    } else if (selected.length < max) {
+      onChange([...selected, profile]);
     }
   }
 
   function moveSelected(index: number, direction: -1 | 1) {
     const target = index + direction;
     if (target < 0 || target >= selected.length) return;
-    setSelected((prev) => {
-      const next = [...prev];
-      [next[index], next[target]] = [next[target], next[index]];
-      return next;
-    });
+    const next = [...selected];
+    [next[index], next[target]] = [next[target], next[index]];
+    onChange(next);
   }
 
   function removeSelected(id: string) {
-    setSelected((prev) => prev.filter((p) => p.id !== id));
+    onChange(selected.filter((p) => p.id !== id));
   }
 
   async function submitCreate(e: FormEvent) {
@@ -74,7 +73,7 @@ export function PlayerSelectionScreen() {
       color: DEFAULT_COLOR,
     });
     setProfiles((prev) => [...prev, profile]);
-    if (selected.length < MAX_PLAYERS) setSelected((prev) => [...prev, profile]);
+    if (selected.length < max) onChange([...selected, profile]);
     setNewName("");
     setNewInitials("");
     setShowCreate(false);
@@ -86,7 +85,7 @@ export function PlayerSelectionScreen() {
     if (!name) return;
     const profile = await api.createProfile({ name, is_guest: true, color: "#6b756c" });
     setProfiles((prev) => [...prev, profile]);
-    if (selected.length < MAX_PLAYERS) setSelected((prev) => [...prev, profile]);
+    if (selected.length < max) onChange([...selected, profile]);
     setGuestName("");
     setShowGuest(false);
   }
@@ -102,7 +101,7 @@ export function PlayerSelectionScreen() {
     if (!name) return;
     const updated = await api.updateProfile(id, { name });
     setProfiles((prev) => prev.map((p) => (p.id === id ? updated : p)));
-    setSelected((prev) => prev.map((p) => (p.id === id ? updated : p)));
+    onChange(selected.map((p) => (p.id === id ? updated : p)));
     setEditingId(null);
   }
 
@@ -110,32 +109,11 @@ export function PlayerSelectionScreen() {
     if (!confirm(`${profile.name} wirklich entfernen? Alte Ergebnisse bleiben erhalten.`)) return;
     await api.deleteProfile(profile.id);
     setProfiles((prev) => prev.filter((p) => p.id !== profile.id));
-    setSelected((prev) => prev.filter((p) => p.id !== profile.id));
-  }
-
-  if (confirmed) {
-    return (
-      <div className="player-selection">
-        <h1 className="screen-title">Los geht's</h1>
-        <p className="screen-note">
-          Ausgewählt (in dieser Reihenfolge): {selected.map((p) => p.name).join(" → ")}
-        </p>
-        <p className="screen-note">
-          Die nächsten Schritte (Spiel auswählen, Einstellungen, Spielbildschirm) entstehen in den
-          kommenden Phasen. Für jetzt zeigt das nur, dass die Spielerauswahl vollständig funktioniert.
-        </p>
-        <button className="btn-secondary" onClick={() => setConfirmed(false)}>
-          Zurück zur Auswahl
-        </button>
-      </div>
-    );
+    onChange(selected.filter((p) => p.id !== profile.id));
   }
 
   return (
-    <div className="player-selection">
-      <h1 className="screen-title">WHO IS PLAYING?</h1>
-      <p className="screen-note">1–4 Spieler auswählen. Reihenfolge unten änderbar.</p>
-
+    <div className="player-picker">
       {loading && <p className="screen-note">Lade Profile…</p>}
       {error && <p className="screen-error">{error}</p>}
 
@@ -157,10 +135,7 @@ export function PlayerSelectionScreen() {
                 </form>
               ) : (
                 <button className="profile-tile-main" onClick={() => toggleSelect(profile)}>
-                  <span
-                    className="avatar"
-                    style={{ background: profile.color || DEFAULT_COLOR }}
-                  >
+                  <span className="avatar" style={{ background: profile.color || DEFAULT_COLOR }}>
                     {(profile.initials || profile.name.slice(0, 2)).toUpperCase()}
                   </span>
                   <span className="profile-name">{profile.name}</span>
@@ -168,18 +143,10 @@ export function PlayerSelectionScreen() {
                 </button>
               )}
               <div className="profile-tile-actions">
-                <button
-                  className="icon-btn"
-                  title="Umbenennen"
-                  onClick={() => startEdit(profile)}
-                >
+                <button className="icon-btn" title="Umbenennen" onClick={() => startEdit(profile)}>
                   ✎
                 </button>
-                <button
-                  className="icon-btn"
-                  title="Entfernen"
-                  onClick={() => handleDelete(profile)}
-                >
+                <button className="icon-btn" title="Entfernen" onClick={() => handleDelete(profile)}>
                   ✕
                 </button>
               </div>
@@ -197,12 +164,7 @@ export function PlayerSelectionScreen() {
 
       {showCreate && (
         <form className="inline-form" onSubmit={submitCreate}>
-          <input
-            autoFocus
-            placeholder="Name"
-            value={newName}
-            onChange={(e) => setNewName(e.target.value)}
-          />
+          <input autoFocus placeholder="Name" value={newName} onChange={(e) => setNewName(e.target.value)} />
           <input
             placeholder="Kürzel (optional)"
             maxLength={3}
@@ -229,45 +191,37 @@ export function PlayerSelectionScreen() {
         </form>
       )}
 
-      <h2 className="section-title">Ausgewählte Spieler</h2>
-      {selected.length === 0 && <p className="screen-note">Noch niemand ausgewählt.</p>}
-      <ol className="selected-list">
-        {selected.map((profile, index) => (
-          <li key={profile.id} className="selected-row">
-            <span className="order-badge inline">{index + 1}</span>
-            <span className="selected-name">{profile.name}</span>
-            <div className="selected-actions">
-              <button
-                className="icon-btn"
-                disabled={index === 0}
-                onClick={() => moveSelected(index, -1)}
-                title="Nach oben"
-              >
-                ↑
-              </button>
-              <button
-                className="icon-btn"
-                disabled={index === selected.length - 1}
-                onClick={() => moveSelected(index, 1)}
-                title="Nach unten"
-              >
-                ↓
-              </button>
-              <button className="icon-btn" onClick={() => removeSelected(profile.id)} title="Entfernen">
-                ✕
-              </button>
-            </div>
-          </li>
-        ))}
-      </ol>
-
-      <button
-        className="btn-primary continue-btn"
-        disabled={selected.length === 0}
-        onClick={() => setConfirmed(true)}
-      >
-        WEITER ({selected.length}/{MAX_PLAYERS})
-      </button>
+      {selected.length > 0 && (
+        <ol className="selected-list">
+          {selected.map((profile, index) => (
+            <li key={profile.id} className="selected-row">
+              <span className="order-badge inline">{index + 1}</span>
+              <span className="selected-name">{profile.name}</span>
+              <div className="selected-actions">
+                <button
+                  className="icon-btn"
+                  disabled={index === 0}
+                  onClick={() => moveSelected(index, -1)}
+                  title="Nach oben"
+                >
+                  ↑
+                </button>
+                <button
+                  className="icon-btn"
+                  disabled={index === selected.length - 1}
+                  onClick={() => moveSelected(index, 1)}
+                  title="Nach unten"
+                >
+                  ↓
+                </button>
+                <button className="icon-btn" onClick={() => removeSelected(profile.id)} title="Entfernen">
+                  ✕
+                </button>
+              </div>
+            </li>
+          ))}
+        </ol>
+      )}
     </div>
   );
 }

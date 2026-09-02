@@ -15,6 +15,7 @@ from pathlib import Path
 from aiohttp import web
 
 from backend.adapter.autodarts import AutodartsAdapter
+from backend.config import games as games_config
 from backend.persistence import models
 from backend.persistence.db import init_db
 
@@ -82,6 +83,11 @@ async def merge_profile(request: web.Request) -> web.Response:
     return web.json_response({"ok": True})
 
 
+# ---------------------------------------------------------------- Games
+async def list_games(_request: web.Request) -> web.Response:
+    return web.json_response(games_config.list_games())
+
+
 # ---------------------------------------------------------------- WebSocket
 async def ws_handler(request: web.Request) -> web.WebSocketResponse:
     ws = web.WebSocketResponse()
@@ -106,6 +112,8 @@ def make_app() -> web.Application:
     app.router.add_put("/api/profiles/{id}", update_profile)
     app.router.add_delete("/api/profiles/{id}", delete_profile)
     app.router.add_post("/api/profiles/{guest_id}/merge-into/{profile_id}", merge_profile)
+
+    app.router.add_get("/api/games", list_games)
 
     app.router.add_get("/ws", ws_handler)
 

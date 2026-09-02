@@ -1,0 +1,76 @@
+.settings-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+}
+
+.settings-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-4);
+  background: var(--c-surface);
+  border: 1px solid var(--c-border);
+  border-radius: var(--radius-md);
+  padding: var(--sp-4);
+  flex-wrap: wrap;
+}
+
+.settings-label {
+  font-size: var(--fs-md);
+  font-weight: var(--fw-strong);
+}
+
+.option-row {
+  display: flex;
+  gap: var(--sp-2);
+  flex-wrap: wrap;
+}
+
+.option-btn {
+  min-height: var(--touch-min);
+  padding: 0 var(--sp-4);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--c-border-strong);
+  background: var(--c-surface-raised);
+  color: var(--c-text);
+  font-size: var(--fs-md);
+  font-weight: var(--fw-strong);
+  cursor: pointer;
+}
+
+.option-btn.active {
+  background: var(--c-accent);
+  border-color: var(--c-accent);
+  color: #1a1500;
+}
+
+.toggle-btn {
+  min-width: 88px;
+  min-height: var(--touch-min);
+  border-radius: var(--radius-full);
+  border: 1px solid var(--c-border-strong);
+  background: var(--c-surface-raised);
+  color: var(--c-text-muted);
+  font-weight: var(--fw-strong);
+  font-size: var(--fs-sm);
+  cursor: pointer;
+}
+
+.toggle-btn.on {
+  background: var(--c-success);
+  border-color: var(--c-success);
+  color: #fff;
+}
+
+.number-input {
+  width: 84px;
+  min-height: var(--touch-min);
+  text-align: center;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--c-border-strong);
+  background: var(--c-surface-raised);
+  color: var(--c-text);
+  font-size: var(--fs-md);
+  font-weight: var(--fw-strong);
+}

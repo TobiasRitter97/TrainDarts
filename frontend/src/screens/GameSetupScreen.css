@@ -1,0 +1,14 @@
+.game-setup {
+  max-width: 720px;
+  margin: 0 auto;
+}
+
+.back-btn {
+  margin-bottom: var(--sp-5);
+}
+
+.setup-actions {
+  display: flex;
+  gap: var(--sp-3);
+  margin-top: var(--sp-5);
+}

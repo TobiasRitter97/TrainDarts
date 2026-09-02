@@ -11,6 +11,37 @@ export type Profile = {
   created_at: string;
 };
 
+export type SettingField = {
+  key: string;
+  label: string;
+  type: "toggle" | "select" | "number";
+  default: unknown;
+  options?: { value: string; label: string }[];
+  min?: number;
+  max?: number;
+  presets?: number[];
+  showIf?: { key: string; equals: unknown };
+};
+
+export type GameDefinition = {
+  id: string;
+  name: string;
+  description: string;
+  category: string;
+  icon: string;
+  engineFamily: string;
+  playerRange: [number, number];
+  implemented: boolean;
+  durationModes: string[];
+  settingsSchema: SettingField[];
+};
+
+export function defaultSettingsValues(schema: SettingField[]): Record<string, unknown> {
+  const values: Record<string, unknown> = {};
+  for (const field of schema) values[field.key] = field.default;
+  return values;
+}
+
 const BASE = "/api";
 
 async function asJson<T>(res: Response): Promise<T> {
@@ -44,5 +75,9 @@ export const api = {
 
   deleteProfile(id: string): Promise<{ ok: boolean }> {
     return fetch(`${BASE}/profiles/${id}`, { method: "DELETE" }).then((res) => asJson<{ ok: boolean }>(res));
+  },
+
+  listGames(): Promise<GameDefinition[]> {
+    return fetch(`${BASE}/games`).then((res) => asJson<GameDefinition[]>(res));
   },
 };

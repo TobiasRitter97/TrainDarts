@@ -152,11 +152,21 @@ alte Ergebnisse mit diesem Profil bleiben in der Historie erhalten.
 jedem Spiel neu angelegt werden.
 
 **Technisch:** SQLite-Tabelle `profiles` (id, name, initials, color,
-is_guest, archived_at, created_at). Löschen ist ein Soft-Delete
-(`archived_at` gesetzt), damit alte Matches/Highscores nicht auf ein
-gelöschtes Profil zeigen. Gäste sind normale Profile mit
+is_guest, merged_into_profile_id, archived_at, created_at). Löschen ist
+ein Soft-Delete (`archived_at` gesetzt), damit alte Matches/Highscores
+nicht auf ein gelöschtes Profil zeigen. Gäste sind normale Profile mit
 `is_guest = true` und werden in der normalen Profilauswahl
-standardmäßig ausgeblendet (siehe Entscheidungsfrage unten).
+standardmäßig ausgeblendet.
+
+**Entscheidung (02.09.2026):** Gast-Ergebnisse bleiben nach dem Spiel
+erhalten und sollen später einem echten Profil zugeordnet werden
+können. Dafür bekommt `profiles` das Feld
+`merged_into_profile_id` (nullable). Wird ein Gast im Nachhinein einem
+Profil zugewiesen, wird dieses Feld gesetzt; alle Statistik- und
+Highscore-Abfragen rechnen die bisherigen Ergebnisse des Gasts danach
+dem Zielprofil zu. Der Gast-Datensatz selbst bleibt zur
+Nachvollziehbarkeit bestehen, taucht aber nirgends mehr eigenständig
+auf.
 
 ---
 
@@ -222,7 +232,8 @@ Phase 1) — jeder Neustart hat alles gelöscht.
 
 - `profiles` (siehe Abschnitt 5)
 - `matches` (id, game_id, config_json, config_hash, duration_mode,
-  started_at, finished_at, winner_profile_id)
+  status, started_at, finished_at, winner_profile_id) — `status` ist
+  `in_progress` | `finished` | `abandoned`
 - `match_players` (match_id, profile_id, seat_order)
 - `match_events` (id, match_id, seq, type, payload_json, created_at)
   — das Event-Log selbst, persistiert
@@ -239,6 +250,16 @@ Phase 1) — jeder Neustart hat alles gelöscht.
 Settings, verhindert Vermischen unterschiedlicher Einstellungen in
 Highscores (SPEC §34, z. B. Random Checkout 40–80/6 Darts vs.
 80–130/3 Darts).
+
+**Entscheidung (02.09.2026) — Unterbrochenes Spiel nach Neustart:**
+Weder automatisch fortsetzen noch automatisch verwerfen. Beim nächsten
+Öffnen der App prüft das Frontend über `GET /api/matches/active`, ob
+ein Match mit `status = in_progress` existiert. Falls ja, erscheint
+vor allem anderen ein Dialog ("Angefangenes Spiel 170 mit Tobias,
+Rebecca fortsetzen?") mit den Optionen **Fortsetzen** (Match bleibt
+`in_progress`, Event-Log wird weiter abgespielt) und **Verwerfen**
+(`status` wird auf `abandoned` gesetzt — das Event-Log bleibt zur
+Fehlersuche erhalten, fließt aber in keine Statistik/Highscore ein).
 
 ---
 
@@ -277,8 +298,11 @@ starten, Highscores abrufen).
 
 **REST:**
 - `GET/POST /api/profiles`, `PUT/DELETE /api/profiles/{id}`
+- `POST /api/profiles/{guestId}/merge-into/{profileId}` (Abschnitt 5)
 - `GET /api/games` (Game Hub)
 - `POST /api/matches` (Match anlegen + starten)
+- `GET /api/matches/active` (unterbrochenes Match für Fortsetzen-Dialog,
+  Abschnitt 8)
 - `GET /api/matches/{id}` (Ergebnis/Historie)
 - `GET /api/highscores/{gameId}?configHash=...`
 - `GET /api/profiles/{id}/stats`
@@ -327,8 +351,21 @@ starten, Highscores abrufen).
 
 ---
 
+## 12. Bau-Reihenfolge der 10 Spiele
+
+**Entscheidung (02.09.2026):** Alle 10 Spiele aus SPEC.md §3 werden
+gebaut — die Reihenfolge in SPEC §42 (Phase 9: 170, Bob's 27, Random
+Checkout als Architektur-Test; Phase 10: 121, Bob's 27 Easy, Catch 40
+Easy, Catch 40, 60 +/-, Around the World, JDC Challenge) ist
+ausschließlich die Reihenfolge, in der sie umgesetzt werden — keine
+Priorisierung, welche Spiele wichtiger sind oder ob einzelne Spiele
+später wegfallen könnten.
+
+---
+
 ## Nächster Schritt
 
 Phase 3 gemäß SPEC §42: Design System (Farben, Typografie, Spacing,
 Cards, Buttons, Scores, Player States, Statusfarben, Modals, Touch
-Targets, Responsive Regeln).
+Targets, Responsive Regeln). Das Ergebnis liegt in `docs/DESIGN.md`
+sowie einer Vorschauseite unter `docs/design/styleguide.html`.

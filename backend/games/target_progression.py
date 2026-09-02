@@ -28,10 +28,6 @@ def current_target(state: dict) -> str | None:
     return BOBS27_TARGETS[state["targetIndex"]]
 
 
-def visit_dart_cap(settings: dict) -> int:
-    return 3
-
-
 def _target_matches(target_label: str, segment: dict) -> bool:
     if target_label == "BULL":
         return segment.get("number") == 25 and segment.get("multiplier") == 2
@@ -49,7 +45,7 @@ def apply_throw(player_state: dict, visit_throws: list[dict], settings: dict) ->
     """Wird nach jedem Dart aufgerufen, wertet aber erst, wenn die
     Aufnahme (3 Darts) komplett ist - Bob's 27 zaehlt Treffer der
     kompletten Aufnahme, nicht Dart fuer Dart."""
-    if len(visit_throws) < visit_dart_cap(settings):
+    if len(visit_throws) < 3:  # eine Aufnahme = 3 Darts (Engine-weite Konstante, siehe engine.py)
         return {"outcome": "continue", "score": player_state["score"]}
 
     target_label = current_target(player_state)

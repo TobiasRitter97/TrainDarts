@@ -42,12 +42,23 @@ FORCES_VISIT_END = {
 }
 
 # Feldname im jeweiligen player_state, der den "Countdown"-Wert traegt
-# (fuer Live-Anzeige und Checkout-Vorschlag generisch nutzbar).
+# (fuer Live-Anzeige und Checkout-Vorschlag generisch nutzbar). Bei
+# checkout_range ist das der laufende Rest INNERHALB des Versuchs
+# ("remaining"), nicht das stabile Versuchsziel ("level").
 COUNTDOWN_FIELD = {
     "x01": "score",
     "random_checkout": "remaining",
-    "checkout_range": "level",
+    "checkout_range": "remaining",
 }
+
+# Engine-weite Konstante: eine Aufnahme (Board-Takeout) ist physikalisch
+# immer 3 Darts, unabhaengig vom Spiel. Ein "Versuch"/eine "Aufgabe" bei
+# checkout_range/random_checkout kann mehrere Aufnahmen umfassen
+# (dartsPerCheckout, siehe TASK_DART_CAP_KEY) - siehe
+# docs/ARCHITEKTUR.md Abschnitt 2 (Visit vs. Task/Target).
+VISIT_DART_CAP = 3
+TASK_DART_CAP_KEY = "dartsPerCheckout"
+TASK_BASED_FAMILIES = {"random_checkout", "checkout_range"}
 
 X01_MATCH_MODE_LEGS = {"1_leg": 1, "bo3": 2, "bo5": 3, "bo7": 4}
 BOBS27_MODE_RUNS = {"single": 1, "bo3": 3, "bo5": 5}
@@ -219,9 +230,8 @@ class MatchEngine:
         state = self.player_states[active_id]
         result = self.family.apply_throw(state, self.current_visit_throws, self.settings)
 
-        cap = self.family.visit_dart_cap(self.settings)
         forces_end = result.get("outcome") in FORCES_VISIT_END.get(self.family_name, set())
-        if forces_end or len(self.current_visit_throws) >= cap:
+        if forces_end or len(self.current_visit_throws) >= VISIT_DART_CAP:
             self.pending_confirmation = True
             self.pending_outcome = result.get("outcome")
 
@@ -261,26 +271,55 @@ class MatchEngine:
                     self._start_new_leg()
                     self._clear_visit()
                     return  # _start_new_leg hat den naechsten Spieler schon gesetzt
+            self._clear_visit()
+            if not self.finished:
+                self._advance_player()
+            return
 
-        elif self.family_name == "random_checkout":
-            state["remaining"] = result["score"]
+        if self.family_name in TASK_BASED_FAMILIES:
+            self._commit_task_visit(player_id, state, outcome, result)
+            return
+
+        if self.family_name == "target_progression":
+            state["score"] = result["score"]
+            state["targetIndex"] += 1
+            self._clear_visit()
+            self._maybe_finish_run(player_id)
+            if not self.finished:
+                self._advance_player()
+            return
+
+    def _commit_task_visit(self, player_id: str, state: dict, outcome: str, result: dict) -> None:
+        """random_checkout/checkout_range: ein Versuch (Aufgabe) darf bis
+        zu dartsPerCheckout Darts nutzen - das sind bei mehr als 3 Darts
+        MEHRERE Aufnahmen (Board-Takeouts) desselben Spielers. Nur wenn
+        der Versuch tatsaechlich zu Ende ist (Checkout geschafft ODER
+        Dart-Budget verbraucht), wird gewertet und der naechste Spieler
+        ist dran - siehe docs/ARCHITEKTUR.md Abschnitt 2 und die
+        Korrektur vom 03.09.2026 (vorher wurde faelschlich jede
+        3-Dart-Aufnahme wie ein kompletter Versuch behandelt)."""
+        state["remaining"] = result["score"]
+        state["dartsUsedInTask"] = state.get("dartsUsedInTask", 0) + len(self.current_visit_throws)
+        task_cap = int(self.settings.get(TASK_DART_CAP_KEY, 9))
+        task_done = outcome == "checkout" or state["dartsUsedInTask"] >= task_cap
+
+        self._clear_visit()
+
+        if not task_done:
+            # Versuch laeuft weiter - DERSELBE Spieler bekommt die naechste
+            # Aufnahme dieses Versuchs, kein Spielerwechsel.
+            return
+
+        state["dartsUsedInTask"] = 0
+        if self.family_name == "checkout_range":
+            checkout_range_family.resolve_attempt(state, self.settings, outcome == "checkout")
+        else:  # random_checkout
             if outcome == "checkout":
                 state["successfulCheckouts"] += 1
             state["attempts"] += 1
 
-        elif self.family_name == "target_progression":
-            state["score"] = result["score"]
-            state["targetIndex"] += 1
-
-        elif self.family_name == "checkout_range":
-            checkout_range_family.resolve_attempt(state, self.settings, outcome == "checkout")
-
-        self._clear_visit()
-
         if self.family_name == "random_checkout" and self.active_index == len(self.players) - 1:
             self._next_random_round()
-        if self.family_name == "target_progression":
-            self._maybe_finish_run(player_id)
         if self.family_name == "checkout_range":
             self._maybe_finish_checkout_range(player_id)
 
@@ -370,6 +409,7 @@ class MatchEngine:
         target = self._current_random_target()
         for p in self.players:
             self.player_states[p["id"]]["remaining"] = target
+            self.player_states[p["id"]]["dartsUsedInTask"] = 0
 
     # ------------------------------------------------------------ checkout_range (121 usw.)
     def _maybe_finish_checkout_range(self, player_id: str) -> None:
@@ -468,7 +508,7 @@ class MatchEngine:
             return None
         active_id = self.players[self.active_index]["id"]
         remaining = self._live_score(active_id)
-        darts_left = self.family.visit_dart_cap(self.settings) - len(self.current_visit_throws)
+        darts_left = VISIT_DART_CAP - len(self.current_visit_throws)
         double_out = self.settings.get("doubleOut", True) if self.family_name == "x01" else True
         return suggest_route(remaining, darts_left, double_out)
 

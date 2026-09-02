@@ -79,6 +79,42 @@ Die Multiplayer Engine ist zusätzlich zuständig für: Spielerreihenfolge
 (änderbar vor Spielstart), aktiven Spieler, Rundenerkennung (alle
 aktiven Spieler einmal dran).
 
+### 2.1 Aufnahme-Bestätigung durch Takeout
+
+**Entscheidung (02.09.2026):** Eine Aufnahme ist zwar nach dem dritten
+Dart (oder einem Bust/Leg-Ende) inhaltlich abgeschlossen, wird aber
+NICHT sofort verbucht. Die Anzeige friert ein: alle geworfenen Darts
+bleiben sichtbar, der vorläufige Rest wird angezeigt, der bisherige
+Spieler bleibt "aktiv". Erst das Takeout-Event vom Board (Darts werden
+physisch aus der Scheibe gezogen) — oder ersatzweise ein manueller
+Button — bestätigt die Aufnahme. Erst dann passieren Spielerwechsel,
+Rundenzähler, Leg-/Run-Ende usw. Genau wie bei Autodarts selbst: der
+Wurf ist vorläufig, bis der Spieler die Scheibe verlässt.
+
+**Warum:** Verhindert, dass ein fehlerhaft erkannter letzter Dart
+schon einen Spielerwechsel oder ein Leg-Ende auslöst, bevor er
+korrigiert werden konnte. Ohne diese Bestätigung müsste jede Korrektur
+sofort einen bereits vollzogenen Spielerwechsel rückgängig machen —
+mit ihr passiert der Wechsel gar nicht erst voreilig.
+
+**Technisch:** Die Engine unterscheidet ab jetzt zwei Zustände:
+
+- **Pending (vorläufig):** Darts sind geworfen, Cap erreicht oder
+  Bust/Checkout erkannt — die Anzeige zeigt bereits das Ergebnis, aber
+  `player_states` ist noch NICHT fortgeschrieben. Alle Darts dieser
+  Aufnahme sind noch korrigierbar (Abschnitt 7).
+- **Committed:** Erst nach der Bestätigung (Takeout-Event oder
+  manueller Button, siehe unten) greifen Spielerwechsel, Leg-/Run-
+  Wechsel, Highscore-Updates.
+
+Das Takeout-Board-Event (CLAUDE.md, "Verifizierte Autodarts-Anbindung")
+wird dafür vom reinen Deduplizierungs-Signal (bisher: `seen_throws`
+zurücksetzen) zu einem fachlichen Bestätigungs-Event aufgewertet.
+
+**Manueller Fallback:** Erkennt das Board den Takeout einmal nicht,
+gibt es im Game Screen einen Button **"Aufnahme bestätigen"**, der
+denselben Commit auslöst. Sitzt bei den GameActions neben UNDO/+DART.
+
 ---
 
 ## 3. Fairness bei Zufallszahlen
@@ -314,6 +350,32 @@ Anforderungen an `DartboardPicker`:
 Eine erste optische und funktionale Vorschau (Board, Lupe,
 Bestätigung, MISS/BOUNCER, Fallback-Liste) liegt in
 `docs/design/styleguide.html`.
+
+### 7.2 Rückwirkende Korrektur über Aufnahmen hinweg
+
+**Entscheidung (02.09.2026):** Korrigierbar ist nicht nur die laufende
+(noch unbestätigte, Abschnitt 2.1) Aufnahme, sondern auch bereits
+bestätigte Aufnahmen früherer Spieler — selbst wenn der nächste
+Spieler längst wirft. Die Korrektur muss dann automatisch alles
+Nachfolgende neu aufrollen: Spielerwechsel, Bust-Entscheidungen,
+Leg-/Run-Enden inklusive.
+
+**Warum:** SPEC §14/§16 verlangen genau das; ein Korrektursystem, das
+nur den aktuellen Zug korrigieren kann, wäre unvollständig — ein
+falsch erkannter Dart aus der vorletzten Aufnahme muss genauso
+korrigierbar sein.
+
+**Technisch — wichtige Konsequenz für Phase 8:** Das erfordert, das in
+Abschnitt 1 entworfene Event-Log tatsächlich zu bauen. Phase 7 hat den
+`MatchEngine`-Zustand aus Zeitgründen direkt mutiert (kein Log, keine
+Persistenz) — das reicht für rückwirkende Korrekturen über
+Aufnahmegrenzen hinweg nicht mehr aus. Phase 8 stellt `MatchEngine`
+daher auf echtes Event-Sourcing um: `THROW`- und
+`VISIT_CONFIRMED`-Events (Abschnitt 2.1) werden an ein Log angehängt;
+eine Korrektur fügt ein `CORRECT_THROW`-Event an der betroffenen
+Stelle ein, danach wird das komplette Log ab Match-Start neu
+abgespielt. Dadurch ist jede Korrektur — egal wie weit zurück —
+automatisch korrekt, ohne Sonderfälle pro Spielsituation.
 
 ---
 

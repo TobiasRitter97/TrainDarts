@@ -7,7 +7,7 @@ STARTING_SCORE = 170
 
 
 def create_player_state() -> dict:
-    return {"score": STARTING_SCORE, "legsWon": 0, "highestCheckout": 0}
+    return {"score": STARTING_SCORE, "legsWon": 0, "setsWon": 0, "highestCheckout": 0}
 
 
 def visit_dart_cap(settings: dict) -> int:

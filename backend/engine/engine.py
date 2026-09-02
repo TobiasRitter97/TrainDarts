@@ -153,6 +153,7 @@ class MatchEngine:
         self.current_visit_seqs: list[int] = []
         self.round_number = 1
         self.leg_number = 1
+        self.set_number = 1
         self.starting_player_index = 0
         self.finished = False
         self.winner_id: str | None = None
@@ -282,6 +283,9 @@ class MatchEngine:
             self.round_number += 1
 
     # ------------------------------------------------------------ x01 legs
+    def _sets_enabled(self) -> bool:
+        return bool(self.settings.get("setsEnabled", False))
+
     def _match_mode_target(self) -> int | None:
         mode = self.settings.get("matchMode", "bo3")
         if mode in X01_MATCH_MODE_LEGS:
@@ -291,8 +295,30 @@ class MatchEngine:
         return None  # endless
 
     def _maybe_finish_match_x01(self, winner_id: str) -> None:
+        """Bei aktivierten Sets (SPEC §17) ersetzt die Sets-Logik den
+        Match-Mode-Legziel komplett - "Legs pro Set" entscheidet den
+        Satz, "Sets zum Sieg" das Match. Ohne Sets bleibt es beim
+        bisherigen Match-Mode-Legziel."""
+        if bool(self.settings.get("setsEnabled", False)):
+            self._maybe_finish_set_x01(winner_id)
+            return
         target = self._match_mode_target()
         if target is not None and self.player_states[winner_id]["legsWon"] >= target:
+            self.finished = True
+            self.winner_id = winner_id
+
+    def _maybe_finish_set_x01(self, winner_id: str) -> None:
+        legs_per_set = int(self.settings.get("legsPerSet", 3))
+        sets_to_win = int(self.settings.get("setsToWin", 2))
+        state = self.player_states[winner_id]
+        if state["legsWon"] < legs_per_set:
+            return  # Satz innerhalb dieses Sets noch nicht entschieden
+        state["setsWon"] += 1
+        for p in self.players:
+            self.player_states[p["id"]]["legsWon"] = 0
+        self.set_number += 1
+        self.leg_number = 0  # _start_new_leg() zaehlt gleich wieder auf 1 hoch
+        if state["setsWon"] >= sets_to_win:
             self.finished = True
             self.winner_id = winner_id
 
@@ -409,6 +435,7 @@ class MatchEngine:
             "checkoutSuggestion": self._checkout_suggestion(),
             "round": self.round_number,
             "legNumber": self.leg_number if self.family_name == "x01" else None,
+            "setNumber": self.set_number if (self.family_name == "x01" and self._sets_enabled()) else None,
             "pendingConfirmation": self.pending_confirmation,
             "pendingOutcome": self.pending_outcome,
             "history": self.visit_history,
@@ -425,6 +452,7 @@ class MatchEngine:
             "name": player["name"],
             "score": self._live_score(player["id"]),
             "legsWon": state.get("legsWon"),
+            "setsWon": state.get("setsWon"),
             "highestCheckout": state.get("highestCheckout"),
             "runsCompleted": state.get("runsCompleted"),
             "totalScore": state.get("totalScore"),

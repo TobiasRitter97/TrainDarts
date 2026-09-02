@@ -50,6 +50,7 @@ export type MatchPlayer = {
   name: string;
   score: number | null;
   legsWon: number | null;
+  setsWon: number | null;
   highestCheckout: number | null;
   runsCompleted: number | null;
   totalScore: number | null;
@@ -75,6 +76,7 @@ export type MatchState = {
   checkoutSuggestion: string[] | null;
   round: number;
   legNumber: number | null;
+  setNumber: number | null;
   pendingConfirmation: boolean;
   pendingOutcome: "bust" | "checkout" | "target_done" | "continue" | null;
   history: MatchVisit[];

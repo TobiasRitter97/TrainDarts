@@ -135,7 +135,7 @@ export function GameScreen({ onExit }: Props) {
         </section>
       )}
 
-      <GameProgress round={match.round} legNumber={match.legNumber} />
+      <GameProgress round={match.round} legNumber={match.legNumber} setNumber={match.setNumber} />
 
       <GameActions
         canUndo={match.canUndo}

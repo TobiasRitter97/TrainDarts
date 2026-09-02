@@ -1,4 +1,4 @@
-import { MatchState } from "../api";
+import { MatchState, MatchPlayer } from "../api";
 import "./ResultScreen.css";
 
 type Props = {
@@ -8,16 +8,18 @@ type Props = {
 };
 
 // SPEC §33, erste einfache Version: Rangliste + je Spieler die
-// vorhandenen Kennzahlen (je nach Spiel unterschiedlich - Legs bei
-// 170, Gesamtscore bei Bob's 27, erfolgreiche Checkouts bei Random
-// Checkout). REMATCH und GAME HUB genuegen fuer den ersten Durchstich;
-// SAME/CHANGE PLAYERS und OTHER GAME folgen spaeter.
-function rankValue(p: MatchState["players"][number]): number {
+// vorhandenen Kennzahlen (je nach Spiel unterschiedlich - Sets/Legs
+// bei 170, Gesamtscore bei Bob's 27, erfolgreiche Checkouts bei
+// Random Checkout). REMATCH und GAME HUB genuegen fuer den ersten
+// Durchstich; SAME/CHANGE PLAYERS und OTHER GAME folgen spaeter.
+function rankValue(p: MatchPlayer, setsEnabled: boolean): number {
+  if (setsEnabled) return (p.setsWon ?? 0) * 1000 + (p.legsWon ?? 0);
   return p.legsWon ?? p.totalScore ?? p.successfulCheckouts ?? p.score ?? 0;
 }
 
 export function ResultScreen({ match, onRematch, onExit }: Props) {
-  const ranked = [...match.players].sort((a, b) => rankValue(b) - rankValue(a));
+  const setsEnabled = Boolean(match.settings?.setsEnabled);
+  const ranked = [...match.players].sort((a, b) => rankValue(b, setsEnabled) - rankValue(a, setsEnabled));
 
   return (
     <div className="result-screen">
@@ -30,9 +32,10 @@ export function ResultScreen({ match, onRematch, onExit }: Props) {
             <span className="result-rank">{i + 1}.</span>
             <span className="result-name">{p.name}</span>
             <span className="result-value">
-              {p.legsWon !== null && `${p.legsWon} Legs`}
-              {p.legsWon === null && p.totalScore !== null && `${p.totalScore} Punkte`}
-              {p.legsWon === null && p.totalScore === null && p.successfulCheckouts !== null &&
+              {setsEnabled && `${p.setsWon} Sets (${p.legsWon} Legs)`}
+              {!setsEnabled && p.legsWon !== null && `${p.legsWon} Legs`}
+              {!setsEnabled && p.legsWon === null && p.totalScore !== null && `${p.totalScore} Punkte`}
+              {!setsEnabled && p.legsWon === null && p.totalScore === null && p.successfulCheckouts !== null &&
                 `${p.successfulCheckouts}/${p.attempts} Checkouts`}
             </span>
           </li>

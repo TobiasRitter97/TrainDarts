@@ -7,7 +7,7 @@ import "./GameSetupScreen.css";
 type Props = {
   gameId: string;
   onBack: () => void;
-  onStart: (game: GameDefinition, players: Profile[], settings: Record<string, unknown>) => void;
+  onStart: () => void;
 };
 
 // SPEC §32: derselbe Setup-Aufbau fuer jedes Spiel - Players, dann
@@ -39,7 +39,7 @@ export function GameSetupScreen({ gameId, onBack, onStart }: Props) {
     setError(null);
     try {
       await api.createMatch(game.id, players.map((p) => p.id), settings);
-      onStart(game, players, settings);
+      onStart();
     } catch {
       setError("Match konnte nicht gestartet werden.");
     } finally {

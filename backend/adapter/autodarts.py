@@ -13,6 +13,7 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+import time
 from typing import Callable
 
 import aiohttp
@@ -48,6 +49,7 @@ class AutodartsAdapter:
         self.on_takeout = on_takeout
         self.status = "disconnected"
         self._seen_throws = 0
+        self._last_unreachable_log: float | None = None
 
     def get_status(self) -> str:
         return self.status
@@ -114,7 +116,14 @@ class AutodartsAdapter:
             except asyncio.CancelledError:
                 raise
             except Exception as exc:
-                log.info("Board Manager nicht erreichbar (%s) — neuer Versuch in 3s", type(exc).__name__)
+                # Reconnect bleibt bei 3s (unveraendert) - nur das Logging
+                # ist gedrosselt: erster Fehlschlag + danach hoechstens
+                # einmal pro Minute, damit das Log bei dauerhaft
+                # getrenntem Board nicht zuflutet.
+                now = time.monotonic()
+                if self._last_unreachable_log is None or now - self._last_unreachable_log >= 60:
+                    log.info("Board Manager nicht erreichbar (%s) — neuer Versuch alle 3s", type(exc).__name__)
+                    self._last_unreachable_log = now
                 self._set_status("disconnected")
                 await asyncio.sleep(3)
 

@@ -18,6 +18,7 @@ from aiohttp import web
 from backend.adapter.autodarts import AutodartsAdapter
 from backend.config import games as games_config
 from backend.engine.engine import MatchEngine
+from backend.persistence import matches as matches_db
 from backend.persistence import models
 from backend.persistence.db import init_db
 
@@ -36,9 +37,35 @@ ws_clients: set[web.WebSocketResponse] = set()
 live_state: dict = {"throws": [], "turnCount": 0}
 
 # Es laeuft immer nur ein Match gleichzeitig (ein Board = ein aktives
-# Spiel, docs/ARCHITEKTUR.md Abschnitt 6). Noch ohne Persistenz/
-# Event-Log (siehe engine.py) - kommt mit Correction/Undo in Phase 8.
+# Spiel, docs/ARCHITEKTUR.md Abschnitt 6). Event-Log + Persistenz seit
+# Phase 8 (engine.py / persistence/matches.py).
 active_match: MatchEngine | None = None
+
+# Match-ID eines beim Start gefundenen, nicht abgeschlossenen Matches,
+# auf dessen Fortsetzen-oder-Verwerfen-Entscheidung das Frontend noch
+# wartet (docs/ARCHITEKTUR.md Abschnitt 8). Wird NICHT automatisch in
+# active_match geladen.
+pending_resume_match_id: str | None = None
+
+
+def _persist_active_match() -> None:
+    if active_match is None:
+        return
+    status = "finished" if active_match.finished else "in_progress"
+    matches_db.save_match(
+        match_id=active_match.match_id,
+        game_id=active_match.game["id"],
+        settings=active_match.settings,
+        player_ids=[p["id"] for p in active_match.players],
+        events=active_match.events,
+        status=status,
+        winner_profile_id=active_match.winner_id,
+    )
+
+
+async def _broadcast_match_state() -> None:
+    if active_match is not None:
+        await broadcast({"type": "match_state", "data": active_match.to_dict()})
 
 
 def live_snapshot() -> dict:
@@ -110,7 +137,7 @@ async def list_games(_request: web.Request) -> web.Response:
 
 # ---------------------------------------------------------------- Matches
 async def create_match(request: web.Request) -> web.Response:
-    global active_match
+    global active_match, pending_resume_match_id
     body = await request.json()
     game_id = body.get("gameId")
     player_ids = body.get("playerIds") or []
@@ -136,9 +163,19 @@ async def create_match(request: web.Request) -> web.Response:
             "initials": profile["initials"],
         })
 
+    # Ein neues Match startet immer als DAS aktive Match - ein evtl.
+    # noch nicht abgeschlossenes altes (laufend oder noch unbeantwortet
+    # im Fortsetzen-Dialog) gilt damit implizit als aufgegeben.
+    if active_match is not None and not active_match.finished:
+        matches_db.set_status(active_match.match_id, "abandoned")
+    if pending_resume_match_id is not None:
+        matches_db.set_status(pending_resume_match_id, "abandoned")
+        pending_resume_match_id = None
+
     match_id = str(uuid.uuid4())
     active_match = MatchEngine(match_id, game, players, settings)
-    await broadcast({"type": "match_state", "data": active_match.to_dict()})
+    _persist_active_match()
+    await _broadcast_match_state()
     return web.json_response({"matchId": match_id, "state": active_match.to_dict()}, status=201)
 
 
@@ -146,6 +183,120 @@ async def get_active_match(_request: web.Request) -> web.Response:
     if active_match is None:
         return web.json_response(None)
     return web.json_response(active_match.to_dict())
+
+
+def _require_active_match(match_id: str) -> web.Response | None:
+    """Sanity-Check: verhindert, dass ein Client versehentlich auf ein
+    nicht (mehr) aktives Match einwirkt."""
+    if active_match is None or active_match.match_id != match_id:
+        return web.json_response({"error": "kein passendes aktives Match"}, status=409)
+    return None
+
+
+async def confirm_match_visit(request: web.Request) -> web.Response:
+    match_id = request.match_info["id"]
+    if (err := _require_active_match(match_id)) is not None:
+        return err
+    ok = active_match.confirm_visit()
+    _persist_active_match()
+    await _broadcast_match_state()
+    return web.json_response({"ok": ok})
+
+
+async def correct_match_throw(request: web.Request) -> web.Response:
+    match_id = request.match_info["id"]
+    if (err := _require_active_match(match_id)) is not None:
+        return err
+    body = await request.json()
+    target_seq = body.get("throwSeq")
+    segment = body.get("segment")
+    if target_seq is None or not segment:
+        return web.json_response({"error": "throwSeq und segment erforderlich"}, status=400)
+    ok = active_match.correct_throw(int(target_seq), segment)
+    _persist_active_match()
+    await _broadcast_match_state()
+    return web.json_response({"ok": ok})
+
+
+async def undo_match(request: web.Request) -> web.Response:
+    match_id = request.match_info["id"]
+    if (err := _require_active_match(match_id)) is not None:
+        return err
+    ok = active_match.undo()
+    _persist_active_match()
+    await _broadcast_match_state()
+    return web.json_response({"ok": ok})
+
+
+async def add_match_throw(request: web.Request) -> web.Response:
+    """+ DART (SPEC §15): manuelle Eingabe eines nicht erkannten Wurfs."""
+    match_id = request.match_info["id"]
+    if (err := _require_active_match(match_id)) is not None:
+        return err
+    body = await request.json()
+    segment = body.get("segment")
+    if not segment:
+        return web.json_response({"error": "segment erforderlich"}, status=400)
+    ok = active_match.add_manual_throw(segment)
+    _persist_active_match()
+    await _broadcast_match_state()
+    return web.json_response({"ok": ok})
+
+
+# ---------------------------------------------------------------- Fortsetzen nach Neustart
+async def pending_resume_info(_request: web.Request) -> web.Response:
+    if pending_resume_match_id is None:
+        return web.json_response(None)
+    row = matches_db.find_in_progress_match()
+    if row is None or row["id"] != pending_resume_match_id:
+        return web.json_response(None)
+    game = games_config.get_game(row["game_id"])
+    player_ids = matches_db.load_match_player_ids(row["id"])
+    player_names = [p["name"] for pid in player_ids if (p := models.get_profile(pid))]
+    return web.json_response({
+        "matchId": row["id"],
+        "gameId": row["game_id"],
+        "gameName": game["name"] if game else row["game_id"],
+        "playerNames": player_names,
+    })
+
+
+async def resume_match(request: web.Request) -> web.Response:
+    global active_match, pending_resume_match_id
+    match_id = request.match_info["id"]
+    if pending_resume_match_id != match_id:
+        return web.json_response({"error": "kein fortsetzbares Match mit dieser ID"}, status=409)
+
+    row = matches_db.find_in_progress_match()
+    game = games_config.get_game(row["game_id"]) if row else None
+    if row is None or game is None:
+        pending_resume_match_id = None
+        return web.json_response({"error": "Match nicht mehr vorhanden"}, status=404)
+
+    player_ids = matches_db.load_match_player_ids(match_id)
+    players = []
+    for pid in player_ids:
+        profile = models.get_profile(pid)
+        if profile:
+            players.append({"id": profile["id"], "name": profile["name"],
+                             "color": profile["color"], "initials": profile["initials"]})
+    settings = matches_db.load_match_settings(match_id)
+    events = matches_db.load_match_events(match_id)
+
+    active_match = MatchEngine(match_id, game, players, settings, events=events)
+    pending_resume_match_id = None
+    await _broadcast_match_state()
+    return web.json_response(active_match.to_dict())
+
+
+async def abandon_match(request: web.Request) -> web.Response:
+    global pending_resume_match_id
+    match_id = request.match_info["id"]
+    if pending_resume_match_id != match_id:
+        return web.json_response({"error": "kein fortsetzbares Match mit dieser ID"}, status=409)
+    matches_db.set_status(match_id, "abandoned")
+    pending_resume_match_id = None
+    return web.json_response({"ok": True})
 
 
 # ---------------------------------------------------------------- Board control
@@ -191,14 +342,19 @@ async def ws_handler(request: web.Request) -> web.WebSocketResponse:
     ws = web.WebSocketResponse(heartbeat=30)
     await ws.prepare(request)
     ws_clients.add(ws)
-    adapter: AutodartsAdapter = request.app["adapter"]
-    await ws.send_str(json.dumps({"type": "board_status", "data": {"status": adapter.get_status()}}))
-    await ws.send_str(json.dumps({"type": "live", "data": live_snapshot()}))
-    if active_match is not None:
-        await ws.send_str(json.dumps({"type": "match_state", "data": active_match.to_dict()}))
     try:
+        adapter: AutodartsAdapter = request.app["adapter"]
+        await ws.send_str(json.dumps({"type": "board_status", "data": {"status": adapter.get_status()}}))
+        await ws.send_str(json.dumps({"type": "live", "data": live_snapshot()}))
+        if active_match is not None:
+            await ws.send_str(json.dumps({"type": "match_state", "data": active_match.to_dict()}))
         async for _msg in ws:
-            pass  # Korrektur-/Undo-Kommandos folgen ab Phase 7/8
+            pass  # Kommandos laufen ueber REST (/api/matches/{id}/...), nicht ueber den WS
+    except ConnectionResetError:
+        # Normaler Fall beim Neuladen/Schliessen der Seite - der Browser
+        # kappt die Verbindung oft, ohne einen sauberen Close-Frame zu
+        # senden. Kein Fehler, kein Traceback noetig.
+        pass
     finally:
         ws_clients.discard(ws)
     return ws
@@ -218,6 +374,13 @@ def make_app() -> web.Application:
 
     app.router.add_post("/api/matches", create_match)
     app.router.add_get("/api/matches/active", get_active_match)
+    app.router.add_post("/api/matches/{id}/confirm", confirm_match_visit)
+    app.router.add_post("/api/matches/{id}/correct", correct_match_throw)
+    app.router.add_post("/api/matches/{id}/undo", undo_match)
+    app.router.add_post("/api/matches/{id}/add-throw", add_match_throw)
+    app.router.add_get("/api/matches/pending-resume", pending_resume_info)
+    app.router.add_post("/api/matches/{id}/resume", resume_match)
+    app.router.add_post("/api/matches/{id}/abandon", abandon_match)
 
     app.router.add_get("/api/board/info", board_info)
     app.router.add_post("/api/board/start", board_start)
@@ -256,12 +419,19 @@ def make_app() -> web.Application:
         asyncio.ensure_future(broadcast({"type": "live", "data": live_snapshot()}))
         if active_match is not None:
             active_match.handle_throw(label, raw)
-            asyncio.ensure_future(broadcast({"type": "match_state", "data": active_match.to_dict()}))
+            _persist_active_match()
+            asyncio.ensure_future(_broadcast_match_state())
 
     def on_takeout() -> None:
         live_state["throws"] = []
         live_state["turnCount"] += 1
         asyncio.ensure_future(broadcast({"type": "live", "data": live_snapshot()}))
+        # Takeout bestaetigt die Aufnahme (Abschnitt 2.1) - erst jetzt
+        # greifen Spielerwechsel, Leg-/Run-Ende usw.
+        if active_match is not None:
+            active_match.confirm_visit()
+            _persist_active_match()
+            asyncio.ensure_future(_broadcast_match_state())
 
     adapter = AutodartsAdapter(
         board_host=BOARD_HOST,
@@ -272,6 +442,11 @@ def make_app() -> web.Application:
     app["adapter"] = adapter
 
     async def start_adapter(app: web.Application) -> None:
+        global pending_resume_match_id
+        row = matches_db.find_in_progress_match()
+        if row is not None:
+            pending_resume_match_id = row["id"]
+            log.info("Unterbrochenes Match gefunden (%s) - wartet auf Fortsetzen/Verwerfen", row["id"])
         app["adapter_task"] = asyncio.create_task(app["adapter"].run())
 
     async def stop_adapter(app: web.Application) -> None:

@@ -1,11 +1,17 @@
 """
-MatchEngine: generische Turn-/Runden-/Leg-Logik ueber allen
-Engine-Familien. Siehe docs/ARCHITEKTUR.md Abschnitt 2 und 3.
+MatchEngine mit echtem Event-Sourcing (docs/ARCHITEKTUR.md Abschnitt 1,
+2.1, 7.2). Der Spielzustand ist IMMER ein Replay des Event-Logs -
+Korrektur und Undo aendern nur das Log, nie den State direkt.
 
-Bewusst OHNE Event-Log/Persistenz fuer Phase 7 (siehe ARCHITEKTUR.md
-"Game Engine (Event Sourcing)") - der State lebt nur im Speicher des
-laufenden Prozesses. Event-Sourcing (fuer Correction/Undo) kommt in
-Phase 8 dazu, wenn es tatsaechlich gebraucht wird.
+Event-Typen:
+  MATCH_STARTED           - einmalig, traegt bei random_checkout die
+                             vorab erzeugte Zufallssequenz
+  THROW                    - {throwSeq, segment, source}
+  VISIT_CONFIRMED          - Takeout-Bestaetigung (Abschnitt 2.1)
+  CORRECT_THROW             - {targetThrowSeq, segment}
+  ROUND_RANDOM_GENERATED   - neues Zufallsziel fuer Endless-Runden,
+                             erst bei Bedarf erzeugt, danach im Log
+                             fest (sonst waere Replay nicht deterministisch)
 """
 from __future__ import annotations
 
@@ -24,8 +30,8 @@ FAMILIES = {
     "random_checkout": random_checkout_family,
 }
 
-# Welche Wurf-Ergebnisse eine Aufnahme sofort beenden (statt erst nach
-# Erreichen von visit_dart_cap()).
+# Welche Wurf-Ergebnisse eine Aufnahme sofort "pending" machen (statt
+# erst nach Erreichen von visit_dart_cap()).
 FORCES_VISIT_END = {
     "x01": {"bust", "checkout"},
     "random_checkout": {"checkout"},  # Bust nutzt trotzdem das volle Dart-Budget (SPEC §25)
@@ -35,9 +41,12 @@ FORCES_VISIT_END = {
 X01_MATCH_MODE_LEGS = {"1_leg": 1, "bo3": 2, "bo5": 3, "bo7": 4}
 BOBS27_MODE_RUNS = {"single": 1, "bo3": 3, "bo5": 5}
 
+HISTORY_LIMIT = 3  # wie viele abgeschlossene Aufnahmen fuer Korrektur sichtbar bleiben
+
 
 class MatchEngine:
-    def __init__(self, match_id: str, game: dict, players: list[dict], settings: dict):
+    def __init__(self, match_id: str, game: dict, players: list[dict], settings: dict,
+                 events: list[dict] | None = None):
         self.match_id = match_id
         self.game = game
         self.players = players  # [{id, name, color, initials}, ...] in Sitzreihenfolge
@@ -45,80 +54,187 @@ class MatchEngine:
         self.family_name = game["engineFamily"]
         self.family = FAMILIES[self.family_name]
 
-        self.active_index = 0
-        self.current_visit_throws: list[dict] = []
-        self.round_number = 1
-        self.leg_number = 1
-        self.starting_player_index = 0
+        self.events: list[dict] = []
 
-        self.finished = False
-        self.winner_id: str | None = None
+        if events:
+            # Aus der Persistenz wiederhergestellt (Fortsetzen nach Neustart).
+            self.events = list(events)
+        else:
+            payload = {}
+            if self.family_name == "random_checkout":
+                payload["randomTargets"] = self._generate_random_targets()
+            self._append("MATCH_STARTED", payload)
 
-        self.random_targets: list[int] = []
-        self.random_target_index = 0
-        if self.family_name == "random_checkout":
-            self._init_random_checkout()
+        self._replay()
 
-        self.player_states = {p["id"]: self._create_player_state() for p in self.players}
+    # ------------------------------------------------------------ Event-Log
+    def _append(self, event_type: str, payload: dict) -> None:
+        self.events.append({"type": event_type, "payload": payload})
 
-    # ------------------------------------------------------------ setup
-    def _create_player_state(self) -> dict:
-        if self.family_name == "random_checkout":
-            return random_checkout_family.create_player_state(self._current_random_target())
-        if self.family_name == "target_progression":
-            return target_progression_family.create_player_state()
-        return x01_family.create_player_state()
+    def _next_throw_seq(self) -> int:
+        seqs = [e["payload"]["throwSeq"] for e in self.events if e["type"] == "THROW"]
+        return (max(seqs) + 1) if seqs else 0
 
-    def _init_random_checkout(self) -> None:
+    def handle_throw(self, label: str, raw: dict, source: str = "auto") -> bool:
+        """Neuer Wurf vom Board (oder manuell via + DART). Waehrend eine
+        Aufnahme auf Bestaetigung wartet, werden keine weiteren Darts
+        gezaehlt - erst confirm_visit() oder correct_throw() aendern
+        wieder etwas."""
+        if self.finished or self.pending_confirmation:
+            return False
+        segment = raw.get("segment", {})
+        self._append("THROW", {"throwSeq": self._next_throw_seq(), "segment": segment, "source": source})
+        self._replay()
+        return True
+
+    def add_manual_throw(self, segment: dict) -> bool:
+        """+ DART (SPEC §15): manuell erfasster Dart, technisch identisch
+        zu einem automatisch erkannten Wurf."""
+        return self.handle_throw(throw_label(segment), {"segment": segment}, source="manual")
+
+    def confirm_visit(self) -> bool:
+        """Takeout-Bestaetigung (Abschnitt 2.1) oder manueller
+        "Aufnahme bestaetigen"-Fallback. Erst danach greifen
+        Spielerwechsel, Leg-/Run-Wechsel, Highscores."""
+        if not self.current_visit_throws:
+            return False
+        self._append("VISIT_CONFIRMED", {})
+        self._replay()
+        self._ensure_endless_target()
+        return True
+
+    def correct_throw(self, target_throw_seq: int, segment: dict) -> bool:
+        """Korrigiert einen beliebigen Wurf (aktuelle ODER vergangene
+        Aufnahme, SPEC §14/§16) - der urspruengliche Wurf bleibt im Log
+        stehen, gilt beim Replay aber als ersetzt."""
+        if not any(e["type"] == "THROW" and e["payload"]["throwSeq"] == target_throw_seq for e in self.events):
+            return False
+        self._append("CORRECT_THROW", {"targetThrowSeq": target_throw_seq, "segment": segment})
+        self._replay()
+        self._ensure_endless_target()
+        return True
+
+    def undo(self) -> bool:
+        """Entfernt das letzte Event (Wurf, Bestaetigung oder Korrektur)
+        und spielt neu ab - macht dadurch automatisch auch bereits
+        vollzogene Spieler-/Leg-Wechsel rueckgaengig (SPEC §16)."""
+        if len(self.events) <= 1:  # nur MATCH_STARTED uebrig
+            return False
+        self.events.pop()
+        self._replay()
+        return True
+
+    def _ensure_endless_target(self) -> None:
+        """Erzeugt bei Bedarf das naechste Zufallsziel fuer Endless
+        Random Checkout - als eigenes Event, damit Replay deterministisch
+        bleibt (kein random.randint() waehrend _replay())."""
+        if self.family_name != "random_checkout" or self.finished:
+            return
+        if not bool(self.settings.get("endless", False)):
+            return
+        if self.random_target_index < len(self.random_targets):
+            return
+        lo = int(self.settings.get("minCheckout", 40))
+        hi = int(self.settings.get("maxCheckout", 120))
+        self._append("ROUND_RANDOM_GENERATED", {"value": random.randint(lo, hi)})
+        self._replay()
+
+    def _generate_random_targets(self) -> list[int]:
         lo = int(self.settings.get("minCheckout", 40))
         hi = int(self.settings.get("maxCheckout", 120))
         endless = bool(self.settings.get("endless", False))
         count = int(self.settings.get("numberOfCheckouts", 20)) if not endless else 1
-        self.random_targets = [random.randint(lo, hi) for _ in range(max(count, 1))]
+        return [random.randint(lo, hi) for _ in range(max(count, 1))]
+
+    # ------------------------------------------------------------ Replay
+    def _replay(self) -> None:
+        self.active_index = 0
+        self.current_visit_throws: list[dict] = []
+        self.current_visit_seqs: list[int] = []
+        self.round_number = 1
+        self.leg_number = 1
+        self.starting_player_index = 0
+        self.finished = False
+        self.winner_id: str | None = None
+        self.pending_confirmation = False
+        self.pending_outcome: str | None = None
+        self.visit_history: list[dict] = []
+
+        self.random_target_index = 0
+        self.random_targets: list[int] = list(self.events[0]["payload"].get("randomTargets", []))
+
+        self.player_states = {p["id"]: self._create_player_state() for p in self.players}
+
+        corrections: dict[int, dict] = {}
+        for e in self.events:
+            if e["type"] == "CORRECT_THROW":
+                corrections[e["payload"]["targetThrowSeq"]] = e["payload"]["segment"]
+
+        for e in self.events:
+            if e["type"] == "THROW":
+                throw_seq = e["payload"]["throwSeq"]
+                segment = corrections.get(throw_seq, e["payload"]["segment"])
+                self._replay_throw(segment, throw_seq)
+            elif e["type"] == "VISIT_CONFIRMED":
+                self._replay_confirm()
+            elif e["type"] == "ROUND_RANDOM_GENERATED":
+                self.random_targets.append(e["payload"]["value"])
+
+    def _create_player_state(self) -> dict:
+        if self.family_name == "random_checkout":
+            target = self.random_targets[0] if self.random_targets else 0
+            return random_checkout_family.create_player_state(target)
+        if self.family_name == "target_progression":
+            return target_progression_family.create_player_state()
+        return x01_family.create_player_state()
 
     def _current_random_target(self) -> int:
         return self.random_targets[self.random_target_index]
 
-    # ------------------------------------------------------------ throws
-    def handle_throw(self, label: str, raw: dict) -> None:
-        if self.finished:
+    def _replay_throw(self, segment: dict, throw_seq: int) -> None:
+        if self.finished or self.pending_confirmation:
+            # Kann bei einer Korrektur passieren, die eine fruehere
+            # Aufnahme rueckwirkend zum Bust/Checkout macht - danach
+            # geworfene Darts derselben (jetzt schon abgeschlossenen)
+            # Aufnahme werden beim Replay bewusst ignoriert.
             return
-        segment = raw.get("segment", {})
         self.current_visit_throws.append(segment)
+        self.current_visit_seqs.append(throw_seq)
 
         active_id = self.players[self.active_index]["id"]
         state = self.player_states[active_id]
-
         result = self.family.apply_throw(state, self.current_visit_throws, self.settings)
 
         cap = self.family.visit_dart_cap(self.settings)
         forces_end = result.get("outcome") in FORCES_VISIT_END.get(self.family_name, set())
-        visit_complete = forces_end or len(self.current_visit_throws) >= cap
+        if forces_end or len(self.current_visit_throws) >= cap:
+            self.pending_confirmation = True
+            self.pending_outcome = result.get("outcome")
 
-        if visit_complete:
-            self._end_visit(active_id, result)
-
-    def _live_score(self, player_id: str) -> int | None:
-        """Score/Remaining fuer die Anzeige. Waehrend einer laufenden
-        Aufnahme frisch berechnet (fuer den dart-fuer-dart mitzaehlenden
-        Restscore), OHNE den committeten State zu veraendern - der
-        bleibt bewusst der Stand vom Beginn der Aufnahme, bis
-        _end_visit() ihn tatsaechlich fortschreibt (siehe scoring.py:
-        ein Bust rechnet sonst faelschlich vom bereits verringerten
-        Wert weiter statt vom Aufnahme-Start)."""
-        state = self.player_states[player_id]
-        committed = state.get("score", state.get("remaining"))
-        is_active = player_id == self.players[self.active_index]["id"]
-        if not is_active or not self.current_visit_throws or self.family_name not in ("x01", "random_checkout"):
-            return committed
+    def _replay_confirm(self) -> None:
+        if not self.current_visit_throws:
+            return  # nichts zu bestaetigen (z.B. doppeltes Takeout-Event)
+        active_id = self.players[self.active_index]["id"]
+        state = self.player_states[active_id]
         result = self.family.apply_throw(state, self.current_visit_throws, self.settings)
-        return result.get("score", committed)
+        self._commit_visit(active_id, result)
+        self.pending_confirmation = False
+        self.pending_outcome = None
 
-    # ------------------------------------------------------------ visit end
-    def _end_visit(self, player_id: str, result: dict) -> None:
+    # ------------------------------------------------------------ commit (nach Bestaetigung)
+    def _commit_visit(self, player_id: str, result: dict) -> None:
         state = self.player_states[player_id]
         outcome = result.get("outcome")
         checkout_value = sum(segment_value(t) for t in self.current_visit_throws)
+
+        self.visit_history.append({
+            "playerId": player_id,
+            "throws": [
+                {"throwSeq": seq, "label": throw_label(seg)}
+                for seq, seg in zip(self.current_visit_seqs, self.current_visit_throws)
+            ],
+        })
+        self.visit_history = self.visit_history[-HISTORY_LIMIT:]
 
         if self.family_name == "x01":
             state["score"] = result["score"]
@@ -129,7 +245,7 @@ class MatchEngine:
                 self._maybe_finish_match_x01(player_id)
                 if not self.finished:
                     self._start_new_leg()
-                    self.current_visit_throws = []
+                    self._clear_visit()
                     return  # _start_new_leg hat den naechsten Spieler schon gesetzt
 
         elif self.family_name == "random_checkout":
@@ -142,7 +258,7 @@ class MatchEngine:
             state["score"] = result["score"]
             state["targetIndex"] += 1
 
-        self.current_visit_throws = []
+        self._clear_visit()
 
         if self.family_name == "random_checkout" and self.active_index == len(self.players) - 1:
             self._next_random_round()
@@ -151,6 +267,10 @@ class MatchEngine:
 
         if not self.finished:
             self._advance_player()
+
+    def _clear_visit(self) -> None:
+        self.current_visit_throws = []
+        self.current_visit_seqs = []
 
     def _advance_player(self) -> None:
         # Rundengrenze relativ zum Startspieler dieses Legs/Runs, nicht
@@ -199,9 +319,10 @@ class MatchEngine:
                     ),
                 )["id"]
                 return
-            lo = int(self.settings.get("minCheckout", 40))
-            hi = int(self.settings.get("maxCheckout", 120))
-            self.random_targets.append(random.randint(lo, hi))
+            # Endless: das naechste Ziel existiert noch nicht als Event -
+            # confirm_visit()/correct_throw() rufen danach
+            # _ensure_endless_target() auf und spielen neu ab.
+            return
         target = self._current_random_target()
         for p in self.players:
             self.player_states[p["id"]]["remaining"] = target
@@ -239,21 +360,30 @@ class MatchEngine:
             s["score"] = target_progression_family.STARTING_SCORE
 
     # ------------------------------------------------------------ display
+    def _live_score(self, player_id: str) -> int | None:
+        """Score/Remaining fuer die Anzeige. Waehrend einer laufenden
+        (nicht bestaetigten) Aufnahme frisch berechnet, ohne den
+        committeten State zu veraendern."""
+        state = self.player_states[player_id]
+        committed = state.get("score", state.get("remaining"))
+        is_active = player_id == self.players[self.active_index]["id"]
+        if not is_active or not self.current_visit_throws or self.family_name not in ("x01", "random_checkout"):
+            return committed
+        result = self.family.apply_throw(state, self.current_visit_throws, self.settings)
+        return result.get("score", committed)
+
     def _target_display(self) -> str | None:
         active_id = self.players[self.active_index]["id"]
         state = self.player_states[active_id]
         if self.family_name == "target_progression":
             return target_progression_family.current_target(state)
         if self.family_name == "random_checkout":
-            # Nach dem letzten Checkout (Match beendet) zeigt der Index
-            # ggf. schon hinter das letzte generierte Ziel - auf den
-            # letzten gueltigen Wert begrenzen statt abzustuerzen.
             idx = min(self.random_target_index, len(self.random_targets) - 1)
-            return str(self.random_targets[idx])
+            return str(self.random_targets[idx]) if self.random_targets else None
         return None
 
     def _checkout_suggestion(self) -> list[str] | None:
-        if self.family_name not in ("x01", "random_checkout"):
+        if self.pending_confirmation or self.family_name not in ("x01", "random_checkout"):
             return None
         active_id = self.players[self.active_index]["id"]
         remaining = self._live_score(active_id)
@@ -268,13 +398,21 @@ class MatchEngine:
             "gameId": self.game["id"],
             "gameName": self.game["name"],
             "engineFamily": self.family_name,
+            "settings": self.settings,
             "players": [self._player_display(p) for p in self.players],
             "activePlayerId": active_player["id"],
-            "currentVisitThrows": [throw_label(s) for s in self.current_visit_throws],
+            "currentVisitThrows": [
+                {"throwSeq": seq, "label": throw_label(seg)}
+                for seq, seg in zip(self.current_visit_seqs, self.current_visit_throws)
+            ],
             "target": self._target_display(),
             "checkoutSuggestion": self._checkout_suggestion(),
             "round": self.round_number,
             "legNumber": self.leg_number if self.family_name == "x01" else None,
+            "pendingConfirmation": self.pending_confirmation,
+            "pendingOutcome": self.pending_outcome,
+            "history": self.visit_history,
+            "canUndo": len(self.events) > 1,
             "finished": self.finished,
             "winnerId": self.winner_id,
             "winnerName": next((p["name"] for p in self.players if p["id"] == self.winner_id), None),

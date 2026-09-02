@@ -63,6 +63,17 @@
   padding: var(--sp-6) 0;
   border-top: 1px solid var(--c-border);
   border-bottom: 1px solid var(--c-border);
+  transition: border-color 200ms ease-out, background 200ms ease-out;
+}
+
+.active-player-panel.pending {
+  border-color: var(--c-accent);
+  background: linear-gradient(180deg, rgba(217, 164, 65, 0.1), transparent);
+}
+
+.active-player-panel.pending .active-player-label {
+  color: var(--c-accent-strong);
+  font-weight: var(--fw-strong);
 }
 
 .active-player-label,
@@ -95,6 +106,15 @@
 
 .dart-slot {
   text-align: center;
+  background: none;
+  border: none;
+  padding: 0;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.dart-slot:disabled {
+  cursor: default;
 }
 
 .dart-slot-label {
@@ -126,6 +146,53 @@
   border-style: dashed;
 }
 
+/* ---------- History (Korrektur vergangener Aufnahmen) ---------- */
+.visit-history {
+  text-align: center;
+}
+
+.visit-history-label {
+  font-size: var(--fs-xs);
+  color: var(--c-text-faint);
+  letter-spacing: 0.05em;
+  margin-bottom: var(--sp-3);
+}
+
+.visit-history-rows {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+}
+
+.visit-history-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sp-2);
+  flex-wrap: wrap;
+}
+
+.visit-history-player {
+  font-size: var(--fs-sm);
+  color: var(--c-text-muted);
+  min-width: 80px;
+  text-align: right;
+}
+
+.history-chip {
+  font-family: inherit;
+  min-width: 44px;
+  min-height: 36px;
+  padding: 0 var(--sp-2);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--c-border);
+  background: var(--c-surface);
+  color: var(--c-text-muted);
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-strong);
+  cursor: pointer;
+}
+
 /* ---------- Progress ---------- */
 .game-progress {
   text-align: center;
@@ -137,10 +204,16 @@
 /* ---------- Actions ---------- */
 .game-actions {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(4, 1fr);
   gap: var(--sp-3);
   padding-top: var(--sp-5);
   border-top: 1px solid var(--c-border);
+}
+
+@media (max-width: 640px) {
+  .game-actions {
+    grid-template-columns: repeat(2, 1fr);
+  }
 }
 
 .action-btn {
@@ -162,4 +235,10 @@
 
 .action-btn-menu {
   background: var(--c-surface-raised);
+}
+
+.action-btn-confirm {
+  background: var(--c-accent);
+  border-color: var(--c-accent);
+  color: #1a1500;
 }

@@ -58,22 +58,40 @@ export type MatchPlayer = {
   attempts: number | null;
 };
 
+export type MatchThrow = { throwSeq: number; label: string };
+
+export type MatchVisit = { playerId: string; throws: MatchThrow[] };
+
 export type MatchState = {
   matchId: string;
   gameId: string;
   gameName: string;
   engineFamily: string;
+  settings: Record<string, unknown>;
   players: MatchPlayer[];
   activePlayerId: string;
-  currentVisitThrows: string[];
+  currentVisitThrows: MatchThrow[];
   target: string | null;
   checkoutSuggestion: string[] | null;
   round: number;
   legNumber: number | null;
+  pendingConfirmation: boolean;
+  pendingOutcome: "bust" | "checkout" | "target_done" | "continue" | null;
+  history: MatchVisit[];
+  canUndo: boolean;
   finished: boolean;
   winnerId: string | null;
   winnerName: string | null;
 };
+
+export type PendingResume = {
+  matchId: string;
+  gameId: string;
+  gameName: string;
+  playerNames: string[];
+};
+
+export type Segment = { number: number; multiplier: number };
 
 const BASE = "/api";
 
@@ -140,5 +158,41 @@ export const api = {
 
   getActiveMatch(): Promise<MatchState | null> {
     return fetch(`${BASE}/matches/active`).then((res) => asJson(res));
+  },
+
+  confirmVisit(matchId: string): Promise<{ ok: boolean }> {
+    return fetch(`${BASE}/matches/${matchId}/confirm`, { method: "POST" }).then((res) => asJson(res));
+  },
+
+  correctThrow(matchId: string, throwSeq: number, segment: Segment): Promise<{ ok: boolean }> {
+    return fetch(`${BASE}/matches/${matchId}/correct`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ throwSeq, segment }),
+    }).then((res) => asJson(res));
+  },
+
+  undoMatch(matchId: string): Promise<{ ok: boolean }> {
+    return fetch(`${BASE}/matches/${matchId}/undo`, { method: "POST" }).then((res) => asJson(res));
+  },
+
+  addThrow(matchId: string, segment: Segment): Promise<{ ok: boolean }> {
+    return fetch(`${BASE}/matches/${matchId}/add-throw`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ segment }),
+    }).then((res) => asJson(res));
+  },
+
+  getPendingResume(): Promise<PendingResume | null> {
+    return fetch(`${BASE}/matches/pending-resume`).then((res) => asJson(res));
+  },
+
+  resumeMatch(matchId: string): Promise<MatchState> {
+    return fetch(`${BASE}/matches/${matchId}/resume`, { method: "POST" }).then((res) => asJson(res));
+  },
+
+  abandonMatch(matchId: string): Promise<{ ok: boolean }> {
+    return fetch(`${BASE}/matches/${matchId}/abandon`, { method: "POST" }).then((res) => asJson(res));
   },
 };

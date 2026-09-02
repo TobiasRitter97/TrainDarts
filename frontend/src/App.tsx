@@ -1,18 +1,39 @@
-import { useState } from "react";
-import { GameDefinition, Profile } from "./api";
+import { useEffect, useState } from "react";
+import { api, PendingResume } from "./api";
 import { BoardControlBar } from "./components/BoardControlBar";
 import { GameHubScreen } from "./screens/GameHubScreen";
 import { GameSetupScreen } from "./screens/GameSetupScreen";
 import { GameScreen } from "./screens/GameScreen";
 import "./App.css";
 
-type View =
-  | { screen: "hub" }
-  | { screen: "setup"; gameId: string }
-  | { screen: "game"; game: GameDefinition; players: Profile[]; settings: Record<string, unknown> };
+type View = { screen: "hub" } | { screen: "setup"; gameId: string } | { screen: "game" };
 
+// Fortsetzen-Dialog nach Neustart (docs/ARCHITEKTUR.md Abschnitt 8):
+// weder automatisch fortsetzen noch verwerfen - einmal beim Laden der
+// App pruefen und den Nutzer entscheiden lassen.
 export default function App() {
   const [view, setView] = useState<View>({ screen: "hub" });
+  const [pendingResume, setPendingResume] = useState<PendingResume | null>(null);
+
+  useEffect(() => {
+    api
+      .getPendingResume()
+      .then(setPendingResume)
+      .catch(() => setPendingResume(null));
+  }, []);
+
+  async function handleResume() {
+    if (!pendingResume) return;
+    await api.resumeMatch(pendingResume.matchId);
+    setPendingResume(null);
+    setView({ screen: "game" });
+  }
+
+  async function handleAbandon() {
+    if (!pendingResume) return;
+    await api.abandonMatch(pendingResume.matchId);
+    setPendingResume(null);
+  }
 
   return (
     <div className="app-shell">
@@ -30,13 +51,30 @@ export default function App() {
           <GameSetupScreen
             gameId={view.gameId}
             onBack={() => setView({ screen: "hub" })}
-            onStart={(game, players, settings) => setView({ screen: "game", game, players, settings })}
+            onStart={() => setView({ screen: "game" })}
           />
         )}
-        {view.screen === "game" && (
-          <GameScreen game={view.game} players={view.players} onExit={() => setView({ screen: "hub" })} />
-        )}
+        {view.screen === "game" && <GameScreen onExit={() => setView({ screen: "hub" })} />}
       </main>
+
+      {pendingResume && (
+        <div className="resume-overlay">
+          <div className="resume-modal">
+            <h3>Angefangenes Spiel fortsetzen?</h3>
+            <p className="screen-note">
+              {pendingResume.gameName} · {pendingResume.playerNames.join(", ")}
+            </p>
+            <div className="resume-actions">
+              <button className="btn-primary" onClick={handleResume}>
+                Fortsetzen
+              </button>
+              <button className="btn-secondary" onClick={handleAbandon}>
+                Verwerfen
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

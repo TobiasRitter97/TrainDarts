@@ -1,44 +1,71 @@
-import { api, GameDefinition, Profile } from "../api";
+import { useEffect, useState } from "react";
+import { api, GameDefinition, Segment } from "../api";
 import { useMatchState } from "../useMatchState";
 import { BoardControlBar } from "../components/BoardControlBar";
 import { PlayerScoreboard } from "../components/PlayerScoreboard";
 import { CheckoutRouteDisplay } from "../components/CheckoutRouteDisplay";
 import { GameProgress } from "../components/GameProgress";
 import { GameActions } from "../components/GameActions";
+import { DartCorrectionModal } from "../components/DartCorrectionModal";
 import { ResultScreen } from "./ResultScreen";
 import "./GameScreen.css";
 
 type Props = {
-  game: GameDefinition;
-  players: Profile[];
-  settings: Record<string, unknown>;
   onExit: () => void;
 };
 
-// Einheitlicher Game Screen (SPEC §12/§13) - dasselbe Layout fuer
-// jedes Spiel. Zeigt den echten Match-Zustand aus der Game Engine
-// (Phase 7): Punktestand, aktiver Spieler, Target, Checkout-Vorschlag,
-// die drei Dart-Felder der laufenden Aufnahme und die Runde. Bei
-// Spielende wechselt der Screen automatisch zum Result Screen.
-export function GameScreen({ game, players, settings, onExit }: Props) {
-  const match = useMatchState();
+type CorrectionTarget = { mode: "add" } | { mode: "correct"; throwSeq: number };
 
-  function handleExit() {
-    if (confirm("Spiel verlassen? Der Fortschritt geht verloren (noch keine Speicherung, folgt in Phase 8).")) {
-      onExit();
-    }
+function pendingLabel(outcome: string | null): string {
+  if (outcome === "bust") return "BUST — BESTÄTIGEN";
+  if (outcome === "checkout") return "CHECKOUT! — BESTÄTIGEN";
+  return "AUFNAHME FERTIG — BESTÄTIGEN";
+}
+
+// Einheitlicher Game Screen (SPEC §12/§13), verbunden mit der echten
+// Game Engine. Nach Erreichen des Dart-Caps (oder Bust/Checkout)
+// friert die Anzeige ein, bis Takeout oder der manuelle
+// "Aufnahme bestätigen"-Button den State committen
+// (docs/ARCHITEKTUR.md Abschnitt 2.1). Jeder Dart der aktuellen und
+// der letzten Aufnahmen ist antippbar und korrigierbar (Abschnitt 7.2).
+export function GameScreen({ onExit }: Props) {
+  const match = useMatchState();
+  const [game, setGame] = useState<GameDefinition | null>(null);
+  const [correction, setCorrection] = useState<CorrectionTarget | null>(null);
+
+  useEffect(() => {
+    if (!match) return;
+    api.listGames().then((list) => {
+      setGame((prev) => (prev?.id === match.gameId ? prev : list.find((g) => g.id === match.gameId) ?? null));
+    });
+  }, [match?.gameId]);
+
+  if (!match || !game) {
+    return <p className="screen-note">Warte auf Spielstart…</p>;
   }
 
   async function handleRematch() {
-    await api.createMatch(game.id, players.map((p) => p.id), settings);
-  }
-
-  if (!match) {
-    return <p className="screen-note">Warte auf Spielstart…</p>;
+    await api.createMatch(game!.id, match!.players.map((p) => p.id), match!.settings);
   }
 
   if (match.finished) {
     return <ResultScreen match={match} onRematch={handleRematch} onExit={onExit} />;
+  }
+
+  function handleExit() {
+    if (confirm("Spiel verlassen? Der Fortschritt bleibt gespeichert und kann später fortgesetzt werden.")) {
+      onExit();
+    }
+  }
+
+  async function handleCorrectionSelect(segment: Segment) {
+    if (!correction || !match) return;
+    if (correction.mode === "add") {
+      await api.addThrow(match.matchId, segment);
+    } else {
+      await api.correctThrow(match.matchId, correction.throwSeq, segment);
+    }
+    setCorrection(null);
   }
 
   const darts = [match.currentVisitThrows[0] ?? null, match.currentVisitThrows[1] ?? null, match.currentVisitThrows[2] ?? null];
@@ -53,8 +80,10 @@ export function GameScreen({ game, players, settings, onExit }: Props) {
 
       <PlayerScoreboard players={match.players} activePlayerId={match.activePlayerId} />
 
-      <section className="active-player-panel">
-        <div className="active-player-label">CURRENT PLAYER</div>
+      <section className={`active-player-panel ${match.pendingConfirmation ? "pending" : ""}`}>
+        <div className="active-player-label">
+          {match.pendingConfirmation ? pendingLabel(match.pendingOutcome) : "CURRENT PLAYER"}
+        </div>
         <div className="active-player-name">{activePlayer?.name ?? "—"}</div>
         {match.target && (
           <>
@@ -67,17 +96,63 @@ export function GameScreen({ game, players, settings, onExit }: Props) {
       <CheckoutRouteDisplay route={match.checkoutSuggestion} />
 
       <section className="current-throw-panel">
-        {darts.map((label, i) => (
-          <div key={i} className="dart-slot">
+        {darts.map((t, i) => (
+          <button
+            key={i}
+            type="button"
+            className="dart-slot"
+            disabled={!t}
+            onClick={() => t && setCorrection({ mode: "correct", throwSeq: t.throwSeq })}
+          >
             <div className="dart-slot-label">DART {i + 1}</div>
-            <div className={`dart-chip ${label ? "filled" : "empty"}`}>{label ?? "—"}</div>
-          </div>
+            <div className={`dart-chip ${t ? "filled" : "empty"}`}>{t?.label ?? "—"}</div>
+          </button>
         ))}
       </section>
 
+      {match.history.length > 0 && (
+        <section className="visit-history">
+          <div className="visit-history-label">Letzte Aufnahmen — antippen zum Korrigieren</div>
+          <div className="visit-history-rows">
+            {match.history.map((visit, vi) => (
+              <div key={vi} className="visit-history-row">
+                <span className="visit-history-player">
+                  {match.players.find((p) => p.id === visit.playerId)?.name ?? "—"}
+                </span>
+                {visit.throws.map((t) => (
+                  <button
+                    key={t.throwSeq}
+                    type="button"
+                    className="history-chip"
+                    onClick={() => setCorrection({ mode: "correct", throwSeq: t.throwSeq })}
+                  >
+                    {t.label}
+                  </button>
+                ))}
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
       <GameProgress round={match.round} legNumber={match.legNumber} />
 
-      <GameActions onExit={handleExit} />
+      <GameActions
+        canUndo={match.canUndo}
+        canConfirm={match.pendingConfirmation}
+        onUndo={() => api.undoMatch(match.matchId)}
+        onAddDart={() => setCorrection({ mode: "add" })}
+        onConfirm={() => api.confirmVisit(match.matchId)}
+        onExit={handleExit}
+      />
+
+      {correction && (
+        <DartCorrectionModal
+          title={correction.mode === "add" ? "Dart hinzufügen" : "Dart korrigieren"}
+          onSelect={handleCorrectionSelect}
+          onClose={() => setCorrection(null)}
+        />
+      )}
     </div>
   );
 }

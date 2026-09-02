@@ -20,6 +20,7 @@ import random
 from backend.adapter.autodarts import throw_label
 from backend.engine.checkout import suggest_route
 from backend.engine.scoring import segment_value
+from backend.games import checkout_range as checkout_range_family
 from backend.games import random_checkout as random_checkout_family
 from backend.games import target_progression as target_progression_family
 from backend.games import x01 as x01_family
@@ -28,6 +29,7 @@ FAMILIES = {
     "x01": x01_family,
     "target_progression": target_progression_family,
     "random_checkout": random_checkout_family,
+    "checkout_range": checkout_range_family,
 }
 
 # Welche Wurf-Ergebnisse eine Aufnahme sofort "pending" machen (statt
@@ -35,7 +37,16 @@ FAMILIES = {
 FORCES_VISIT_END = {
     "x01": {"bust", "checkout"},
     "random_checkout": {"checkout"},  # Bust nutzt trotzdem das volle Dart-Budget (SPEC §25)
+    "checkout_range": {"checkout"},   # wie random_checkout: volles Dart-Budget nutzen
     "target_progression": {"target_done"},
+}
+
+# Feldname im jeweiligen player_state, der den "Countdown"-Wert traegt
+# (fuer Live-Anzeige und Checkout-Vorschlag generisch nutzbar).
+COUNTDOWN_FIELD = {
+    "x01": "score",
+    "random_checkout": "remaining",
+    "checkout_range": "level",
 }
 
 X01_MATCH_MODE_LEGS = {"1_leg": 1, "bo3": 2, "bo5": 3, "bo7": 4}
@@ -187,6 +198,8 @@ class MatchEngine:
             return random_checkout_family.create_player_state(target)
         if self.family_name == "target_progression":
             return target_progression_family.create_player_state()
+        if self.family_name == "checkout_range":
+            return checkout_range_family.create_player_state(self.settings)
         return x01_family.create_player_state()
 
     def _current_random_target(self) -> int:
@@ -259,12 +272,17 @@ class MatchEngine:
             state["score"] = result["score"]
             state["targetIndex"] += 1
 
+        elif self.family_name == "checkout_range":
+            checkout_range_family.resolve_attempt(state, self.settings, outcome == "checkout")
+
         self._clear_visit()
 
         if self.family_name == "random_checkout" and self.active_index == len(self.players) - 1:
             self._next_random_round()
         if self.family_name == "target_progression":
             self._maybe_finish_run(player_id)
+        if self.family_name == "checkout_range":
+            self._maybe_finish_checkout_range(player_id)
 
         if not self.finished:
             self._advance_player()
@@ -353,6 +371,37 @@ class MatchEngine:
         for p in self.players:
             self.player_states[p["id"]]["remaining"] = target
 
+    # ------------------------------------------------------------ checkout_range (121 usw.)
+    def _maybe_finish_checkout_range(self, player_id: str) -> None:
+        mode = self.settings.get("gameLengthMode", "targets_20")
+        state = self.player_states[player_id]
+        max_level = int(self.settings.get("maxLevel", 170))
+
+        if mode == "until_max":
+            if state["highestLevel"] >= max_level:
+                self.finished = True
+                self.winner_id = player_id
+            return
+        if mode == "endless":
+            return
+
+        target_attempts = {"targets_10": 10, "targets_20": 20, "targets_30": 30}.get(mode)
+        if target_attempts is None:
+            target_attempts = int(self.settings.get("customTargets", 20))
+
+        all_done = all(self.player_states[p["id"]]["attempts"] >= target_attempts for p in self.players)
+        if not all_done:
+            return
+        self.finished = True
+        self.winner_id = max(
+            self.players,
+            key=lambda p: (
+                self.player_states[p["id"]]["highestLevel"],
+                self.player_states[p["id"]]["successfulCheckouts"],
+                -self.player_states[p["id"]]["attempts"],
+            ),
+        )["id"]
+
     # ------------------------------------------------------------ bob's 27 runs
     def _maybe_finish_run(self, player_id: str) -> None:
         state = self.player_states[player_id]
@@ -387,13 +436,17 @@ class MatchEngine:
 
     # ------------------------------------------------------------ display
     def _live_score(self, player_id: str) -> int | None:
-        """Score/Remaining fuer die Anzeige. Waehrend einer laufenden
-        (nicht bestaetigten) Aufnahme frisch berechnet, ohne den
-        committeten State zu veraendern."""
+        """Countdown-Wert (score/remaining/level, siehe COUNTDOWN_FIELD)
+        fuer die Anzeige. Waehrend einer laufenden (nicht bestaetigten)
+        Aufnahme frisch berechnet, ohne den committeten State zu
+        veraendern."""
+        field = COUNTDOWN_FIELD.get(self.family_name)
+        if field is None:
+            return None
         state = self.player_states[player_id]
-        committed = state.get("score", state.get("remaining"))
+        committed = state.get(field)
         is_active = player_id == self.players[self.active_index]["id"]
-        if not is_active or not self.current_visit_throws or self.family_name not in ("x01", "random_checkout"):
+        if not is_active or not self.current_visit_throws:
             return committed
         result = self.family.apply_throw(state, self.current_visit_throws, self.settings)
         return result.get("score", committed)
@@ -406,15 +459,17 @@ class MatchEngine:
         if self.family_name == "random_checkout":
             idx = min(self.random_target_index, len(self.random_targets) - 1)
             return str(self.random_targets[idx]) if self.random_targets else None
+        if self.family_name == "checkout_range":
+            return str(state["level"])
         return None
 
     def _checkout_suggestion(self) -> list[str] | None:
-        if self.pending_confirmation or self.family_name not in ("x01", "random_checkout"):
+        if self.pending_confirmation or self.family_name not in ("x01", "random_checkout", "checkout_range"):
             return None
         active_id = self.players[self.active_index]["id"]
         remaining = self._live_score(active_id)
         darts_left = self.family.visit_dart_cap(self.settings) - len(self.current_visit_throws)
-        double_out = True if self.family_name == "random_checkout" else self.settings.get("doubleOut", True)
+        double_out = self.settings.get("doubleOut", True) if self.family_name == "x01" else True
         return suggest_route(remaining, darts_left, double_out)
 
     def to_dict(self) -> dict:
@@ -454,6 +509,7 @@ class MatchEngine:
             "legsWon": state.get("legsWon"),
             "setsWon": state.get("setsWon"),
             "highestCheckout": state.get("highestCheckout"),
+            "highestLevel": state.get("highestLevel"),
             "runsCompleted": state.get("runsCompleted"),
             "totalScore": state.get("totalScore"),
             "bestRun": state.get("bestRun"),

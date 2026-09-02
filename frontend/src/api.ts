@@ -52,6 +52,7 @@ export type MatchPlayer = {
   legsWon: number | null;
   setsWon: number | null;
   highestCheckout: number | null;
+  highestLevel: number | null;
   runsCompleted: number | null;
   totalScore: number | null;
   bestRun: number | null;

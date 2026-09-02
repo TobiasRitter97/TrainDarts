@@ -64,6 +64,25 @@ def x01_settings_schema() -> list[dict]:
     ]
 
 
+def checkout_range_game_length_field(default: str = "targets_20") -> dict:
+    """Gemeinsames "Game Length"-Feld fuer die checkout_range-Familie
+    (121, kuenftig Catch 40/Catch 40 Easy/60 +/-)."""
+    return {
+        "key": "gameLengthMode",
+        "label": "Game Length",
+        "type": "select",
+        "options": [
+            {"value": "targets_10", "label": "10 Targets"},
+            {"value": "targets_20", "label": "20 Targets"},
+            {"value": "targets_30", "label": "30 Targets"},
+            {"value": "custom", "label": "Custom"},
+            {"value": "endless", "label": "Endless"},
+            {"value": "until_max", "label": "Until 170"},
+        ],
+        "default": default,
+    }
+
+
 GAMES: list[dict] = [
     {
         "id": "170",
@@ -133,12 +152,43 @@ GAMES: list[dict] = [
             },
         ],
     },
-    # -- Bau-Reihenfolge lt. docs/ARCHITEKTUR.md Abschnitt 12, noch nicht implementiert --
     {
-        "id": "121", "name": "121", "description": "Klassisches 121-Checkout-Training.",
-        "category": "CHECKOUT", "icon": "🔢", "engineFamily": "checkout_range",
-        "playerRange": [1, 4], "implemented": False, "durationModes": [], "settingsSchema": [],
+        "id": "121",
+        "name": "121",
+        "description": "Klassisches 121-Checkout-Training mit Safehouse.",
+        "category": "CHECKOUT",
+        "icon": "🔢",
+        "engineFamily": "checkout_range",
+        "playerRange": [1, 4],
+        "implemented": True,
+        "durationModes": ["targets", "until_max", "endless"],
+        "settingsSchema": [
+            {"key": "startLevel", "label": "Starting Checkout", "type": "number", "default": 121, "min": 2, "max": 170},
+            {"key": "maxLevel", "label": "Maximum", "type": "number", "default": 170, "min": 2, "max": 170},
+            {
+                "key": "dartsPerCheckout", "label": "Darts per Checkout", "type": "number",
+                "default": 9, "min": 1, "max": 15, "presets": [3, 6, 9, 12],
+            },
+            {
+                "key": "safehouseMode",
+                "label": "Safehouse",
+                "type": "select",
+                "options": [
+                    {"value": "standard", "label": "Standard"},
+                    {"value": "off", "label": "Off"},
+                    {"value": "easy", "label": "Easy"},
+                ],
+                "default": "standard",
+            },
+            checkout_range_game_length_field(),
+            {
+                "key": "customTargets", "label": "Anzahl Targets (Custom)", "type": "number",
+                "default": 20, "min": 1, "max": 100,
+                "showIf": {"key": "gameLengthMode", "equals": "custom"},
+            },
+        ],
     },
+    # -- Bau-Reihenfolge lt. docs/ARCHITEKTUR.md Abschnitt 12, noch nicht implementiert --
     {
         "id": "bobs27_easy", "name": "Bob's 27 Easy", "description": "Verkürzte Bob's-27-Route.",
         "category": "DOUBLES", "icon": "🎯", "engineFamily": "target_progression",

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, FormEvent } from "react";
 import { api, Profile, ProfileStats } from "../api";
 import "./ProfileScreen.css";
 
@@ -16,12 +16,43 @@ export function ProfileScreen({ onBack }: Props) {
   const [stats, setStats] = useState<ProfileStats | null>(null);
   const [loadingStats, setLoadingStats] = useState(false);
 
+  const [showCreate, setShowCreate] = useState(false);
+  const [newName, setNewName] = useState("");
+  const [newInitials, setNewInitials] = useState("");
+
   useEffect(() => {
+    reloadProfiles();
+  }, []);
+
+  function reloadProfiles(selectAfter?: string) {
     api.listProfiles().then((list) => {
       setProfiles(list);
-      if (list.length > 0) setSelectedId((prev) => prev ?? list[0].id);
+      if (selectAfter) {
+        setSelectedId(selectAfter);
+      } else if (list.length > 0) {
+        setSelectedId((prev) => (prev && list.some((p) => p.id === prev) ? prev : list[0].id));
+      } else {
+        setSelectedId(null);
+      }
     });
-  }, []);
+  }
+
+  async function submitCreate(e: FormEvent) {
+    e.preventDefault();
+    const name = newName.trim();
+    if (!name) return;
+    const profile = await api.createProfile({ name, initials: newInitials.trim() || undefined });
+    setNewName("");
+    setNewInitials("");
+    setShowCreate(false);
+    reloadProfiles(profile.id);
+  }
+
+  async function handleDelete(profile: Profile) {
+    if (!confirm(`${profile.name} wirklich entfernen? Alte Ergebnisse bleiben erhalten.`)) return;
+    await api.deleteProfile(profile.id);
+    reloadProfiles();
+  }
 
   useEffect(() => {
     if (!selectedId) {
@@ -47,18 +78,43 @@ export function ProfileScreen({ onBack }: Props) {
       <div className="profile-screen-layout">
         <div className="profile-list panel">
           {profiles.map((p) => (
-            <button
-              key={p.id}
-              className={`profile-list-row ${p.id === selectedId ? "active" : ""}`}
-              onClick={() => setSelectedId(p.id)}
-            >
-              <span className="avatar" style={{ background: p.color || DEFAULT_COLOR }}>
-                {(p.initials || p.name.slice(0, 2)).toUpperCase()}
-              </span>
-              <span className="profile-list-name">{p.name}</span>
-            </button>
+            <div key={p.id} className={`profile-list-item ${p.id === selectedId ? "active" : ""}`}>
+              <button className="profile-list-row" onClick={() => setSelectedId(p.id)}>
+                <span className="avatar" style={{ background: p.color || DEFAULT_COLOR }}>
+                  {(p.initials || p.name.slice(0, 2)).toUpperCase()}
+                </span>
+                <span className="profile-list-name">{p.name}</span>
+              </button>
+              <button className="icon-btn" title="Entfernen" onClick={() => handleDelete(p)}>
+                ✕
+              </button>
+            </div>
           ))}
           {profiles.length === 0 && <p className="screen-note">Noch keine Profile angelegt.</p>}
+
+          {showCreate ? (
+            <form className="inline-form profile-create-form" onSubmit={submitCreate}>
+              <input autoFocus placeholder="Name" value={newName} onChange={(e) => setNewName(e.target.value)} />
+              <input
+                placeholder="Kürzel (optional)"
+                maxLength={3}
+                value={newInitials}
+                onChange={(e) => setNewInitials(e.target.value)}
+              />
+              <div className="profile-create-actions">
+                <button className="btn-primary" type="submit">
+                  Anlegen
+                </button>
+                <button className="btn-secondary" type="button" onClick={() => setShowCreate(false)}>
+                  Abbrechen
+                </button>
+              </div>
+            </form>
+          ) : (
+            <button className="btn-outline add-profile-btn" onClick={() => setShowCreate(true)}>
+              + PROFIL
+            </button>
+          )}
         </div>
 
         <div className="profile-detail">

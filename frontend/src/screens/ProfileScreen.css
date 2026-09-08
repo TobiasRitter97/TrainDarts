@@ -23,13 +23,27 @@
   padding: var(--sp-3);
 }
 
+.profile-list-item {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-1);
+  border: 1px solid transparent;
+  border-radius: var(--radius-md);
+}
+
+.profile-list-item.active {
+  border-color: var(--c-accent);
+  background: var(--c-surface-raised);
+}
+
 .profile-list-row {
   display: flex;
   align-items: center;
   gap: var(--sp-3);
+  flex: 1;
+  min-width: 0;
   background: transparent;
-  border: 1px solid transparent;
-  border-radius: var(--radius-md);
+  border: none;
   padding: var(--sp-2) var(--sp-3);
   min-height: var(--touch-min);
   cursor: pointer;
@@ -37,13 +51,38 @@
   text-align: left;
 }
 
-.profile-list-row:hover {
+.profile-list-item:not(.active):hover {
   background: var(--c-surface-raised);
 }
 
-.profile-list-row.active {
-  border-color: var(--c-accent);
-  background: var(--c-surface-raised);
+.profile-list-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.add-profile-btn {
+  margin-top: var(--sp-2);
+  width: 100%;
+}
+
+.profile-create-form {
+  flex-direction: column;
+  margin-top: var(--sp-2);
+}
+
+.profile-create-form input {
+  width: 100%;
+}
+
+.profile-create-actions {
+  display: flex;
+  gap: var(--sp-2);
+  width: 100%;
+}
+
+.profile-create-actions button {
+  flex: 1;
 }
 
 .profile-list-row .avatar {

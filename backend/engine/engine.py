@@ -20,6 +20,7 @@ import random
 from backend.adapter.autodarts import throw_label
 from backend.engine.checkout import suggest_route
 from backend.engine.scoring import segment_value
+from backend.games import accuracy_progression as accuracy_progression_family
 from backend.games import catch as catch_family
 from backend.games import checkout_range as checkout_range_family
 from backend.games import random_checkout as random_checkout_family
@@ -32,6 +33,7 @@ FAMILIES = {
     "random_checkout": random_checkout_family,
     "checkout_range": checkout_range_family,
     "catch": catch_family,
+    "accuracy_progression": accuracy_progression_family,
 }
 
 # Welche Wurf-Ergebnisse eine Aufnahme sofort "pending" machen (statt
@@ -44,6 +46,7 @@ FORCES_VISIT_END = {
     "checkout_range": {"bust", "checkout"},
     "catch": {"bust", "checkout"},
     "target_progression": {"target_done"},
+    "accuracy_progression": {"target_done"},
 }
 
 # Feldname im jeweiligen player_state, der den "Countdown"-Wert traegt
@@ -249,6 +252,9 @@ class MatchEngine:
         if self.family_name == "catch":
             state = catch_family.create_player_state(self.catch_targets)
             return self._init_task_fields(state, "level")
+        if self.family_name == "accuracy_progression":
+            targets = accuracy_progression_family.build_targets(self.settings)
+            return accuracy_progression_family.create_player_state(targets)
         return x01_family.create_player_state()
 
     @staticmethod
@@ -351,6 +357,17 @@ class MatchEngine:
             state["targetIndex"] += 1
             self._clear_visit()
             self._maybe_finish_run(player_id)
+            if not self.finished:
+                self._advance_player()
+            return
+
+        if self.family_name == "accuracy_progression":
+            # SPEC §24, wichtigste Regel: nach JEDER Aufnahme geht es
+            # IMMER zur naechsten Zahl weiter, unabhaengig vom Erfolg -
+            # wie target_progression, aber ohne Punktestand.
+            accuracy_progression_family.resolve_target(state, result)
+            self._clear_visit()
+            self._maybe_finish_accuracy_run(player_id)
             if not self.finished:
                 self._advance_player()
             return
@@ -582,6 +599,16 @@ class MatchEngine:
             ),
         )["id"]
 
+    # ------------------------------------------------------------ mehrteilige Runs (Bob's 27, Around the World)
+    def _run_mode_target(self, mode: str, custom_key: str) -> int | None:
+        """Wie viele Runs fuer den Match-Sieg noetig sind - "custom"
+        liest die Anzahl aus einer eigenen Einstellung (z.B. Around
+        the World "Custom Runs", SPEC §24), sonst der feste
+        BOBS27_MODE_RUNS-Wert. None = Endless (kein Zielwert)."""
+        if mode == "custom":
+            return int(self.settings.get(custom_key, 3))
+        return BOBS27_MODE_RUNS.get(mode)
+
     # ------------------------------------------------------------ bob's 27 runs
     def _maybe_finish_run(self, player_id: str) -> None:
         state = self.player_states[player_id]
@@ -601,7 +628,7 @@ class MatchEngine:
             return
 
         mode = self.settings.get("mode", "single")
-        runs_target = BOBS27_MODE_RUNS.get(mode)
+        runs_target = self._run_mode_target(mode, "customRuns")
         completed = min(self.player_states[p["id"]]["runsCompleted"] for p in self.players)
 
         if runs_target is not None and completed >= runs_target:
@@ -613,6 +640,41 @@ class MatchEngine:
             s = self.player_states[p["id"]]
             s["targetIndex"] = 0
             s["score"] = target_progression_family.STARTING_SCORE
+
+    # ------------------------------------------------------------ around the world runs
+    def _maybe_finish_accuracy_run(self, player_id: str) -> None:
+        state = self.player_states[player_id]
+        if state["targetIndex"] < len(state["targets"]):
+            return  # diese Aufnahme war noch nicht das letzte Ziel (1-20 + evtl. Bull)
+
+        state["runsCompleted"] += 1
+
+        all_done = all(
+            self.player_states[p["id"]]["targetIndex"] >= len(self.player_states[p["id"]]["targets"])
+            for p in self.players
+        )
+        if not all_done:
+            return
+
+        mode = self.settings.get("mode", "single")
+        runs_target = self._run_mode_target(mode, "customRuns")
+        completed = min(self.player_states[p["id"]]["runsCompleted"] for p in self.players)
+
+        if runs_target is not None and completed >= runs_target:
+            self.finished = True
+            # Gewinner (SPEC §24): meiste erfolgreiche Targets, bei
+            # Gleichstand hoehere Anzahl tatsaechlicher Treffer.
+            self.winner_id = max(
+                self.players,
+                key=lambda p: (
+                    self.player_states[p["id"]]["successfulTargets"],
+                    self.player_states[p["id"]]["totalHits"],
+                ),
+            )["id"]
+            return
+
+        for p in self.players:
+            self.player_states[p["id"]]["targetIndex"] = 0
 
     # ------------------------------------------------------------ display
     def _live_score(self, player_id: str) -> int | None:
@@ -636,6 +698,9 @@ class MatchEngine:
         state = self.player_states[active_id]
         if self.family_name == "target_progression":
             return target_progression_family.current_target(state)
+        if self.family_name == "accuracy_progression":
+            target = accuracy_progression_family.current_target(state)
+            return str(target) if target is not None else None
         if self.family_name == "random_checkout":
             idx = min(self.random_target_index, len(self.random_targets) - 1)
             return str(self.random_targets[idx]) if self.random_targets else None
@@ -695,4 +760,11 @@ class MatchEngine:
             "bestRun": state.get("bestRun"),
             "successfulCheckouts": state.get("successfulCheckouts"),
             "attempts": state.get("attempts"),
+            "successfulTargets": state.get("successfulTargets"),
+            "totalHits": state.get("totalHits"),
+            "totalDarts": state.get("totalDarts"),
+            "singles": state.get("singles"),
+            "doubles": state.get("doubles"),
+            "triples": state.get("triples"),
+            "perfectTargets": state.get("perfectTargets"),
         }

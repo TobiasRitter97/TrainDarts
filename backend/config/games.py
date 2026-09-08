@@ -6,8 +6,8 @@ handleThrow etc.) entsteht ab Phase 6/9 gemaess Bau-Reihenfolge in
 docs/ARCHITEKTUR.md Abschnitt 12.
 
 170, Bob's 27, Random Checkout, 121, Bob's 27 Easy, Catch 40 Easy,
-Catch 40 und 60 +/- sind aktuell "implemented": True. Die restlichen
-zwei stehen als "Coming soon"-Cards im Hub.
+Catch 40, 60 +/- und Around the World sind aktuell "implemented": True.
+Nur JDC Challenge steht noch als "Coming soon"-Card im Hub.
 """
 from __future__ import annotations
 
@@ -326,9 +326,58 @@ GAMES: list[dict] = [
     },
     # -- Bau-Reihenfolge lt. docs/ARCHITEKTUR.md Abschnitt 12, noch nicht implementiert --
     {
-        "id": "around_the_world", "name": "Around the World", "description": "1 bis 20, optional Bull.",
-        "category": "ACCURACY", "icon": "🌍", "engineFamily": "target_progression",
-        "playerRange": [1, 4], "implemented": False, "durationModes": [], "settingsSchema": [],
+        "id": "around_the_world",
+        "name": "Around the World",
+        "description": "1 bis 20, optional Bull - immer eine Aufnahme pro Zahl.",
+        "category": "ACCURACY",
+        "icon": "🌍",
+        "engineFamily": "accuracy_progression",
+        "playerRange": [1, 4],
+        "implemented": True,
+        "durationModes": ["runs", "custom", "endless"],
+        "settingsSchema": [
+            {
+                "key": "segmentMode",
+                "label": "Segment Mode",
+                "type": "select",
+                "options": [
+                    {"value": "single", "label": "Single"},
+                    {"value": "double", "label": "Double"},
+                    {"value": "triple", "label": "Triple"},
+                    {"value": "all", "label": "All"},
+                ],
+                "default": "single",
+            },
+            {
+                "key": "requiredHits",
+                "label": "Required Hits",
+                "type": "select",
+                "options": [
+                    {"value": 1, "label": "1 Treffer"},
+                    {"value": 2, "label": "2 Treffer"},
+                    {"value": 3, "label": "3 Treffer"},
+                ],
+                "default": 1,
+            },
+            {"key": "includeBull", "label": "Include Bull", "type": "toggle", "default": False},
+            {
+                "key": "mode",
+                "label": "Game Length",
+                "type": "select",
+                "options": [
+                    {"value": "single", "label": "1 kompletter Run"},
+                    {"value": "bo3", "label": "Best of 3 Runs"},
+                    {"value": "custom", "label": "Custom Runs"},
+                    {"value": "endless", "label": "Endless"},
+                ],
+                "default": "single",
+            },
+            {
+                "key": "customRuns", "label": "Anzahl Runs (Custom)", "type": "number",
+                "default": 3, "min": 1, "max": 20,
+                "showIf": {"key": "mode", "equals": "custom"},
+            },
+        ],
     },
     {
         "id": "jdc", "name": "JDC Challenge", "description": "Shanghai – Doubles – Shanghai.",

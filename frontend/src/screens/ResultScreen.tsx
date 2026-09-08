@@ -17,6 +17,9 @@ function rankValue(p: MatchPlayer, setsEnabled: boolean): number {
   // 121: hoechstes erreichtes Level entscheidet, bei Gleichstand
   // erfolgreiche Checkouts (SPEC §18).
   if (p.highestLevel !== null) return p.highestLevel * 1000 + (p.successfulCheckouts ?? 0);
+  // Around the World: meiste erfolgreiche Targets, bei Gleichstand
+  // mehr Treffer insgesamt (SPEC §24).
+  if (p.successfulTargets !== null) return p.successfulTargets * 1000 + (p.totalHits ?? 0);
   return p.legsWon ?? p.totalScore ?? p.successfulCheckouts ?? p.score ?? 0;
 }
 
@@ -37,9 +40,11 @@ export function ResultScreen({ match, onRematch, onExit }: Props) {
             <span className="result-value">
               {setsEnabled && `${p.setsWon} Sets (${p.legsWon} Legs)`}
               {!setsEnabled && p.highestLevel !== null && `Level ${p.highestLevel} (${p.successfulCheckouts}/${p.attempts})`}
-              {!setsEnabled && p.highestLevel === null && p.legsWon !== null && `${p.legsWon} Legs`}
-              {!setsEnabled && p.highestLevel === null && p.legsWon === null && p.totalScore !== null && `${p.totalScore} Punkte`}
-              {!setsEnabled && p.highestLevel === null && p.legsWon === null && p.totalScore === null && p.successfulCheckouts !== null &&
+              {!setsEnabled && p.highestLevel === null && p.successfulTargets !== null &&
+                `${p.successfulTargets} Targets (${p.totalHits} Treffer)`}
+              {!setsEnabled && p.highestLevel === null && p.successfulTargets === null && p.legsWon !== null && `${p.legsWon} Legs`}
+              {!setsEnabled && p.highestLevel === null && p.successfulTargets === null && p.legsWon === null && p.totalScore !== null && `${p.totalScore} Punkte`}
+              {!setsEnabled && p.highestLevel === null && p.successfulTargets === null && p.legsWon === null && p.totalScore === null && p.successfulCheckouts !== null &&
                 `${p.successfulCheckouts}/${p.attempts} Checkouts`}
             </span>
           </li>
@@ -57,6 +62,18 @@ export function ResultScreen({ match, onRematch, onExit }: Props) {
               <div className="result-stat-row">
                 Checkout %: <b>{Math.round((p.successfulCheckouts / p.attempts) * 100)}%</b>
               </div>
+            ) : null}
+            {p.successfulTargets !== null ? (
+              <>
+                <div className="result-stat-row">Successful Targets: <b>{p.successfulTargets}</b></div>
+                <div className="result-stat-row">
+                  Trefferquote: <b>{p.totalDarts ? Math.round(((p.totalHits ?? 0) / p.totalDarts) * 100) : 0}%</b>
+                </div>
+                <div className="result-stat-row">
+                  Singles/Doubles/Triples: <b>{p.singles}/{p.doubles}/{p.triples}</b>
+                </div>
+                <div className="result-stat-row">Perfect Targets: <b>{p.perfectTargets}</b></div>
+              </>
             ) : null}
           </div>
         ))}

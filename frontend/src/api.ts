@@ -58,6 +58,13 @@ export type MatchPlayer = {
   bestRun: number | null;
   successfulCheckouts: number | null;
   attempts: number | null;
+  successfulTargets: number | null;
+  totalHits: number | null;
+  totalDarts: number | null;
+  singles: number | null;
+  doubles: number | null;
+  triples: number | null;
+  perfectTargets: number | null;
 };
 
 export type MatchThrow = { throwSeq: number; label: string };

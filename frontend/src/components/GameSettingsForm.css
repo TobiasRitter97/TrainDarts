@@ -9,7 +9,7 @@
   align-items: center;
   justify-content: space-between;
   gap: var(--sp-4);
-  background: var(--c-surface);
+  background: var(--c-surface-raised);
   border: 1px solid var(--c-border);
   border-radius: var(--radius-md);
   padding: var(--sp-4);
@@ -32,17 +32,25 @@
   padding: 0 var(--sp-4);
   border-radius: var(--radius-md);
   border: 1px solid var(--c-border-strong);
-  background: var(--c-surface-raised);
+  background: var(--c-surface);
   color: var(--c-text);
   font-size: var(--fs-md);
   font-weight: var(--fw-strong);
   cursor: pointer;
+  transition: border-color var(--anim-fast) var(--anim-ease-out),
+    background var(--anim-fast) var(--anim-ease-out),
+    box-shadow var(--anim-fast) var(--anim-ease-out);
+}
+
+.option-btn:hover:not(.active) {
+  border-color: var(--c-accent);
 }
 
 .option-btn.active {
   background: var(--c-accent);
   border-color: var(--c-accent);
   color: #1a1500;
+  box-shadow: var(--shadow-sm);
 }
 
 .toggle-btn {
@@ -50,17 +58,25 @@
   min-height: var(--touch-min);
   border-radius: var(--radius-full);
   border: 1px solid var(--c-border-strong);
-  background: var(--c-surface-raised);
+  background: var(--c-surface);
   color: var(--c-text-muted);
   font-weight: var(--fw-strong);
   font-size: var(--fs-sm);
   cursor: pointer;
+  transition: border-color var(--anim-fast) var(--anim-ease-out),
+    background var(--anim-fast) var(--anim-ease-out),
+    box-shadow var(--anim-fast) var(--anim-ease-out);
+}
+
+.toggle-btn:hover:not(.on) {
+  border-color: var(--c-success-strong);
 }
 
 .toggle-btn.on {
   background: var(--c-success);
   border-color: var(--c-success);
   color: #fff;
+  box-shadow: var(--shadow-sm);
 }
 
 .number-input {
@@ -69,7 +85,7 @@
   text-align: center;
   border-radius: var(--radius-md);
   border: 1px solid var(--c-border-strong);
-  background: var(--c-surface-raised);
+  background: var(--c-surface);
   color: var(--c-text);
   font-size: var(--fs-md);
   font-weight: var(--fw-strong);

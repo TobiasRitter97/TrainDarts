@@ -28,6 +28,16 @@
   --c-danger-strong: #e0453d;
   --c-info: #4fa5d8;             /* Triple-Hervorhebung, Info */
 
+  /* ---------- Kategorie-Akzente (Game Hub, SPEC §9) ---------- */
+  --c-category-checkout: var(--c-accent);
+  --c-category-doubles: var(--c-info);
+  --c-category-accuracy: var(--c-success-strong);
+
+  /* ---------- Schatten (Tiefe fuer Cards/Panels auf dunklem Grund) ---------- */
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.35);
+  --shadow-md: 0 6px 16px rgba(0, 0, 0, 0.4);
+  --shadow-lg: 0 12px 32px rgba(0, 0, 0, 0.45);
+
   /* ---------- Statusfarben Board-Verbindung (SPEC §37) ---------- */
   --c-status-connected: var(--c-success);
   --c-status-reconnecting: var(--c-accent);

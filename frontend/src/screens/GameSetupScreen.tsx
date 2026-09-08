@@ -56,16 +56,20 @@ export function GameSetupScreen({ gameId, onBack, onStart }: Props) {
       <p className="screen-note">{game.description}</p>
 
       <h2 className="section-title">Players</h2>
-      <PlayerPicker selected={players} onChange={setPlayers} max={game.playerRange[1]} />
+      <div className="panel">
+        <PlayerPicker selected={players} onChange={setPlayers} max={game.playerRange[1]} />
+      </div>
 
       {game.settingsSchema.length > 0 && (
         <>
           <h2 className="section-title">Game Settings</h2>
-          <GameSettingsForm
-            schema={game.settingsSchema}
-            values={settings}
-            onChange={(key, value) => setSettings((prev) => ({ ...prev, [key]: value }))}
-          />
+          <div className="panel">
+            <GameSettingsForm
+              schema={game.settingsSchema}
+              values={settings}
+              onChange={(key, value) => setSettings((prev) => ({ ...prev, [key]: value }))}
+            />
+          </div>
         </>
       )}
 

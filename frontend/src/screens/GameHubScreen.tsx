@@ -35,7 +35,7 @@ export function GameHubScreen({ onSelectGame }: Props) {
       {loading && <p className="screen-note">Lade Spiele…</p>}
 
       {categories.map((group) => (
-        <section key={group.category} className="game-category">
+        <section key={group.category} className="game-category" data-category={group.category}>
           <h2 className="section-title">{CATEGORY_LABEL[group.category] ?? group.category}</h2>
           <div className="game-card-grid">
             {group.games.map((game) => (

@@ -7,9 +7,21 @@
 }
 
 .section-title {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
   font-size: var(--fs-lg);
   font-weight: var(--fw-strong);
   margin: var(--sp-7) 0 var(--sp-4);
+}
+
+.section-title::before {
+  content: "";
+  display: inline-block;
+  width: 6px;
+  height: 1.1em;
+  border-radius: var(--radius-full);
+  background: var(--category-color, var(--c-accent));
 }
 
 .screen-note {
@@ -22,6 +34,14 @@
   color: var(--c-danger-strong);
   font-size: var(--fs-md);
   margin: 0 0 var(--sp-5);
+}
+
+.panel {
+  background: var(--c-surface);
+  border: 1px solid var(--c-border);
+  border-radius: var(--radius-lg);
+  padding: var(--sp-5);
+  box-shadow: var(--shadow-sm);
 }
 
 .icon-btn {

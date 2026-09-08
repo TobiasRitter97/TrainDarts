@@ -7,6 +7,10 @@
   margin-top: var(--sp-5);
 }
 
+.game-category[data-category="CHECKOUT"] { --category-color: var(--c-category-checkout); }
+.game-category[data-category="DOUBLES"] { --category-color: var(--c-category-doubles); }
+.game-category[data-category="ACCURACY"] { --category-color: var(--c-category-accuracy); }
+
 .game-card-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
@@ -16,22 +20,28 @@
 .game-card {
   position: relative;
   text-align: left;
-  background: var(--c-surface);
+  background: linear-gradient(160deg, var(--c-surface-raised), var(--c-surface));
   border: 1px solid var(--c-border);
+  border-top: 3px solid var(--category-color, var(--c-border));
   border-radius: var(--radius-lg);
   padding: var(--sp-5);
   color: var(--c-text);
   cursor: pointer;
-  transition: transform 120ms ease-out, border-color 120ms ease-out;
+  box-shadow: var(--shadow-sm);
+  transition: transform var(--anim-fast) var(--anim-ease-out),
+    box-shadow var(--anim-fast) var(--anim-ease-out),
+    border-color var(--anim-fast) var(--anim-ease-out);
 }
 
 .game-card:not(.coming-soon):hover {
-  transform: translateY(-2px);
+  transform: translateY(-3px);
   border-color: var(--c-border-strong);
+  box-shadow: var(--shadow-md);
 }
 
 .game-card:not(.coming-soon):active {
   transform: scale(0.98);
+  box-shadow: var(--shadow-sm);
 }
 
 .game-card.coming-soon {
@@ -40,8 +50,15 @@
 }
 
 .game-card-icon {
-  font-size: 32px;
-  margin-bottom: var(--sp-3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 56px;
+  height: 56px;
+  font-size: 28px;
+  margin-bottom: var(--sp-4);
+  border-radius: var(--radius-full);
+  background: color-mix(in srgb, var(--category-color, var(--c-accent)) 18%, var(--c-surface));
 }
 
 .game-card-title {

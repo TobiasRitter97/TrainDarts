@@ -50,6 +50,7 @@ FORCES_VISIT_END = {
 # (siehe TASK_BASED_FAMILIES) - nicht der nominale Zielwert.
 COUNTDOWN_FIELD = {
     "x01": "score",
+    "target_progression": "score",
     "random_checkout": "attemptRemaining",
     "checkout_range": "attemptRemaining",
 }

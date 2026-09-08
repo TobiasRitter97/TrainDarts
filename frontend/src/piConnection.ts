@@ -30,14 +30,6 @@ export function setStoredPiIp(host: string): void {
   }
 }
 
-export function clearStoredPiIp(): void {
-  try {
-    localStorage.removeItem(STORAGE_KEY);
-  } catch {
-    // ignorieren
-  }
-}
-
 // Nimmt eine Nutzereingabe wie "192.168.188.97", "http://192.168.188.97"
 // oder "192.168.188.97:8088" entgegen und liefert nur den nackten Host
 // zurueck - http:// und Port ergaenzt die App selbst.

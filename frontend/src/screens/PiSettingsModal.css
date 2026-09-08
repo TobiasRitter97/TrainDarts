@@ -1,32 +1,14 @@
-.connect-screen {
-  min-height: 100vh;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: var(--sp-5);
-}
-
-.connect-card {
-  max-width: 420px;
-  width: 100%;
-  text-align: center;
-}
-
-.connect-card .screen-title {
-  font-size: var(--fs-lg);
-}
-
-.connect-form {
+.connect-modal .connect-form {
   display: flex;
   flex-direction: column;
   gap: var(--sp-3);
   margin-top: var(--sp-5);
 }
 
-.connect-form input {
+.connect-modal .connect-form input {
   min-height: var(--touch-min);
   padding: 0 var(--sp-4);
-  background: var(--c-surface-raised);
+  background: var(--c-surface);
   border: 1px solid var(--c-border-strong);
   border-radius: var(--radius-md);
   color: var(--c-text);
@@ -35,7 +17,12 @@
   letter-spacing: 0.04em;
 }
 
-.connect-card .screen-error {
+.connect-modal .screen-error,
+.connect-modal .connect-ok {
   margin-top: var(--sp-4);
   margin-bottom: 0;
+}
+
+.connect-modal .connect-ok {
+  color: var(--c-success-strong);
 }

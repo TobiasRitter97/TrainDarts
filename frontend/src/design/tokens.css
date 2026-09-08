@@ -1,1 +1,90 @@
-../../../docs/design/tokens.css
+/*
+ * Design Tokens — Custom Autodarts Training Platform
+ * Einzige Quelle der Wahrheit für Farben, Typografie, Spacing,
+ * Radius, Touch-Targets und Timing. Details/Begründung in
+ * docs/DESIGN.md. Wird ab Phase 4 direkt vom Frontend
+ * (frontend/src/design/) übernommen.
+ */
+
+:root {
+  /* ---------- Farben: Basis (dunkel, angelehnt an Filz/Sisal am Board) ---------- */
+  --c-bg: #12160f;              /* Seitenhintergrund, fast schwarz */
+  --c-surface: #1c211c;          /* Cards, Panels */
+  --c-surface-raised: #262d26;   /* Modals, erhöhte Elemente */
+  --c-border: #3a433c;           /* dezente Trennlinien ("Spinnendraht") */
+  --c-border-strong: #4d584e;    /* Trennlinien mit mehr Kontrast */
+
+  /* ---------- Farben: Text ---------- */
+  --c-text: #ede4ce;             /* Haupttext ("Sisal") */
+  --c-text-muted: #9aa39a;       /* Sekundärtext, Labels */
+  --c-text-faint: #6b756c;       /* Meta-Info, deaktiviert */
+
+  /* ---------- Farben: Akzent & Semantik ---------- */
+  --c-accent: #d9a441;           /* Gold — Active Player, Fokus, Highlights */
+  --c-accent-strong: #eab654;
+  --c-success: #1e8a4c;          /* Treffer, erfolgreicher Checkout */
+  --c-success-strong: #2eab63;
+  --c-danger: #c8322b;           /* Miss, Fehler, getrennt */
+  --c-danger-strong: #e0453d;
+  --c-info: #4fa5d8;             /* Triple-Hervorhebung, Info */
+
+  /* ---------- Kategorie-Akzente (Game Hub, SPEC §9) ---------- */
+  --c-category-checkout: var(--c-accent);
+  --c-category-doubles: var(--c-info);
+  --c-category-accuracy: var(--c-success-strong);
+
+  /* ---------- Schatten (Tiefe fuer Cards/Panels auf dunklem Grund) ---------- */
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.35);
+  --shadow-md: 0 6px 16px rgba(0, 0, 0, 0.4);
+  --shadow-lg: 0 12px 32px rgba(0, 0, 0, 0.45);
+
+  /* ---------- Statusfarben Board-Verbindung (SPEC §37) ---------- */
+  --c-status-connected: var(--c-success);
+  --c-status-reconnecting: var(--c-accent);
+  --c-status-disconnected: var(--c-danger);
+
+  /* ---------- Typografie ---------- */
+  --font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --fs-display: clamp(64px, 12vw, 140px);  /* Restscore, große Zielzahl */
+  --fs-xl: clamp(40px, 6vw, 64px);         /* Spieler-Score im Scoreboard */
+  --fs-lg: clamp(26px, 3.2vw, 36px);       /* Section-Header, Dart-Werte */
+  --fs-md: 20px;                            /* Standardtext, Buttons */
+  --fs-sm: 16px;                            /* Sekundärlabels */
+  --fs-xs: 13px;                            /* Meta-Info */
+  --fw-display: 800;
+  --fw-strong: 700;
+  --fw-regular: 500;
+
+  /* ---------- Spacing (8px-Raster) ---------- */
+  --sp-1: 4px;
+  --sp-2: 8px;
+  --sp-3: 12px;
+  --sp-4: 16px;
+  --sp-5: 24px;
+  --sp-6: 32px;
+  --sp-7: 48px;
+  --sp-8: 64px;
+
+  /* ---------- Radius ---------- */
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 20px;
+  --radius-full: 999px;
+
+  /* ---------- Touch Targets (SPEC §39) ---------- */
+  --touch-min: 56px;
+
+  /* ---------- Timing (SPEC §38, subtil) ---------- */
+  --anim-fast: 120ms;
+  --anim-med: 220ms;
+  --anim-slow: 400ms;
+  --anim-ease-out: cubic-bezier(.2, .8, .2, 1);
+  --anim-ease-in-out: cubic-bezier(.4, 0, .2, 1);
+
+  /* ---------- Breakpoints (nur als Referenz, SPEC §39 Prioritäten) ---------- */
+  /* 1. TV/16:9 Dart Display: Default-Layout, ab hier aufwärts
+     2. Tablet Landscape: ab 1024px  — gleiches Layout wie TV
+     3. Desktop: ab 1024px           — gleiches Layout wie Tablet Landscape
+     4. Tablet Portrait: 768–1023px  — Scoreboard bricht auf 2 Zeilen um
+     5. Smartphone: < 768px          — einspaltig, niedrigste Priorität */
+}

@@ -392,15 +392,21 @@ async def ws_handler(request: web.Request) -> web.WebSocketResponse:
     return ws
 
 
+# Erlaubte Origins fuer Cross-Origin-Anfragen (Vercel-Deployment,
+# siehe frontend/src/piConnection.ts) - bewusst eine feste Liste statt
+# "*": diese App hat keine Authentifizierung, ein offener CORS-Header
+# wuerde JEDER Webseite (auch bösartigen, in einem anderen Tab
+# geoeffneten) erlauben, per Hintergrund-Request auf die REST-API
+# zuzugreifen UND die Antwort zu lesen, solange der Browser im selben
+# Heimnetz haengt. Ueber die Umgebungsvariable erweiterbar, falls z.B.
+# eine eigene Domain dazukommt.
+_default_origins = "https://traindart.vercel.app,http://localhost:5173"
+ALLOWED_ORIGINS = {o.strip() for o in os.environ.get("DARTS_ALLOWED_ORIGINS", _default_origins).split(",") if o.strip()}
+
+
 @web.middleware
 async def cors_middleware(request: web.Request, handler):
-    """Noetig seit dem Vercel-Deployment (Frontend und Backend laufen
-    auf unterschiedlichen Origins - Frontend auf Vercel, Backend auf
-    dem Pi im Heimnetz, siehe frontend/src/piConnection.ts). Keine
-    Authentifizierung in dieser App, daher reicht ein offener CORS-
-    Header ("*") - er erlaubt lediglich das Lesen der Antworten, nicht
-    mehr Zugriff auf das Backend als ohnehin schon (jeder im selben
-    Heimnetz kann die REST-API direkt aufrufen)."""
+    origin = request.headers.get("Origin")
     if request.method == "OPTIONS":
         response = web.Response()
     else:
@@ -408,9 +414,11 @@ async def cors_middleware(request: web.Request, handler):
             response = await handler(request)
         except web.HTTPException as exc:
             response = exc
-    response.headers["Access-Control-Allow-Origin"] = "*"
-    response.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE, OPTIONS"
-    response.headers["Access-Control-Allow-Headers"] = "Content-Type"
+    if origin in ALLOWED_ORIGINS:
+        response.headers["Access-Control-Allow-Origin"] = origin
+        response.headers["Vary"] = "Origin"
+        response.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE, OPTIONS"
+        response.headers["Access-Control-Allow-Headers"] = "Content-Type"
     return response
 
 

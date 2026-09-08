@@ -5,42 +5,30 @@ import { GameHubScreen } from "./screens/GameHubScreen";
 import { GameSetupScreen } from "./screens/GameSetupScreen";
 import { GameScreen } from "./screens/GameScreen";
 import { ProfileScreen } from "./screens/ProfileScreen";
-import { ConnectScreen } from "./screens/ConnectScreen";
-import { clearStoredPiIp, getStoredPiIp } from "./piConnection";
+import { PiSettingsModal } from "./screens/PiSettingsModal";
+import { getStoredPiIp } from "./piConnection";
 import "./App.css";
 
 type View = { screen: "hub" } | { screen: "setup"; gameId: string } | { screen: "game" } | { screen: "profiles" };
 
-// Vercel-Deployment (kein Backend am selben Origin): erst pruefen, ob
-// ueberhaupt eine Backend-Verbindung noetig/vorhanden ist, bevor die
-// eigentliche App startet. Im Dev-Betrieb und wenn das Backend das
-// Frontend selbst ausliefert (same-origin funktioniert einfach),
-// entfaellt die Abfrage automatisch - siehe piConnection.ts.
-function useConnectionGate() {
-  const [checking, setChecking] = useState(true);
-  const [needsConnect, setNeedsConnect] = useState(false);
+// Ob die Pi-Einstellungen automatisch beim ersten Laden vorgeschlagen
+// werden sollten (Vercel-Deployment ohne Backend am selben Origin).
+// NUR ein Vorschlag, keine Sperre (Tobias-Feedback 08.09.2026: die
+// Seite muss immer erreichbar bleiben) - der Nutzer kann das Overlay
+// jederzeit schliessen und/oder spaeter ueber den "Einstellungen"-
+// Knopf im Header erneut oeffnen.
+function useShouldSuggestPiSettings(): boolean {
+  const [suggest, setSuggest] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
     async function check() {
-      if (import.meta.env.DEV || getStoredPiIp()) {
-        if (!cancelled) {
-          setNeedsConnect(false);
-          setChecking(false);
-        }
-        return;
-      }
+      if (import.meta.env.DEV || getStoredPiIp()) return;
       try {
         const res = await fetch("/api/board/info", { signal: AbortSignal.timeout(3000) });
-        if (!cancelled) {
-          setNeedsConnect(!res.ok);
-          setChecking(false);
-        }
+        if (!cancelled && !res.ok) setSuggest(true);
       } catch {
-        if (!cancelled) {
-          setNeedsConnect(true);
-          setChecking(false);
-        }
+        if (!cancelled) setSuggest(true);
       }
     }
     check();
@@ -49,7 +37,7 @@ function useConnectionGate() {
     };
   }, []);
 
-  return { checking, needsConnect, setNeedsConnect };
+  return suggest;
 }
 
 // Fortsetzen-Dialog nach Neustart (docs/ARCHITEKTUR.md Abschnitt 8):
@@ -58,23 +46,19 @@ function useConnectionGate() {
 export default function App() {
   const [view, setView] = useState<View>({ screen: "hub" });
   const [pendingResume, setPendingResume] = useState<PendingResume | null>(null);
-  const { checking, needsConnect, setNeedsConnect } = useConnectionGate();
+  const suggestPiSettings = useShouldSuggestPiSettings();
+  const [showPiSettings, setShowPiSettings] = useState(false);
 
   useEffect(() => {
-    if (checking || needsConnect) return;
+    if (suggestPiSettings) setShowPiSettings(true);
+  }, [suggestPiSettings]);
+
+  useEffect(() => {
     api
       .getPendingResume()
       .then(setPendingResume)
       .catch(() => setPendingResume(null));
-  }, [checking, needsConnect]);
-
-  if (checking) {
-    return null;
-  }
-
-  if (needsConnect) {
-    return <ConnectScreen onConnected={() => setNeedsConnect(false)} />;
-  }
+  }, []);
 
   async function handleResume() {
     if (!pendingResume) return;
@@ -89,12 +73,6 @@ export default function App() {
     setPendingResume(null);
   }
 
-  function handleChangePi() {
-    if (!confirm("Pi-Verbindung zurücksetzen? Du musst die IP danach neu eingeben.")) return;
-    clearStoredPiIp();
-    setNeedsConnect(true);
-  }
-
   return (
     <div className="app-shell">
       {view.screen !== "game" && (
@@ -106,11 +84,9 @@ export default function App() {
                 PROFILE
               </button>
             )}
-            {getStoredPiIp() && (
-              <button className="icon-btn" title="Pi-Verbindung ändern" onClick={handleChangePi}>
-                🔧
-              </button>
-            )}
+            <button className="btn-outline" onClick={() => setShowPiSettings(true)}>
+              ⚙ EINSTELLUNGEN
+            </button>
             <BoardControlBar />
           </div>
         </header>
@@ -148,6 +124,8 @@ export default function App() {
           </div>
         </div>
       )}
+
+      {showPiSettings && <PiSettingsModal onClose={() => setShowPiSettings(false)} />}
     </div>
   );
 }

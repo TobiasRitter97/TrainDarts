@@ -16,7 +16,7 @@ export type SettingField = {
   label: string;
   type: "toggle" | "select" | "number";
   default: unknown;
-  options?: { value: string; label: string }[];
+  options?: { value: string | number; label: string }[];
   min?: number;
   max?: number;
   presets?: number[];

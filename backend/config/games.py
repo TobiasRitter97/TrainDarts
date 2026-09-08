@@ -61,13 +61,30 @@ def catch_settings_schema() -> list[dict]:
     ]
 
 
+def checkout_mode_field() -> dict:
+    """Gemeinsames "Checkout"-Feld fuer 170 (x01) und 121
+    (checkout_range) - ersetzt den frueheren reinen "Double Out"-Toggle
+    (SPEC-Erweiterung, mit Tobias abgestimmt 08.09.2026)."""
+    return {
+        "key": "checkoutMode",
+        "label": "Checkout",
+        "type": "select",
+        "options": [
+            {"value": "double_out", "label": "Double Out"},
+            {"value": "master_out", "label": "Master Out"},
+            {"value": "straight_out", "label": "Straight Out"},
+        ],
+        "default": "double_out",
+    }
+
+
 def x01_settings_schema() -> list[dict]:
     """Gemeinsames Settings-Schema fuer alle Spiele der x01-Familie
     (SPEC §17). Kuenftige X01-Varianten rufen diese Funktion auf statt
     das Schema zu kopieren - so bleiben Match-Mode-Optionen wie
     "First to X Legs" an einer Stelle gepflegt."""
     return [
-        {"key": "doubleOut", "label": "Double Out", "type": "toggle", "default": True},
+        checkout_mode_field(),
         {
             "key": "matchMode",
             "label": "Match Mode",
@@ -221,6 +238,7 @@ GAMES: list[dict] = [
                 ],
                 "default": "standard",
             },
+            checkout_mode_field(),
             checkout_range_game_length_field(),
             {
                 "key": "customTargets", "label": "Anzahl Targets (Custom)", "type": "number",

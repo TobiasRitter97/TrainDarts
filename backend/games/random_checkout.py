@@ -28,7 +28,7 @@ def apply_throw(player_state: dict, visit_throws: list[dict], settings: dict) ->
     # Schalter in den Settings (SPEC §25 nennt keinen). Basis ist der
     # ueber mehrere eigene Aufnahmen hinweg mitgefuehrte Rest des
     # laufenden Versuchs, nicht der nominale (geteilte) Zielwert.
-    return apply_countdown_throw(player_state["attemptRemaining"], visit_throws, True)
+    return apply_countdown_throw(player_state["attemptRemaining"], visit_throws, "double_out")
 
 
 def resolve_attempt(player_state: dict, settings: dict, success: bool) -> None:

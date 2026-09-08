@@ -762,8 +762,15 @@ class MatchEngine:
         active_id = self.players[self.active_index]["id"]
         remaining = self._live_score(active_id)
         darts_left = VISIT_DART_CAP - len(self.current_visit_throws)
-        double_out = self.settings.get("doubleOut", True) if self.family_name == "x01" else True
-        return suggest_route(remaining, darts_left, double_out)
+        # "checkoutMode" ist nur bei x01 (170) und checkout_range (121)
+        # ein Setting - andere Familien dieser Gruppe (Random Checkout,
+        # Catch 40, 60 +/-) bleiben ueber den Default bei Double Out.
+        checkout_mode = (
+            self.settings.get("checkoutMode", "double_out")
+            if self.family_name in ("x01", "checkout_range")
+            else "double_out"
+        )
+        return suggest_route(remaining, darts_left, checkout_mode)
 
     def to_dict(self) -> dict:
         active_player = self.players[self.active_index]

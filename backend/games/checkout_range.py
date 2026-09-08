@@ -41,11 +41,15 @@ def create_player_state(settings: dict) -> dict:
 
 
 def apply_throw(player_state: dict, visit_throws: list[dict], settings: dict) -> dict:
-    # Checkout-Versuche laufen immer mit Double-Out (SPEC nennt keinen
-    # eigenen Schalter fuer diese Familie). Basis ist der ueber mehrere
-    # eigene Aufnahmen hinweg mitgefuehrte Rest des laufenden Versuchs,
-    # nicht der nominale Zielwert.
-    return apply_countdown_throw(player_state["attemptRemaining"], visit_throws, True)
+    # Checkout-Regel konfigurierbar (SPEC-Erweiterung, mit Tobias
+    # abgestimmt 08.09.2026, bei 121 - Spiele derselben Familie ohne
+    # eigenes "Checkout"-Setting wie 60 +/- bleiben ueber den Default
+    # bei Double Out). Basis ist der ueber mehrere eigene Aufnahmen
+    # hinweg mitgefuehrte Rest des laufenden Versuchs, nicht der
+    # nominale Zielwert.
+    return apply_countdown_throw(
+        player_state["attemptRemaining"], visit_throws, settings.get("checkoutMode", "double_out")
+    )
 
 
 def _safehouse_interval(settings: dict) -> int | None:

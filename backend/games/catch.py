@@ -35,7 +35,7 @@ def apply_throw(player_state: dict, visit_throws: list[dict], settings: dict) ->
     # Immer Double-Out (SPEC nennt keinen eigenen Schalter fuer diese
     # Familie). Basis ist der ueber mehrere eigene Aufnahmen hinweg
     # mitgefuehrte Rest des laufenden Versuchs, nicht die nominale Zahl.
-    return apply_countdown_throw(player_state["attemptRemaining"], visit_throws, True)
+    return apply_countdown_throw(player_state["attemptRemaining"], visit_throws, "double_out")
 
 
 def resolve_attempt(player_state: dict, settings: dict, success: bool) -> None:

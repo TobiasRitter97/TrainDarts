@@ -217,7 +217,8 @@ class MatchEngine:
             state = random_checkout_family.create_player_state(target)
             return self._init_task_fields(state, "remaining")
         if self.family_name == "target_progression":
-            return target_progression_family.create_player_state()
+            targets = self.game.get("targets", target_progression_family.BOBS27_TARGETS)
+            return target_progression_family.create_player_state(targets)
         if self.family_name == "checkout_range":
             state = checkout_range_family.create_player_state(self.settings)
             return self._init_task_fields(state, "level")
@@ -527,7 +528,7 @@ class MatchEngine:
     # ------------------------------------------------------------ bob's 27 runs
     def _maybe_finish_run(self, player_id: str) -> None:
         state = self.player_states[player_id]
-        if state["targetIndex"] < len(target_progression_family.BOBS27_TARGETS):
+        if state["targetIndex"] < len(state["targets"]):
             return  # diese Aufnahme war noch nicht das letzte Ziel
 
         state["totalScore"] += state["score"]
@@ -536,7 +537,7 @@ class MatchEngine:
         state["runsCompleted"] += 1
 
         all_done = all(
-            self.player_states[p["id"]]["targetIndex"] >= len(target_progression_family.BOBS27_TARGETS)
+            self.player_states[p["id"]]["targetIndex"] >= len(self.player_states[p["id"]]["targets"])
             for p in self.players
         )
         if not all_done:

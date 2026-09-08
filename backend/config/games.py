@@ -5,11 +5,34 @@ Hub und Setup-Screen. Die eigentliche Spiellogik (Engine-Familien mit
 handleThrow etc.) entsteht ab Phase 6/9 gemaess Bau-Reihenfolge in
 docs/ARCHITEKTUR.md Abschnitt 12.
 
-Nur 170, Bob's 27 und Random Checkout sind aktuell "implemented": True
-(Phase 9 Referenzspiele). Die restlichen sieben stehen als
-"Coming soon"-Cards im Hub.
+170, Bob's 27, Random Checkout, 121 und Bob's 27 Easy sind aktuell
+"implemented": True. Die restlichen fuenf stehen als "Coming soon"-
+Cards im Hub.
 """
 from __future__ import annotations
+
+from backend.games import target_progression as target_progression_family
+
+
+def bobs27_settings_schema() -> list[dict]:
+    """Gemeinsames Settings-Schema fuer die target_progression-Familie
+    (Bob's 27, Bob's 27 Easy, SPEC §19/§20) - beide Spiele unterscheiden
+    sich nur in der Ziel-Route (siehe backend/games/target_progression.py),
+    nicht in den Einstellungen."""
+    return [
+        {
+            "key": "mode",
+            "label": "Mode",
+            "type": "select",
+            "options": [
+                {"value": "single", "label": "Single Run"},
+                {"value": "bo3", "label": "Best of 3 Runs"},
+                {"value": "bo5", "label": "Best of 5 Runs"},
+                {"value": "endless", "label": "Endless"},
+            ],
+            "default": "single",
+        },
+    ]
 
 
 def x01_settings_schema() -> list[dict]:
@@ -106,20 +129,8 @@ GAMES: list[dict] = [
         "playerRange": [1, 4],
         "implemented": True,
         "durationModes": ["runs", "endless"],
-        "settingsSchema": [
-            {
-                "key": "mode",
-                "label": "Mode",
-                "type": "select",
-                "options": [
-                    {"value": "single", "label": "Single Run"},
-                    {"value": "bo3", "label": "Best of 3 Runs"},
-                    {"value": "bo5", "label": "Best of 5 Runs"},
-                    {"value": "endless", "label": "Endless"},
-                ],
-                "default": "single",
-            },
-        ],
+        "targets": target_progression_family.BOBS27_TARGETS,
+        "settingsSchema": bobs27_settings_schema(),
     },
     {
         "id": "random_checkout",
@@ -204,12 +215,20 @@ GAMES: list[dict] = [
             },
         ],
     },
-    # -- Bau-Reihenfolge lt. docs/ARCHITEKTUR.md Abschnitt 12, noch nicht implementiert --
     {
-        "id": "bobs27_easy", "name": "Bob's 27 Easy", "description": "Verkürzte Bob's-27-Route.",
-        "category": "DOUBLES", "icon": "🎯", "engineFamily": "target_progression",
-        "playerRange": [1, 4], "implemented": False, "durationModes": [], "settingsSchema": [],
+        "id": "bobs27_easy",
+        "name": "Bob's 27 Easy",
+        "description": "Verkürztes Doppel-Training: jedes zweite Doppel, dann Bull.",
+        "category": "DOUBLES",
+        "icon": "🎯",
+        "engineFamily": "target_progression",
+        "playerRange": [1, 4],
+        "implemented": True,
+        "durationModes": ["runs", "endless"],
+        "targets": target_progression_family.BOBS27_EASY_TARGETS,
+        "settingsSchema": bobs27_settings_schema(),
     },
+    # -- Bau-Reihenfolge lt. docs/ARCHITEKTUR.md Abschnitt 12, noch nicht implementiert --
     {
         "id": "catch40_easy", "name": "Catch 40 Easy", "description": "Catch-Training, Checkout 41–81.",
         "category": "CHECKOUT", "icon": "🎯", "engineFamily": "checkout_range",

@@ -1,31 +1,44 @@
-"""target_progression-Familie (aktuell: Bob's 27). Siehe SPEC §19 und
-docs/ARCHITEKTUR.md Abschnitt 4.
+"""target_progression-Familie (aktuell: Bob's 27, Bob's 27 Easy). Siehe
+SPEC §19/§20 und docs/ARCHITEKTUR.md Abschnitt 4.
 
-Etablierte Bob's-27-Regel: pro Ziel (D1..D20, dann Bull) genau eine
+Etablierte Bob's-27-Regel: pro Ziel (Route siehe unten) genau eine
 Aufnahme mit 3 Darts. Jeder getroffene Dart bringt +2x die Zahl
 (Bull = +50), werden alle 3 Darts verfehlt gibt es einmalig -2x die
 Zahl. Danach IMMER zum naechsten Ziel wechseln (wie Around the World).
+
+Die Ziel-Route ist zentral hier konfiguriert (SPEC §20: "zentral
+konfigurierbar machen und nicht hart in UI-Komponenten verteilen") und
+wird der GameDefinition in backend/config/games.py als "targets"
+mitgegeben - Bob's 27 und Bob's 27 Easy nutzen dieselbe Engine/UI,
+unterscheiden sich nur in dieser Liste.
 """
 from __future__ import annotations
 
 BOBS27_TARGETS = [f"D{n}" for n in range(1, 21)] + ["BULL"]
+
+# Easy-Route (mit Tobias abgestimmt, 08.09.2026): jedes zweite Doppel -
+# deckt weiterhin das ganze Board ab, aber mit halb so vielen Zielen.
+BOBS27_EASY_TARGETS = [f"D{n}" for n in range(2, 21, 2)] + ["BULL"]
+
 STARTING_SCORE = 27
 
 
-def create_player_state() -> dict:
+def create_player_state(targets: list[str]) -> dict:
     return {
         "score": STARTING_SCORE,
         "targetIndex": 0,
         "runsCompleted": 0,
         "totalScore": 0,
         "bestRun": None,
+        "targets": targets,
     }
 
 
 def current_target(state: dict) -> str | None:
-    if state["targetIndex"] >= len(BOBS27_TARGETS):
+    targets = state["targets"]
+    if state["targetIndex"] >= len(targets):
         return None
-    return BOBS27_TARGETS[state["targetIndex"]]
+    return targets[state["targetIndex"]]
 
 
 def _target_matches(target_label: str, segment: dict) -> bool:

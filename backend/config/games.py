@@ -140,10 +140,6 @@ GAMES: list[dict] = [
                 "key": "maxCheckout", "label": "Maximum Checkout", "type": "number",
                 "default": 120, "min": 2, "max": 170,
             },
-            {
-                "key": "dartsPerCheckout", "label": "Darts per Checkout", "type": "number",
-                "default": 9, "min": 1, "max": 15, "presets": [3, 6, 9, 12],
-            },
             {"key": "endless", "label": "Endless", "type": "toggle", "default": False},
             {
                 "key": "numberOfCheckouts", "label": "Number of Checkouts", "type": "number",
@@ -165,10 +161,6 @@ GAMES: list[dict] = [
         "settingsSchema": [
             {"key": "startLevel", "label": "Starting Checkout", "type": "number", "default": 121, "min": 2, "max": 170},
             {"key": "maxLevel", "label": "Maximum", "type": "number", "default": 170, "min": 2, "max": 170},
-            {
-                "key": "dartsPerCheckout", "label": "Darts per Checkout", "type": "number",
-                "default": 9, "min": 1, "max": 15, "presets": [3, 6, 9, 12],
-            },
             {
                 "key": "safehouseMode",
                 "label": "Safehouse",

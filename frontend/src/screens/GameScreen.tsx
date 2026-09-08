@@ -91,6 +91,18 @@ export function GameScreen({ onExit }: Props) {
             <div className="target-value">{match.target}</div>
           </>
         )}
+        {activePlayer?.openNumbers && (
+          <div className="open-numbers">
+            <div className="target-label">OFFENE ZAHLEN</div>
+            <div className="open-numbers-list">
+              {activePlayer.openNumbers.map((n) => (
+                <span key={n} className={`open-number-chip ${String(n) === match.target ? "active" : ""}`}>
+                  {n}
+                </span>
+              ))}
+            </div>
+          </div>
+        )}
       </section>
 
       <CheckoutRouteDisplay route={match.checkoutSuggestion} />

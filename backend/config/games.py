@@ -328,13 +328,15 @@ GAMES: list[dict] = [
     {
         "id": "around_the_world",
         "name": "Around the World",
-        "description": "1 bis 20, optional Bull - immer eine Aufnahme pro Zahl.",
+        "description": "Eigene Zahlenliste je Spieler (1-20, optional Bull) - wer zuerst fertig ist, gewinnt.",
         "category": "ACCURACY",
         "icon": "🌍",
         "engineFamily": "accuracy_progression",
         "playerRange": [1, 4],
         "implemented": True,
-        "durationModes": ["runs", "custom", "endless"],
+        # Kein "Game Length" mehr (2. Korrektur, SPEC §24) - das Spiel
+        # endet immer automatisch, sobald ein Spieler seine Liste leert.
+        "durationModes": ["race"],
         "settingsSchema": [
             {
                 "key": "segmentMode",
@@ -360,23 +362,6 @@ GAMES: list[dict] = [
                 "default": 1,
             },
             {"key": "includeBull", "label": "Include Bull", "type": "toggle", "default": False},
-            {
-                "key": "mode",
-                "label": "Game Length",
-                "type": "select",
-                "options": [
-                    {"value": "single", "label": "1 kompletter Run"},
-                    {"value": "bo3", "label": "Best of 3 Runs"},
-                    {"value": "custom", "label": "Custom Runs"},
-                    {"value": "endless", "label": "Endless"},
-                ],
-                "default": "single",
-            },
-            {
-                "key": "customRuns", "label": "Anzahl Runs (Custom)", "type": "number",
-                "default": 3, "min": 1, "max": 20,
-                "showIf": {"key": "mode", "equals": "custom"},
-            },
         ],
     },
     {

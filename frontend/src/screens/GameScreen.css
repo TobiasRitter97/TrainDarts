@@ -97,6 +97,32 @@
   margin-top: var(--sp-1);
 }
 
+.open-numbers {
+  margin-top: var(--sp-5);
+}
+
+.open-numbers-list {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--sp-2);
+  margin-top: var(--sp-2);
+}
+
+.open-number-chip {
+  padding: var(--sp-1) var(--sp-3);
+  border-radius: var(--radius-pill, 999px);
+  border: 1px solid var(--c-border);
+  font-size: var(--fs-sm);
+  color: var(--c-text-muted);
+}
+
+.open-number-chip.active {
+  border-color: var(--c-accent-strong);
+  color: var(--c-accent-strong);
+  font-weight: var(--fw-strong);
+}
+
 /* ---------- Current Throw ---------- */
 .current-throw-panel {
   display: grid;

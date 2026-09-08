@@ -253,8 +253,8 @@ class MatchEngine:
             state = catch_family.create_player_state(self.catch_targets)
             return self._init_task_fields(state, "level")
         if self.family_name == "accuracy_progression":
-            targets = accuracy_progression_family.build_targets(self.settings)
-            return accuracy_progression_family.create_player_state(targets)
+            open_numbers = accuracy_progression_family.build_open_numbers(self.settings)
+            return accuracy_progression_family.create_player_state(open_numbers)
         return x01_family.create_player_state()
 
     @staticmethod
@@ -362,12 +362,15 @@ class MatchEngine:
             return
 
         if self.family_name == "accuracy_progression":
-            # SPEC §24, wichtigste Regel: nach JEDER Aufnahme geht es
-            # IMMER zur naechsten Zahl weiter, unabhaengig vom Erfolg -
-            # wie target_progression, aber ohne Punktestand.
-            accuracy_progression_family.resolve_target(state, result)
+            # 2. Korrektur (08.09.2026, SPEC §24 - komplett ersetzt):
+            # jeder Spieler hat seine eigene Zahlenliste, das Spiel
+            # endet SOFORT, wenn ein Spieler seine Liste leert - er
+            # gewinnt, andere spielen nicht weiter (kein Ausgleich).
+            accuracy_progression_family.resolve_visit(state, result)
             self._clear_visit()
-            self._maybe_finish_accuracy_run(player_id)
+            if state["currentTarget"] is None:
+                self.finished = True
+                self.winner_id = player_id
             if not self.finished:
                 self._advance_player()
             return
@@ -641,41 +644,6 @@ class MatchEngine:
             s["targetIndex"] = 0
             s["score"] = target_progression_family.STARTING_SCORE
 
-    # ------------------------------------------------------------ around the world runs
-    def _maybe_finish_accuracy_run(self, player_id: str) -> None:
-        state = self.player_states[player_id]
-        if state["targetIndex"] < len(state["targets"]):
-            return  # diese Aufnahme war noch nicht das letzte Ziel (1-20 + evtl. Bull)
-
-        state["runsCompleted"] += 1
-
-        all_done = all(
-            self.player_states[p["id"]]["targetIndex"] >= len(self.player_states[p["id"]]["targets"])
-            for p in self.players
-        )
-        if not all_done:
-            return
-
-        mode = self.settings.get("mode", "single")
-        runs_target = self._run_mode_target(mode, "customRuns")
-        completed = min(self.player_states[p["id"]]["runsCompleted"] for p in self.players)
-
-        if runs_target is not None and completed >= runs_target:
-            self.finished = True
-            # Gewinner (SPEC §24): meiste erfolgreiche Targets, bei
-            # Gleichstand hoehere Anzahl tatsaechlicher Treffer.
-            self.winner_id = max(
-                self.players,
-                key=lambda p: (
-                    self.player_states[p["id"]]["successfulTargets"],
-                    self.player_states[p["id"]]["totalHits"],
-                ),
-            )["id"]
-            return
-
-        for p in self.players:
-            self.player_states[p["id"]]["targetIndex"] = 0
-
     # ------------------------------------------------------------ display
     def _live_score(self, player_id: str) -> int | None:
         """Countdown-Wert (score/remaining/level, siehe COUNTDOWN_FIELD)
@@ -699,7 +667,17 @@ class MatchEngine:
         if self.family_name == "target_progression":
             return target_progression_family.current_target(state)
         if self.family_name == "accuracy_progression":
-            target = accuracy_progression_family.current_target(state)
+            # Required Hits = 1: das Ziel kann sich INNERHALB der
+            # laufenden Aufnahme mit jedem Dart aendern (SPEC-Korrektur
+            # 08.09.2026) - live neu berechnen, ohne den committeten
+            # State zu veraendern. Required Hits 2/3: Ziel bleibt
+            # waehrend der Aufnahme gleich, keine Live-Berechnung noetig.
+            required_hits = int(self.settings.get("requiredHits", 1))
+            if required_hits == 1 and self.current_visit_throws:
+                result = self.family.apply_throw(state, self.current_visit_throws, self.settings)
+                target = result.get("endingTarget", state["currentTarget"])
+            else:
+                target = state["currentTarget"]
             return str(target) if target is not None else None
         if self.family_name == "random_checkout":
             idx = min(self.random_target_index, len(self.random_targets) - 1)
@@ -767,4 +745,5 @@ class MatchEngine:
             "doubles": state.get("doubles"),
             "triples": state.get("triples"),
             "perfectTargets": state.get("perfectTargets"),
+            "openNumbers": state.get("openNumbers"),
         }

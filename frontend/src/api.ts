@@ -65,6 +65,7 @@ export type MatchPlayer = {
   doubles: number | null;
   triples: number | null;
   perfectTargets: number | null;
+  openNumbers: (number | string)[] | null;
 };
 
 export type MatchThrow = { throwSeq: number; label: string };

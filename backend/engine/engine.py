@@ -33,10 +33,9 @@ FAMILIES = {
 }
 
 # Welche Wurf-Ergebnisse eine Aufnahme sofort "pending" machen (statt
-# erst nach Erreichen von VISIT_DART_CAP Darts). Korrektur (08.09.2026,
-# SPEC §18/§25): bei checkout_range/random_checkout ist ein Versuch
-# GENAU EINE Aufnahme (3 Darts) - ein Bust beendet den Versuch also
-# genauso sofort wie ein Checkout, exakt wie bei x01.
+# erst nach Erreichen von VISIT_DART_CAP Darts). Ein Bust oder Checkout
+# beendet die aktuelle Aufnahme immer sofort, unabhaengig davon, ob der
+# gesamte Checkout-Versuch damit schon abgeschlossen ist.
 FORCES_VISIT_END = {
     "x01": {"bust", "checkout"},
     "random_checkout": {"bust", "checkout"},
@@ -45,18 +44,29 @@ FORCES_VISIT_END = {
 }
 
 # Feldname im jeweiligen player_state, der den "Countdown"-Wert traegt
-# (fuer Live-Anzeige und Checkout-Vorschlag generisch nutzbar).
+# (fuer Live-Anzeige und Checkout-Vorschlag generisch nutzbar). Bei
+# checkout_range/random_checkout ist das der ueber mehrere eigene
+# Aufnahmen hinweg mitgefuehrte Rest INNERHALB des laufenden Versuchs
+# (siehe TASK_BASED_FAMILIES) - nicht der nominale Zielwert.
 COUNTDOWN_FIELD = {
     "x01": "score",
-    "random_checkout": "remaining",
-    "checkout_range": "level",
+    "random_checkout": "attemptRemaining",
+    "checkout_range": "attemptRemaining",
 }
 
 # Engine-weite Konstante: eine Aufnahme (Board-Takeout) ist physikalisch
-# immer 3 Darts, unabhaengig vom Spiel. Bei checkout_range/random_checkout
-# ist eine Aufnahme jetzt auch der KOMPLETTE Versuch (kein Rest wird
-# darueber hinaus gespeichert, SPEC §18/§25, Korrektur 08.09.2026).
+# immer 3 Darts, unabhaengig vom Spiel.
 VISIT_DART_CAP = 3
+
+# Korrektur (08.09.2026, 3. Fassung, SPEC §18/§25): Spielerwechsel und
+# Versuchs-Fortschritt sind ZWEI GETRENNTE Dinge. Nach JEDER Aufnahme
+# (Takeout) wechselt immer der Spieler (siehe _advance_to_next_eligible_
+# player). Die Einstellung "Darts per Checkout" bestimmt unabhaengig
+# davon, wie viele eigene Aufnahmen ein Spieler insgesamt fuer EINEN
+# Checkout-Versuch bekommt (abwechselnd mit den anderen Spielern, nicht
+# am Stueck) - siehe _commit_task_visit/_maybe_advance_task_round.
+TASK_BASED_FAMILIES = {"checkout_range", "random_checkout"}
+DEFAULT_DARTS_PER_CHECKOUT = {"checkout_range": 9, "random_checkout": 6}
 
 X01_MATCH_MODE_LEGS = {"1_leg": 1, "bo3": 2, "bo5": 3, "bo7": 4}
 BOBS27_MODE_RUNS = {"single": 1, "bo3": 3, "bo5": 5}
@@ -204,12 +214,28 @@ class MatchEngine:
     def _create_player_state(self) -> dict:
         if self.family_name == "random_checkout":
             target = self.random_targets[0] if self.random_targets else 0
-            return random_checkout_family.create_player_state(target)
+            state = random_checkout_family.create_player_state(target)
+            return self._init_task_fields(state, "remaining")
         if self.family_name == "target_progression":
             return target_progression_family.create_player_state()
         if self.family_name == "checkout_range":
-            return checkout_range_family.create_player_state(self.settings)
+            state = checkout_range_family.create_player_state(self.settings)
+            return self._init_task_fields(state, "level")
         return x01_family.create_player_state()
+
+    @staticmethod
+    def _init_task_fields(state: dict, nominal_field: str) -> dict:
+        """Ergaenzt den per-Versuch-Fortschritt (TASK_BASED_FAMILIES):
+        attemptRemaining ist der ueber mehrere eigene Aufnahmen hinweg
+        mitgefuehrte Rest des laufenden Versuchs, taskVisitsUsed zaehlt
+        die dafuer bereits verbrauchten eigenen Aufnahmen, taskDone
+        markiert, ob dieser Spieler seinen Teil des Versuchs schon
+        abgeschlossen hat (Checkout geschafft ODER alle Aufnahmen
+        verbraucht)."""
+        state["attemptRemaining"] = state[nominal_field]
+        state["taskVisitsUsed"] = 0
+        state["taskDone"] = False
+        return state
 
     def _current_random_target(self) -> int:
         return self.random_targets[self.random_target_index]
@@ -274,31 +300,20 @@ class MatchEngine:
                 self._advance_player()
             return
 
-        if self.family_name == "checkout_range":
-            # Korrektur (08.09.2026, SPEC §18): ein Versuch ist GENAU EINE
-            # Aufnahme. Egal ob Checkout geschafft oder nicht (auch Bust):
-            # sofort werten und Spielerwechsel. Kein Rest wird ueber
-            # Aufnahmen hinweg gespeichert - jeder Versuch startet wieder
-            # beim vollen aktuellen Ziel.
-            checkout_range_family.resolve_attempt(state, self.settings, outcome == "checkout")
+        if self.family_name in TASK_BASED_FAMILIES:
+            # 3. Korrektur (08.09.2026, SPEC §18/§25): Spielerwechsel
+            # (IMMER nach jeder Aufnahme, siehe _advance_to_next_eligible_
+            # player) und Versuchs-Fortschritt ("Darts per Checkout" -
+            # mehrere eigene Aufnahmen pro Versuch, abwechselnd mit den
+            # anderen Spielern) sind zwei getrennte Berechnungen.
+            self._commit_task_visit(state, result)
+            if self.family_name == "checkout_range":
+                self._maybe_finish_checkout_range(player_id)
             self._clear_visit()
-            self._maybe_finish_checkout_range(player_id)
             if not self.finished:
-                self._advance_player()
-            return
-
-        if self.family_name == "random_checkout":
-            # Gleiche Korrektur wie checkout_range: ein Versuch ist genau
-            # eine Aufnahme, sofortiger Spielerwechsel danach (SPEC §25).
-            if outcome == "checkout":
-                state["successfulCheckouts"] += 1
-            state["attempts"] += 1
-            self._clear_visit()
-            was_last = self.active_index == len(self.players) - 1
-            if was_last:
-                self._next_random_round()
+                self._maybe_advance_task_round()
             if not self.finished:
-                self._advance_player()
+                self._advance_to_next_eligible_player()
             return
 
         if self.family_name == "target_progression":
@@ -322,6 +337,90 @@ class MatchEngine:
         self.active_index = (self.active_index + 1) % len(self.players)
         if was_last:
             self.round_number += 1
+
+    def _advance_to_next_eligible_player(self) -> None:
+        """Spielerwechsel passiert IMMER nach jeder Aufnahme (Takeout) -
+        ohne Ausnahme. Bei TASK_BASED_FAMILIES wird dabei aber ein
+        Spieler uebersprungen, der seinen Teil des laufenden Versuchs
+        schon abgeschlossen hat (Checkout geschafft oder alle eigenen
+        Aufnahmen verbraucht) - er bekommt keine weiteren Aufnahmen mehr,
+        bis fuer alle ein neuer Versuch beginnt (siehe
+        _maybe_advance_task_round)."""
+        self._advance_player()
+        if self.family_name not in TASK_BASED_FAMILIES:
+            return
+        guard = 0
+        while (
+            self.player_states[self.players[self.active_index]["id"]]["taskDone"]
+            and guard < len(self.players)
+        ):
+            self._advance_player()
+            guard += 1
+
+    def _visits_per_attempt(self) -> int:
+        default = DEFAULT_DARTS_PER_CHECKOUT.get(self.family_name, 9)
+        darts = int(self.settings.get("dartsPerCheckout", default))
+        return max(1, darts // VISIT_DART_CAP)
+
+    def _task_nominal_field(self) -> str:
+        return "level" if self.family_name == "checkout_range" else "remaining"
+
+    def _commit_task_visit(self, state: dict, result: dict) -> None:
+        """Wertet EINE Aufnahme innerhalb eines mehrteiligen Checkout-
+        Versuchs (TASK_BASED_FAMILIES). Getrennt vom Spielerwechsel
+        (siehe _advance_to_next_eligible_player)."""
+        outcome = result.get("outcome")
+        nominal_field = self._task_nominal_field()
+
+        if outcome == "checkout":
+            # Checkout geschafft: dieser Spieler ist fuer den laufenden
+            # Versuch fertig, auch wenn er noch Aufnahmen uebrig haette -
+            # seine Zielzahl steigt sofort, andere Spieler bekommen davon
+            # unbeeinflusst weiterhin all ihre eigenen Aufnahmen auf den
+            # bisherigen Wert.
+            self.family.resolve_attempt(state, self.settings, True)
+            state["taskDone"] = True
+            state["attemptRemaining"] = state[nominal_field]  # Anzeige: sofort die neue Zielzahl
+            return
+
+        state["taskVisitsUsed"] += 1
+        exhausted = state["taskVisitsUsed"] >= self._visits_per_attempt()
+
+        if outcome == "bust" or exhausted:
+            # Bust: Aufnahme verbraucht, Rest springt sofort zurueck auf
+            # den Versuchs-Startwert. Erschoepft (letzte Aufnahme ohne
+            # Checkout, kein Bust): Versuch fuer diesen Spieler vorbei -
+            # Anzeige zeigt dann ebenfalls wieder den (unveraenderten)
+            # Startwert statt eines veralteten Zwischenstands.
+            state["attemptRemaining"] = state[nominal_field]
+        else:
+            # Aufnahme weder Bust noch Checkout, Versuch fuer diesen
+            # Spieler laeuft weiter: Fortschritt wird fuer die naechste
+            # eigene Aufnahme in diesem Versuch mitgefuehrt.
+            state["attemptRemaining"] = result["score"]
+
+        if exhausted:
+            # Alle eigenen Aufnahmen fuer diesen Versuch verbraucht, ohne
+            # zu checken -> Versuch fuer diesen Spieler gescheitert.
+            self.family.resolve_attempt(state, self.settings, False)
+            state["taskDone"] = True
+
+    def _maybe_advance_task_round(self) -> None:
+        """Startet einen neuen Versuch fuer ALLE Spieler gemeinsam, sobald
+        jeder Spieler seinen Teil des laufenden Versuchs abgeschlossen
+        hat (Checkout oder alle eigenen Aufnahmen verbraucht)."""
+        if not all(self.player_states[p["id"]]["taskDone"] for p in self.players):
+            return
+        if self.family_name == "random_checkout":
+            self._next_random_round()
+            if self.finished:
+                return
+        nominal_field = self._task_nominal_field()
+        for p in self.players:
+            s = self.player_states[p["id"]]
+            s["taskDone"] = False
+            s["taskVisitsUsed"] = 0
+            s["attemptRemaining"] = s[nominal_field]
 
     # ------------------------------------------------------------ x01 legs
     def _sets_enabled(self) -> bool:

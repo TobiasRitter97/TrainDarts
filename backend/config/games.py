@@ -146,6 +146,10 @@ GAMES: list[dict] = [
                 "default": 20, "min": 1, "max": 200, "presets": [10, 20, 30, 50],
                 "showIf": {"key": "endless", "equals": False},
             },
+            {
+                "key": "dartsPerCheckout", "label": "Darts per Checkout", "type": "number",
+                "default": 6, "min": 3, "max": 12, "presets": [3, 6, 9, 12],
+            },
         ],
     },
     {
@@ -177,6 +181,10 @@ GAMES: list[dict] = [
                 "key": "customTargets", "label": "Anzahl Targets (Custom)", "type": "number",
                 "default": 20, "min": 1, "max": 100,
                 "showIf": {"key": "gameLengthMode", "equals": "custom"},
+            },
+            {
+                "key": "dartsPerCheckout", "label": "Darts per Checkout", "type": "number",
+                "default": 9, "min": 3, "max": 12, "presets": [3, 6, 9, 12],
             },
         ],
     },

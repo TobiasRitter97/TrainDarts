@@ -3,13 +3,17 @@ checkout_range-Familie (aktuell: 121; spaeter Catch 40, Catch 40 Easy,
 60 +/- - docs/ARCHITEKTUR.md Abschnitt 4). Ein Spieler arbeitet sich
 unabhaengig von den anderen durch eine Folge von Checkout-Zahlen.
 
-Korrektur (08.09.2026, SPEC §18): Ein Versuch ist GENAU EINE Aufnahme
-(3 Darts) - kein mehrteiliger Versuch mehr. Nach jeder Aufnahme
-wechselt der Spieler, unabhaengig vom Ergebnis (auch bei Bust). Bei
-Erfolg steigt das Ziel (121->122), bei Misserfolg (inkl. Bust) bleibt
-es gleich (bzw. faellt auf den Safehouse-Checkpoint zurueck). Jeder
-Versuch startet immer wieder beim vollen aktuellen Ziel - es wird kein
-Rest ueber Aufnahmen hinweg gespeichert.
+3. Korrektur (08.09.2026, SPEC §18): Spielerwechsel und Versuchs-
+Fortschritt sind getrennt (siehe backend/engine/engine.py,
+TASK_BASED_FAMILIES/_commit_task_visit). Ein Versuch umfasst
+"Darts per Checkout" Darts, aufgeteilt in mehrere eigene 3-Darts-
+Aufnahmen - nach JEDER Aufnahme wechselt trotzdem sofort der Spieler,
+die anderen werfen dazwischen ihre eigenen Aufnahmen fuer denselben
+Versuch. "level" ist der nominale Zielwert des laufenden/naechsten
+Versuchs und aendert sich nur, wenn ein Spieler seinen Teil des
+Versuchs abschliesst (siehe resolve_attempt) - der laufende
+Fortschritt innerhalb des Versuchs steckt in player_state
+["attemptRemaining"] (von der Engine verwaltet).
 
 Safehouse-Regel (SPEC §18): im SPEC nicht bis ins Detail definiert -
 mit Tobias abgestimmte Interpretation (02.09.2026): Checkpoints alle
@@ -30,8 +34,10 @@ def create_player_state(settings: dict) -> dict:
 
 def apply_throw(player_state: dict, visit_throws: list[dict], settings: dict) -> dict:
     # Checkout-Versuche laufen immer mit Double-Out (SPEC nennt keinen
-    # eigenen Schalter fuer diese Familie).
-    return apply_countdown_throw(player_state["level"], visit_throws, True)
+    # eigenen Schalter fuer diese Familie). Basis ist der ueber mehrere
+    # eigene Aufnahmen hinweg mitgefuehrte Rest des laufenden Versuchs,
+    # nicht der nominale Zielwert.
+    return apply_countdown_throw(player_state["attemptRemaining"], visit_throws, True)
 
 
 def _safehouse_interval(settings: dict) -> int | None:
@@ -44,8 +50,11 @@ def _safehouse_interval(settings: dict) -> int | None:
 
 
 def resolve_attempt(player_state: dict, settings: dict, success: bool) -> None:
-    """Wird nach JEDER Aufnahme aufgerufen (= jedem Versuch, seit der
-    Korrektur vom 08.09.2026) - schreibt level/highestLevel/Stats fort."""
+    """Wird von der Engine GENAU EINMAL pro Spieler und Versuch
+    aufgerufen - entweder sofort bei Checkout (auch wenn noch eigene
+    Aufnahmen uebrig waeren) oder wenn dieser Spieler alle seine
+    Aufnahmen fuer den Versuch verbraucht hat, ohne zu checken.
+    Schreibt level/highestLevel/Stats fort."""
     start = int(settings.get("startLevel", 121))
     max_level = int(settings.get("maxLevel", 170))
     player_state["attempts"] += 1

@@ -5,9 +5,52 @@ import { GameHubScreen } from "./screens/GameHubScreen";
 import { GameSetupScreen } from "./screens/GameSetupScreen";
 import { GameScreen } from "./screens/GameScreen";
 import { ProfileScreen } from "./screens/ProfileScreen";
+import { ConnectScreen } from "./screens/ConnectScreen";
+import { clearStoredPiIp, getStoredPiIp } from "./piConnection";
 import "./App.css";
 
 type View = { screen: "hub" } | { screen: "setup"; gameId: string } | { screen: "game" } | { screen: "profiles" };
+
+// Vercel-Deployment (kein Backend am selben Origin): erst pruefen, ob
+// ueberhaupt eine Backend-Verbindung noetig/vorhanden ist, bevor die
+// eigentliche App startet. Im Dev-Betrieb und wenn das Backend das
+// Frontend selbst ausliefert (same-origin funktioniert einfach),
+// entfaellt die Abfrage automatisch - siehe piConnection.ts.
+function useConnectionGate() {
+  const [checking, setChecking] = useState(true);
+  const [needsConnect, setNeedsConnect] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function check() {
+      if (import.meta.env.DEV || getStoredPiIp()) {
+        if (!cancelled) {
+          setNeedsConnect(false);
+          setChecking(false);
+        }
+        return;
+      }
+      try {
+        const res = await fetch("/api/board/info", { signal: AbortSignal.timeout(3000) });
+        if (!cancelled) {
+          setNeedsConnect(!res.ok);
+          setChecking(false);
+        }
+      } catch {
+        if (!cancelled) {
+          setNeedsConnect(true);
+          setChecking(false);
+        }
+      }
+    }
+    check();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  return { checking, needsConnect, setNeedsConnect };
+}
 
 // Fortsetzen-Dialog nach Neustart (docs/ARCHITEKTUR.md Abschnitt 8):
 // weder automatisch fortsetzen noch verwerfen - einmal beim Laden der
@@ -15,13 +58,23 @@ type View = { screen: "hub" } | { screen: "setup"; gameId: string } | { screen: 
 export default function App() {
   const [view, setView] = useState<View>({ screen: "hub" });
   const [pendingResume, setPendingResume] = useState<PendingResume | null>(null);
+  const { checking, needsConnect, setNeedsConnect } = useConnectionGate();
 
   useEffect(() => {
+    if (checking || needsConnect) return;
     api
       .getPendingResume()
       .then(setPendingResume)
       .catch(() => setPendingResume(null));
-  }, []);
+  }, [checking, needsConnect]);
+
+  if (checking) {
+    return null;
+  }
+
+  if (needsConnect) {
+    return <ConnectScreen onConnected={() => setNeedsConnect(false)} />;
+  }
 
   async function handleResume() {
     if (!pendingResume) return;
@@ -36,6 +89,12 @@ export default function App() {
     setPendingResume(null);
   }
 
+  function handleChangePi() {
+    if (!confirm("Pi-Verbindung zurücksetzen? Du musst die IP danach neu eingeben.")) return;
+    clearStoredPiIp();
+    setNeedsConnect(true);
+  }
+
   return (
     <div className="app-shell">
       {view.screen !== "game" && (
@@ -45,6 +104,11 @@ export default function App() {
             {view.screen !== "profiles" && (
               <button className="btn-outline" onClick={() => setView({ screen: "profiles" })}>
                 PROFILE
+              </button>
+            )}
+            {getStoredPiIp() && (
+              <button className="icon-btn" title="Pi-Verbindung ändern" onClick={handleChangePi}>
+                🔧
               </button>
             )}
             <BoardControlBar />

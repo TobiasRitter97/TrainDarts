@@ -392,9 +392,31 @@ async def ws_handler(request: web.Request) -> web.WebSocketResponse:
     return ws
 
 
+@web.middleware
+async def cors_middleware(request: web.Request, handler):
+    """Noetig seit dem Vercel-Deployment (Frontend und Backend laufen
+    auf unterschiedlichen Origins - Frontend auf Vercel, Backend auf
+    dem Pi im Heimnetz, siehe frontend/src/piConnection.ts). Keine
+    Authentifizierung in dieser App, daher reicht ein offener CORS-
+    Header ("*") - er erlaubt lediglich das Lesen der Antworten, nicht
+    mehr Zugriff auf das Backend als ohnehin schon (jeder im selben
+    Heimnetz kann die REST-API direkt aufrufen)."""
+    if request.method == "OPTIONS":
+        response = web.Response()
+    else:
+        try:
+            response = await handler(request)
+        except web.HTTPException as exc:
+            response = exc
+    response.headers["Access-Control-Allow-Origin"] = "*"
+    response.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE, OPTIONS"
+    response.headers["Access-Control-Allow-Headers"] = "Content-Type"
+    return response
+
+
 # ---------------------------------------------------------------- App-Setup
 def make_app() -> web.Application:
-    app = web.Application()
+    app = web.Application(middlewares=[cors_middleware])
 
     app.router.add_get("/api/profiles", list_profiles)
     app.router.add_post("/api/profiles", create_profile)

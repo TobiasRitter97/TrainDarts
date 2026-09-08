@@ -1,0 +1,41 @@
+.connect-screen {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--sp-5);
+}
+
+.connect-card {
+  max-width: 420px;
+  width: 100%;
+  text-align: center;
+}
+
+.connect-card .screen-title {
+  font-size: var(--fs-lg);
+}
+
+.connect-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+  margin-top: var(--sp-5);
+}
+
+.connect-form input {
+  min-height: var(--touch-min);
+  padding: 0 var(--sp-4);
+  background: var(--c-surface-raised);
+  border: 1px solid var(--c-border-strong);
+  border-radius: var(--radius-md);
+  color: var(--c-text);
+  font-size: var(--fs-lg);
+  text-align: center;
+  letter-spacing: 0.04em;
+}
+
+.connect-card .screen-error {
+  margin-top: var(--sp-4);
+  margin-bottom: 0;
+}

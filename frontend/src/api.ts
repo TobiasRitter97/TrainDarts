@@ -1,4 +1,5 @@
 // Schmaler Client fuer die Backend-REST-API (docs/ARCHITEKTUR.md Abschnitt 10).
+import { apiBaseFor, getStoredPiIp } from "./piConnection";
 
 export type Profile = {
   id: string;
@@ -147,7 +148,15 @@ export type ProfileStats = {
 export type LeaderboardEntry = { profileId: string; name: string; color: string | null; value: number };
 export type Leaderboard = { configHash: string; configLabel: string; metricName: string; entries: LeaderboardEntry[] };
 
-const BASE = "/api";
+// Dev-Betrieb (Vite) und "vom Pi selbst ausgeliefert" (same-origin)
+// brauchen keine gespeicherte IP - relative "/api"-Pfade reichen dann.
+// Im Vercel-Deployment gibt es kein Backend am selben Origin, dort
+// wird die vom Nutzer einmalig eingegebene Pi-IP verwendet (siehe
+// ConnectScreen/piConnection.ts).
+function apiBase(): string {
+  const ip = getStoredPiIp();
+  return ip ? apiBaseFor(ip) : "/api";
+}
 
 async function asJson<T>(res: Response): Promise<T> {
   if (!res.ok) {
@@ -159,11 +168,11 @@ async function asJson<T>(res: Response): Promise<T> {
 export const api = {
   listProfiles(includeGuests = false): Promise<Profile[]> {
     const suffix = includeGuests ? "?include_guests=1" : "";
-    return fetch(`${BASE}/profiles${suffix}`).then((res) => asJson<Profile[]>(res));
+    return fetch(`${apiBase()}/profiles${suffix}`).then((res) => asJson<Profile[]>(res));
   },
 
   createProfile(data: { name: string; initials?: string; color?: string; is_guest?: boolean }): Promise<Profile> {
-    return fetch(`${BASE}/profiles`, {
+    return fetch(`${apiBase()}/profiles`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(data),
@@ -171,7 +180,7 @@ export const api = {
   },
 
   updateProfile(id: string, data: { name?: string; initials?: string; color?: string }): Promise<Profile> {
-    return fetch(`${BASE}/profiles/${id}`, {
+    return fetch(`${apiBase()}/profiles/${id}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(data),
@@ -179,39 +188,39 @@ export const api = {
   },
 
   deleteProfile(id: string): Promise<{ ok: boolean }> {
-    return fetch(`${BASE}/profiles/${id}`, { method: "DELETE" }).then((res) => asJson<{ ok: boolean }>(res));
+    return fetch(`${apiBase()}/profiles/${id}`, { method: "DELETE" }).then((res) => asJson<{ ok: boolean }>(res));
   },
 
   listGames(): Promise<GameDefinition[]> {
-    return fetch(`${BASE}/games`).then((res) => asJson<GameDefinition[]>(res));
+    return fetch(`${apiBase()}/games`).then((res) => asJson<GameDefinition[]>(res));
   },
 
   getProfileStats(id: string): Promise<ProfileStats> {
-    return fetch(`${BASE}/profiles/${id}/stats`).then((res) => asJson<ProfileStats>(res));
+    return fetch(`${apiBase()}/profiles/${id}/stats`).then((res) => asJson<ProfileStats>(res));
   },
 
   getGameLeaderboard(gameId: string): Promise<Leaderboard[]> {
-    return fetch(`${BASE}/games/${gameId}/leaderboard`).then((res) => asJson<Leaderboard[]>(res));
+    return fetch(`${apiBase()}/games/${gameId}/leaderboard`).then((res) => asJson<Leaderboard[]>(res));
   },
 
   getBoardInfo(): Promise<{ boardHost: string; boardPort: number; calibrationUrl: string; hasControlApi: boolean }> {
-    return fetch(`${BASE}/board/info`).then((res) => asJson(res));
+    return fetch(`${apiBase()}/board/info`).then((res) => asJson(res));
   },
 
   startBoard(): Promise<{ ok: boolean }> {
-    return fetch(`${BASE}/board/start`, { method: "POST" }).then((res) => asJson(res));
+    return fetch(`${apiBase()}/board/start`, { method: "POST" }).then((res) => asJson(res));
   },
 
   stopBoard(): Promise<{ ok: boolean }> {
-    return fetch(`${BASE}/board/stop`, { method: "POST" }).then((res) => asJson(res));
+    return fetch(`${apiBase()}/board/stop`, { method: "POST" }).then((res) => asJson(res));
   },
 
   resetBoard(): Promise<{ ok: boolean }> {
-    return fetch(`${BASE}/board/reset`, { method: "POST" }).then((res) => asJson(res));
+    return fetch(`${apiBase()}/board/reset`, { method: "POST" }).then((res) => asJson(res));
   },
 
   createMatch(gameId: string, playerIds: string[], settings: Record<string, unknown>): Promise<{ matchId: string; state: MatchState }> {
-    return fetch(`${BASE}/matches`, {
+    return fetch(`${apiBase()}/matches`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ gameId, playerIds, settings }),
@@ -219,15 +228,15 @@ export const api = {
   },
 
   getActiveMatch(): Promise<MatchState | null> {
-    return fetch(`${BASE}/matches/active`).then((res) => asJson(res));
+    return fetch(`${apiBase()}/matches/active`).then((res) => asJson(res));
   },
 
   confirmVisit(matchId: string): Promise<{ ok: boolean }> {
-    return fetch(`${BASE}/matches/${matchId}/confirm`, { method: "POST" }).then((res) => asJson(res));
+    return fetch(`${apiBase()}/matches/${matchId}/confirm`, { method: "POST" }).then((res) => asJson(res));
   },
 
   correctThrow(matchId: string, throwSeq: number, segment: Segment): Promise<{ ok: boolean }> {
-    return fetch(`${BASE}/matches/${matchId}/correct`, {
+    return fetch(`${apiBase()}/matches/${matchId}/correct`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ throwSeq, segment }),
@@ -235,11 +244,11 @@ export const api = {
   },
 
   undoMatch(matchId: string): Promise<{ ok: boolean }> {
-    return fetch(`${BASE}/matches/${matchId}/undo`, { method: "POST" }).then((res) => asJson(res));
+    return fetch(`${apiBase()}/matches/${matchId}/undo`, { method: "POST" }).then((res) => asJson(res));
   },
 
   addThrow(matchId: string, segment: Segment): Promise<{ ok: boolean }> {
-    return fetch(`${BASE}/matches/${matchId}/add-throw`, {
+    return fetch(`${apiBase()}/matches/${matchId}/add-throw`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ segment }),
@@ -247,14 +256,14 @@ export const api = {
   },
 
   getPendingResume(): Promise<PendingResume | null> {
-    return fetch(`${BASE}/matches/pending-resume`).then((res) => asJson(res));
+    return fetch(`${apiBase()}/matches/pending-resume`).then((res) => asJson(res));
   },
 
   resumeMatch(matchId: string): Promise<MatchState> {
-    return fetch(`${BASE}/matches/${matchId}/resume`, { method: "POST" }).then((res) => asJson(res));
+    return fetch(`${apiBase()}/matches/${matchId}/resume`, { method: "POST" }).then((res) => asJson(res));
   },
 
   abandonMatch(matchId: string): Promise<{ ok: boolean }> {
-    return fetch(`${BASE}/matches/${matchId}/abandon`, { method: "POST" }).then((res) => asJson(res));
+    return fetch(`${apiBase()}/matches/${matchId}/abandon`, { method: "POST" }).then((res) => asJson(res));
   },
 };

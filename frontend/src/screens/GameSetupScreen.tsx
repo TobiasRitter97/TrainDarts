@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { api, defaultSettingsValues, GameDefinition, Profile } from "../api";
+import { api, defaultSettingsValues, GameDefinition, Leaderboard, Profile } from "../api";
 import { PlayerPicker } from "../components/PlayerPicker";
 import { GameSettingsForm } from "../components/GameSettingsForm";
 import "./GameSetupScreen.css";
@@ -19,6 +19,7 @@ export function GameSetupScreen({ gameId, onBack, onStart }: Props) {
   const [settings, setSettings] = useState<Record<string, unknown>>({});
   const [starting, setStarting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [leaderboards, setLeaderboards] = useState<Leaderboard[]>([]);
 
   useEffect(() => {
     setGame(null);
@@ -27,6 +28,7 @@ export function GameSetupScreen({ gameId, onBack, onStart }: Props) {
       setGame(found);
       if (found) setSettings(defaultSettingsValues(found.settingsSchema));
     });
+    api.getGameLeaderboard(gameId).then(setLeaderboards);
   }, [gameId]);
 
   if (!game) {
@@ -70,6 +72,30 @@ export function GameSetupScreen({ gameId, onBack, onStart }: Props) {
               onChange={(key, value) => setSettings((prev) => ({ ...prev, [key]: value }))}
             />
           </div>
+        </>
+      )}
+
+      {leaderboards.length > 0 && (
+        <>
+          <h2 className="section-title">All-Time Leaderboard</h2>
+          {leaderboards.map((board) => (
+            <div key={board.configHash} className="panel leaderboard-panel">
+              <div className="leaderboard-config">{board.configLabel}</div>
+              {board.entries.map((entry, i) => (
+                <div key={entry.profileId} className="leaderboard-row">
+                  <span className="leaderboard-rank">{i + 1}.</span>
+                  <span
+                    className="avatar leaderboard-avatar"
+                    style={{ background: entry.color || "#d9a441" }}
+                  >
+                    {entry.name.slice(0, 2).toUpperCase()}
+                  </span>
+                  <span className="leaderboard-name">{entry.name}</span>
+                  <span className="leaderboard-value">{entry.value}</span>
+                </div>
+              ))}
+            </div>
+          ))}
         </>
       )}
 

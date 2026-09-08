@@ -20,6 +20,7 @@ from backend.config import games as games_config
 from backend.engine.engine import MatchEngine
 from backend.persistence import matches as matches_db
 from backend.persistence import models
+from backend.persistence import stats as stats_db
 from backend.persistence.db import init_db
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
@@ -130,9 +131,40 @@ async def merge_profile(request: web.Request) -> web.Response:
     return web.json_response({"ok": True})
 
 
+async def profile_stats(request: web.Request) -> web.Response:
+    """SPEC §5/§35: dauerhafte, ueber alle Matches hinweg berechnete
+    Statistiken eines Profils (siehe backend/persistence/stats.py)."""
+    profile_id = request.match_info["id"]
+    if not models.get_profile(profile_id):
+        return web.json_response({"error": "nicht gefunden"}, status=404)
+    result = stats_db.compute_profile_stats(profile_id)
+    for game_id, bucket in result["perGame"].items():
+        game = games_config.get_game(game_id)
+        bucket["gameName"] = game["name"] if game else game_id
+    for entry in result["history"]:
+        game = games_config.get_game(entry["gameId"])
+        entry["gameName"] = game["name"] if game else entry["gameId"]
+    return web.json_response(result)
+
+
 # ---------------------------------------------------------------- Games
 async def list_games(_request: web.Request) -> web.Response:
     return web.json_response(games_config.list_games())
+
+
+async def game_leaderboard(request: web.Request) -> web.Response:
+    """SPEC §34: lokales All-Time-Leaderboard, getrennt nach
+    Einstellungen (gameConfigurationHash)."""
+    game_id = request.match_info["id"]
+    if not games_config.get_game(game_id):
+        return web.json_response({"error": "unbekanntes Spiel"}, status=404)
+    boards = stats_db.compute_leaderboards_for_game(game_id)
+    for board in boards:
+        for entry in board["entries"]:
+            profile = models.get_profile(entry["profileId"])
+            entry["name"] = profile["name"] if profile else "?"
+            entry["color"] = profile["color"] if profile else None
+    return web.json_response(boards)
 
 
 # ---------------------------------------------------------------- Matches
@@ -369,8 +401,10 @@ def make_app() -> web.Application:
     app.router.add_put("/api/profiles/{id}", update_profile)
     app.router.add_delete("/api/profiles/{id}", delete_profile)
     app.router.add_post("/api/profiles/{guest_id}/merge-into/{profile_id}", merge_profile)
+    app.router.add_get("/api/profiles/{id}/stats", profile_stats)
 
     app.router.add_get("/api/games", list_games)
+    app.router.add_get("/api/games/{id}/leaderboard", game_leaderboard)
 
     app.router.add_post("/api/matches", create_match)
     app.router.add_get("/api/matches/active", get_active_match)

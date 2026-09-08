@@ -107,6 +107,46 @@ export type PendingResume = {
 
 export type Segment = { number: number; multiplier: number };
 
+// SPEC §5/§34/§35: dauerhafte Profil-Statistiken, ueber alle
+// abgeschlossenen Matches hinweg berechnet (backend/persistence/stats.py).
+export type ProfileGameStats = {
+  gamesPlayed: number;
+  wins: number;
+  best: number | null;
+  metricName: string | null;
+  gameName: string;
+};
+
+export type ProfileHistoryEntry = {
+  matchId: string;
+  gameId: string;
+  gameName: string;
+  finishedAt: string;
+  won: boolean;
+  metricName: string | null;
+  metricValue: number | null;
+};
+
+export type ProfileStats = {
+  gamesPlayed: number;
+  wins: number;
+  winPercent: number | null;
+  accuracy: number | null;
+  singlePercent: number | null;
+  doublePercent: number | null;
+  triplePercent: number | null;
+  bullPercent: number | null;
+  checkoutPercent: number | null;
+  averageCheckoutDarts: number | null;
+  highestCheckout: number;
+  scoringAverage: number | null;
+  perGame: Record<string, ProfileGameStats>;
+  history: ProfileHistoryEntry[];
+};
+
+export type LeaderboardEntry = { profileId: string; name: string; color: string | null; value: number };
+export type Leaderboard = { configHash: string; configLabel: string; metricName: string; entries: LeaderboardEntry[] };
+
 const BASE = "/api";
 
 async function asJson<T>(res: Response): Promise<T> {
@@ -144,6 +184,14 @@ export const api = {
 
   listGames(): Promise<GameDefinition[]> {
     return fetch(`${BASE}/games`).then((res) => asJson<GameDefinition[]>(res));
+  },
+
+  getProfileStats(id: string): Promise<ProfileStats> {
+    return fetch(`${BASE}/profiles/${id}/stats`).then((res) => asJson<ProfileStats>(res));
+  },
+
+  getGameLeaderboard(gameId: string): Promise<Leaderboard[]> {
+    return fetch(`${BASE}/games/${gameId}/leaderboard`).then((res) => asJson<Leaderboard[]>(res));
   },
 
   getBoardInfo(): Promise<{ boardHost: string; boardPort: number; calibrationUrl: string; hasControlApi: boolean }> {

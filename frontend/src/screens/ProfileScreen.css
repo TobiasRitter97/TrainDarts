@@ -1,0 +1,130 @@
+.profile-screen {
+  max-width: 1000px;
+  margin: 0 auto;
+}
+
+.profile-screen-layout {
+  display: grid;
+  grid-template-columns: 220px 1fr;
+  gap: var(--sp-5);
+  align-items: start;
+}
+
+@media (max-width: 767px) {
+  .profile-screen-layout {
+    grid-template-columns: 1fr;
+  }
+}
+
+.profile-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  padding: var(--sp-3);
+}
+
+.profile-list-row {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--radius-md);
+  padding: var(--sp-2) var(--sp-3);
+  min-height: var(--touch-min);
+  cursor: pointer;
+  color: var(--c-text);
+  text-align: left;
+}
+
+.profile-list-row:hover {
+  background: var(--c-surface-raised);
+}
+
+.profile-list-row.active {
+  border-color: var(--c-accent);
+  background: var(--c-surface-raised);
+}
+
+.profile-list-row .avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: var(--fw-strong);
+  font-size: var(--fs-sm);
+  color: #1a1500;
+  flex-shrink: 0;
+}
+
+.profile-list-name {
+  font-weight: var(--fw-strong);
+}
+
+.stat-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: var(--sp-4);
+}
+
+.stat-tile {
+  text-align: center;
+}
+
+.stat-value {
+  font-size: var(--fs-lg);
+  font-weight: var(--fw-display);
+  color: var(--c-accent-strong);
+}
+
+.stat-label {
+  font-size: var(--fs-xs);
+  color: var(--c-text-muted);
+  letter-spacing: 0.06em;
+  margin-top: 2px;
+}
+
+.per-game-list,
+.history-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  padding: var(--sp-3);
+}
+
+.per-game-row,
+.history-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-3);
+  background: var(--c-surface-raised);
+  border-radius: var(--radius-md);
+  padding: var(--sp-3) var(--sp-4);
+}
+
+.per-game-name,
+.history-game {
+  font-weight: var(--fw-strong);
+  flex: 1;
+}
+
+.per-game-meta,
+.history-date {
+  color: var(--c-text-muted);
+  font-size: var(--fs-sm);
+}
+
+.per-game-best,
+.history-value {
+  font-weight: var(--fw-strong);
+  color: var(--c-accent-strong);
+  min-width: 48px;
+  text-align: right;
+}
+
+.history-row.won .history-value {
+  color: var(--c-success-strong);
+}

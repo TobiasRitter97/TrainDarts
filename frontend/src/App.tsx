@@ -4,9 +4,10 @@ import { BoardControlBar } from "./components/BoardControlBar";
 import { GameHubScreen } from "./screens/GameHubScreen";
 import { GameSetupScreen } from "./screens/GameSetupScreen";
 import { GameScreen } from "./screens/GameScreen";
+import { ProfileScreen } from "./screens/ProfileScreen";
 import "./App.css";
 
-type View = { screen: "hub" } | { screen: "setup"; gameId: string } | { screen: "game" };
+type View = { screen: "hub" } | { screen: "setup"; gameId: string } | { screen: "game" } | { screen: "profiles" };
 
 // Fortsetzen-Dialog nach Neustart (docs/ARCHITEKTUR.md Abschnitt 8):
 // weder automatisch fortsetzen noch verwerfen - einmal beim Laden der
@@ -40,7 +41,14 @@ export default function App() {
       {view.screen !== "game" && (
         <header className="app-header">
           <div className="app-title">DARTS TRAINING PLATFORM</div>
-          <BoardControlBar />
+          <div className="app-header-actions">
+            {view.screen !== "profiles" && (
+              <button className="btn-outline" onClick={() => setView({ screen: "profiles" })}>
+                PROFILE
+              </button>
+            )}
+            <BoardControlBar />
+          </div>
         </header>
       )}
       <main className="app-main">
@@ -55,6 +63,7 @@ export default function App() {
           />
         )}
         {view.screen === "game" && <GameScreen onExit={() => setView({ screen: "hub" })} />}
+        {view.screen === "profiles" && <ProfileScreen onBack={() => setView({ screen: "hub" })} />}
       </main>
 
       {pendingResume && (

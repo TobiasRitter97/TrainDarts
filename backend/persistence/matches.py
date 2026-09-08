@@ -9,6 +9,7 @@ import json
 from datetime import datetime, timezone
 
 from .db import get_connection
+from .stats import compute_config_hash
 
 
 def _now() -> str:
@@ -29,8 +30,8 @@ def save_match(match_id: str, game_id: str, settings: dict, player_ids: list[str
             "status, started_at, finished_at, winner_profile_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) "
             "ON CONFLICT(id) DO UPDATE SET status=excluded.status, "
             "finished_at=excluded.finished_at, winner_profile_id=excluded.winner_profile_id",
-            (match_id, game_id, json.dumps(settings), "", None, status, started_at,
-             finished_at, winner_profile_id),
+            (match_id, game_id, json.dumps(settings), compute_config_hash(game_id, settings), None,
+             status, started_at, finished_at, winner_profile_id),
         )
 
         conn.execute("DELETE FROM match_players WHERE match_id = ?", (match_id,))

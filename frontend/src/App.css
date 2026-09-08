@@ -18,6 +18,12 @@
   letter-spacing: 0.06em;
 }
 
+.app-header-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+}
+
 .app-main {
   flex: 1;
   padding: var(--sp-6);

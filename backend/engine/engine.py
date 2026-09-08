@@ -221,6 +221,14 @@ class MatchEngine:
         self.pending_outcome: str | None = None
         self.visit_history: list[dict] = []
 
+        # Vollstaendige (nicht auf HISTORY_LIMIT gekuerzte) Protokolle
+        # fuer Profil-Statistiken (SPEC §34/§35, siehe
+        # backend/persistence/stats.py) - jeder tatsaechlich gezaehlte
+        # Wurf bzw. jede bestaetigte Aufnahme des GANZEN Matches,
+        # unabhaengig von der Spielfamilie.
+        self.throw_log: list[dict] = []
+        self.visit_log: list[dict] = []
+
         self.random_target_index = 0
         self.random_targets: list[int] = list(self.events[0]["payload"].get("randomTargets", []))
         self.catch_targets: list[int] = list(self.events[0]["payload"].get("catchTargets", []))
@@ -291,6 +299,7 @@ class MatchEngine:
         self.current_visit_seqs.append(throw_seq)
 
         active_id = self.players[self.active_index]["id"]
+        self.throw_log.append({"playerId": active_id, "segment": segment})
         state = self.player_states[active_id]
         result = self.family.apply_throw(state, self.current_visit_throws, self.settings)
 
@@ -314,6 +323,13 @@ class MatchEngine:
         state = self.player_states[player_id]
         outcome = result.get("outcome")
         checkout_value = sum(segment_value(t) for t in self.current_visit_throws)
+
+        self.visit_log.append({
+            "playerId": player_id,
+            "throws": list(self.current_visit_throws),
+            "outcome": outcome,
+            "value": checkout_value,
+        })
 
         self.visit_history.append({
             "playerId": player_id,

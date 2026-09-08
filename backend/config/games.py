@@ -5,9 +5,8 @@ Hub und Setup-Screen. Die eigentliche Spiellogik (Engine-Familien mit
 handleThrow etc.) entsteht ab Phase 6/9 gemaess Bau-Reihenfolge in
 docs/ARCHITEKTUR.md Abschnitt 12.
 
-170, Bob's 27, Random Checkout, 121, Bob's 27 Easy, Catch 40 Easy,
-Catch 40, 60 +/- und Around the World sind aktuell "implemented": True.
-Nur JDC Challenge steht noch als "Coming soon"-Card im Hub.
+Alle zehn Spiele aus SPEC §9/§42 sind jetzt "implemented": True - keine
+"Coming soon"-Cards mehr im Hub.
 """
 from __future__ import annotations
 
@@ -365,9 +364,34 @@ GAMES: list[dict] = [
         ],
     },
     {
-        "id": "jdc", "name": "JDC Challenge", "description": "Shanghai – Doubles – Shanghai.",
-        "category": "ACCURACY", "icon": "🏆", "engineFamily": "jdc",
-        "playerRange": [1, 4], "implemented": False, "durationModes": [], "settingsSchema": [],
+        "id": "jdc",
+        "name": "JDC Challenge",
+        "description": "Shanghai 10-15 – Doubles 1-20+Bull – Shanghai 15-20 (etablierte JDC-Regeln).",
+        "category": "ACCURACY",
+        "icon": "🏆",
+        "engineFamily": "jdc",
+        "playerRange": [1, 4],
+        "implemented": True,
+        "durationModes": ["runs", "custom", "endless"],
+        "settingsSchema": [
+            {
+                "key": "mode",
+                "label": "Game Length",
+                "type": "select",
+                "options": [
+                    {"value": "single", "label": "1 Run"},
+                    {"value": "bo3", "label": "Best of 3 Runs"},
+                    {"value": "custom", "label": "Custom Runs"},
+                    {"value": "endless", "label": "Endless Practice"},
+                ],
+                "default": "single",
+            },
+            {
+                "key": "customRuns", "label": "Anzahl Runs (Custom)", "type": "number",
+                "default": 3, "min": 1, "max": 20,
+                "showIf": {"key": "mode", "equals": "custom"},
+            },
+        ],
     },
 ]
 

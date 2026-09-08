@@ -23,6 +23,7 @@ from backend.engine.scoring import segment_value
 from backend.games import accuracy_progression as accuracy_progression_family
 from backend.games import catch as catch_family
 from backend.games import checkout_range as checkout_range_family
+from backend.games import jdc as jdc_family
 from backend.games import random_checkout as random_checkout_family
 from backend.games import target_progression as target_progression_family
 from backend.games import x01 as x01_family
@@ -34,6 +35,7 @@ FAMILIES = {
     "checkout_range": checkout_range_family,
     "catch": catch_family,
     "accuracy_progression": accuracy_progression_family,
+    "jdc": jdc_family,
 }
 
 # Welche Wurf-Ergebnisse eine Aufnahme sofort "pending" machen (statt
@@ -47,6 +49,7 @@ FORCES_VISIT_END = {
     "catch": {"bust", "checkout"},
     "target_progression": {"target_done"},
     "accuracy_progression": {"target_done"},
+    "jdc": {"target_done"},
 }
 
 # Feldname im jeweiligen player_state, der den "Countdown"-Wert traegt
@@ -60,6 +63,7 @@ COUNTDOWN_FIELD = {
     "random_checkout": "attemptRemaining",
     "checkout_range": "attemptRemaining",
     "catch": "attemptRemaining",
+    "jdc": "runScore",
 }
 
 # Engine-weite Konstante: eine Aufnahme (Board-Takeout) ist physikalisch
@@ -255,6 +259,8 @@ class MatchEngine:
         if self.family_name == "accuracy_progression":
             open_numbers = accuracy_progression_family.build_open_numbers(self.settings)
             return accuracy_progression_family.create_player_state(open_numbers)
+        if self.family_name == "jdc":
+            return jdc_family.create_player_state()
         return x01_family.create_player_state()
 
     @staticmethod
@@ -357,6 +363,14 @@ class MatchEngine:
             state["targetIndex"] += 1
             self._clear_visit()
             self._maybe_finish_run(player_id)
+            if not self.finished:
+                self._advance_player()
+            return
+
+        if self.family_name == "jdc":
+            jdc_family.resolve_visit(state, result)
+            self._clear_visit()
+            self._maybe_finish_jdc(player_id)
             if not self.finished:
                 self._advance_player()
             return
@@ -644,6 +658,42 @@ class MatchEngine:
             s["targetIndex"] = 0
             s["score"] = target_progression_family.STARTING_SCORE
 
+    # ------------------------------------------------------------ jdc challenge runs
+    def _maybe_finish_jdc(self, player_id: str) -> None:
+        state = self.player_states[player_id]
+        if state["phaseIndex"] < len(jdc_family.PHASES):
+            return  # Run noch nicht komplett (noch mitten in einer Phase)
+
+        state["totalScore"] += state["runScore"]
+        if state["bestRun"] is None or state["runScore"] > state["bestRun"]:
+            state["bestRun"] = state["runScore"]
+        state["runsCompleted"] += 1
+
+        all_done = all(
+            self.player_states[p["id"]]["phaseIndex"] >= len(jdc_family.PHASES)
+            for p in self.players
+        )
+        if not all_done:
+            return
+
+        mode = self.settings.get("mode", "single")
+        runs_target = self._run_mode_target(mode, "customRuns")
+        completed = min(self.player_states[p["id"]]["runsCompleted"] for p in self.players)
+
+        if runs_target is not None and completed >= runs_target:
+            self.finished = True
+            self.winner_id = max(self.players, key=lambda p: self.player_states[p["id"]]["totalScore"])["id"]
+            return
+
+        for p in self.players:
+            s = self.player_states[p["id"]]
+            s["phaseIndex"] = 0
+            s["targetIndex"] = 0
+            s["phaseScores"] = {"shanghai1": 0, "doubles": 0, "shanghai2": 0}
+            s["runScore"] = 0
+            s["totalHits"] = 0
+            s["shanghaiCount"] = 0
+
     # ------------------------------------------------------------ display
     def _live_score(self, player_id: str) -> int | None:
         """Countdown-Wert (score/remaining/level, siehe COUNTDOWN_FIELD)
@@ -684,7 +734,27 @@ class MatchEngine:
             return str(self.random_targets[idx]) if self.random_targets else None
         if self.family_name in ("checkout_range", "catch"):
             return str(state["level"])
+        if self.family_name == "jdc":
+            # Doubles-Phase: das Ziel wechselt bei JEDEM Dart innerhalb
+            # der Aufnahme (immer, nicht nur bei Treffer) - live neu
+            # berechnen, ohne den committeten State zu veraendern.
+            # Shanghai-Phasen: Ziel bleibt waehrend der Aufnahme gleich.
+            if jdc_family.current_phase(state) == "doubles" and self.current_visit_throws:
+                result = self.family.apply_throw(state, self.current_visit_throws, self.settings)
+                targets = jdc_family.PHASE_TARGETS["doubles"]
+                idx = result.get("endingIndex", state["targetIndex"])
+                target = targets[idx] if idx < len(targets) else None
+            else:
+                target = jdc_family.current_target(state)
+            return str(target) if target is not None else None
         return None
+
+    def _jdc_phase_label(self) -> str | None:
+        if self.family_name != "jdc":
+            return None
+        active_id = self.players[self.active_index]["id"]
+        phase = jdc_family.current_phase(self.player_states[active_id])
+        return jdc_family.PHASE_LABELS.get(phase) if phase else None
 
     def _checkout_suggestion(self) -> list[str] | None:
         if self.pending_confirmation or self.family_name not in ("x01", "random_checkout", "checkout_range", "catch"):
@@ -710,6 +780,7 @@ class MatchEngine:
                 for seq, seg in zip(self.current_visit_seqs, self.current_visit_throws)
             ],
             "target": self._target_display(),
+            "phase": self._jdc_phase_label(),
             "checkoutSuggestion": self._checkout_suggestion(),
             "round": self.round_number,
             "legNumber": self.leg_number if self.family_name == "x01" else None,
@@ -746,4 +817,6 @@ class MatchEngine:
             "triples": state.get("triples"),
             "perfectTargets": state.get("perfectTargets"),
             "openNumbers": state.get("openNumbers"),
+            "shanghaiCount": state.get("shanghaiCount"),
+            "phaseScores": state.get("phaseScores"),
         }

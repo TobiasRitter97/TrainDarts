@@ -85,6 +85,7 @@ export function GameScreen({ onExit }: Props) {
           {match.pendingConfirmation ? pendingLabel(match.pendingOutcome) : "CURRENT PLAYER"}
         </div>
         <div className="active-player-name">{activePlayer?.name ?? "—"}</div>
+        {match.phase && <div className="jdc-phase-label">{match.phase}</div>}
         {match.target && (
           <>
             <div className="target-label">TARGET</div>

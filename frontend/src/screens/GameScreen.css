@@ -97,6 +97,13 @@
   margin-top: var(--sp-1);
 }
 
+.jdc-phase-label {
+  font-size: var(--fs-sm);
+  color: var(--c-accent-strong);
+  letter-spacing: 0.08em;
+  margin-bottom: var(--sp-2);
+}
+
 .open-numbers {
   margin-top: var(--sp-5);
 }

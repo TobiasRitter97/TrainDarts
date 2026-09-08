@@ -66,6 +66,8 @@ export type MatchPlayer = {
   triples: number | null;
   perfectTargets: number | null;
   openNumbers: (number | string)[] | null;
+  shanghaiCount: number | null;
+  phaseScores: Record<string, number> | null;
 };
 
 export type MatchThrow = { throwSeq: number; label: string };
@@ -82,6 +84,7 @@ export type MatchState = {
   activePlayerId: string;
   currentVisitThrows: MatchThrow[];
   target: string | null;
+  phase: string | null;
   checkoutSuggestion: string[] | null;
   round: number;
   legNumber: number | null;

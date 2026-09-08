@@ -5,9 +5,9 @@ Hub und Setup-Screen. Die eigentliche Spiellogik (Engine-Familien mit
 handleThrow etc.) entsteht ab Phase 6/9 gemaess Bau-Reihenfolge in
 docs/ARCHITEKTUR.md Abschnitt 12.
 
-170, Bob's 27, Random Checkout, 121, Bob's 27 Easy, Catch 40 Easy und
-Catch 40 sind aktuell "implemented": True. Die restlichen drei stehen
-als "Coming soon"-Cards im Hub.
+170, Bob's 27, Random Checkout, 121, Bob's 27 Easy, Catch 40 Easy,
+Catch 40 und 60 +/- sind aktuell "implemented": True. Die restlichen
+zwei stehen als "Coming soon"-Cards im Hub.
 """
 from __future__ import annotations
 
@@ -281,12 +281,50 @@ GAMES: list[dict] = [
         "catchRange": (61, 100),
         "settingsSchema": catch_settings_schema(),
     },
-    # -- Bau-Reihenfolge lt. docs/ARCHITEKTUR.md Abschnitt 12, noch nicht implementiert --
     {
-        "id": "60plusminus", "name": "60 +/-", "description": "+10 bei Erfolg, −1 bei Fehlversuch.",
-        "category": "CHECKOUT", "icon": "📈", "engineFamily": "checkout_range",
-        "playerRange": [1, 4], "implemented": False, "durationModes": [], "settingsSchema": [],
+        "id": "60plusminus",
+        "name": "60 +/-",
+        "description": "Start bei 60: +10 bei Checkout, −1 bei Fehlversuch.",
+        "category": "CHECKOUT",
+        "icon": "📈",
+        "engineFamily": "checkout_range",
+        "playerRange": [1, 4],
+        "implemented": True,
+        "durationModes": ["rounds", "custom", "endless"],
+        # Fest 3 Darts (1 Aufnahme) pro Versuch, SPEC §23 - keine
+        # "Darts per Checkout"-Einstellung wie bei 121.
+        "dartsPerCheckout": 3,
+        "settingsSchema": [
+            {"key": "startLevel", "label": "Start Value", "type": "number", "default": 60, "min": 2, "max": 170},
+            {
+                "key": "onSuccessDelta", "label": "Increase on Checkout", "type": "number",
+                "default": 10, "min": 1, "max": 50,
+            },
+            {
+                "key": "onFailDelta", "label": "Decrease on Miss", "type": "number",
+                "default": -1, "min": -20, "max": 0,
+            },
+            {
+                "key": "gameLengthMode",
+                "label": "Game Length",
+                "type": "select",
+                "options": [
+                    {"value": "targets_10", "label": "10 Rounds"},
+                    {"value": "targets_20", "label": "20 Rounds"},
+                    {"value": "targets_30", "label": "30 Rounds"},
+                    {"value": "custom", "label": "Custom"},
+                    {"value": "endless", "label": "Endless"},
+                ],
+                "default": "targets_20",
+            },
+            {
+                "key": "customTargets", "label": "Anzahl Runden (Custom)", "type": "number",
+                "default": 20, "min": 1, "max": 200,
+                "showIf": {"key": "gameLengthMode", "equals": "custom"},
+            },
+        ],
     },
+    # -- Bau-Reihenfolge lt. docs/ARCHITEKTUR.md Abschnitt 12, noch nicht implementiert --
     {
         "id": "around_the_world", "name": "Around the World", "description": "1 bis 20, optional Bull.",
         "category": "ACCURACY", "icon": "🌍", "engineFamily": "target_progression",

@@ -388,7 +388,12 @@ class MatchEngine:
             guard += 1
 
     def _visits_per_attempt(self) -> int:
-        default = DEFAULT_DARTS_PER_CHECKOUT.get(self.family_name, 9)
+        # Manche Spiele einer TASK_BASED_FAMILY legen "Darts per
+        # Checkout" fest an der GameDefinition fest, statt es als
+        # Einstellung anzubieten (z.B. 60 +/-, SPEC §23: immer genau
+        # 3 Darts/1 Aufnahme, keine Auswahl im Setup).
+        family_default = DEFAULT_DARTS_PER_CHECKOUT.get(self.family_name, 9)
+        default = self.game.get("dartsPerCheckout", family_default)
         darts = int(self.settings.get("dartsPerCheckout", default))
         return max(1, darts // VISIT_DART_CAP)
 

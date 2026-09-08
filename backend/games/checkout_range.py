@@ -20,7 +20,15 @@ mit Tobias abgestimmte Interpretation (02.09.2026): Checkpoints alle
 10 Nummern ab dem Startwert (Standard) bzw. alle 5 (Easy). Bei einem
 gescheiterten Versuch faellt der Spieler auf die zuletzt erreichte
 Checkpoint-Nummer zurueck statt auf die aktuelle Zahl oder ganz auf
-den Startwert. "Off" = kein Ruecksprung.
+den Startwert. "Off" = kein Ruecksprung. Spiele ohne "safehouseMode"-
+Einstellung im Schema (z.B. 60 +/-, SPEC §23) bekommen automatisch
+"Off" (siehe _safehouse_interval) - Safehouse ist ein 121-spezifisches
+Konzept, kein Familien-Standard.
+
+Bei 60 +/- (SPEC §23, mit Tobias abgestimmt 08.09.2026): Untergrenze
+beim Startwert (wie bei 121s "Off"-Modus), aber KEINE Obergrenze -
+"maxLevel" ist deshalb optional; ist die Einstellung nicht vorhanden
+(kein Schema-Feld dafuer), wird gar nicht erst gedeckelt.
 """
 from __future__ import annotations
 
@@ -41,7 +49,7 @@ def apply_throw(player_state: dict, visit_throws: list[dict], settings: dict) ->
 
 
 def _safehouse_interval(settings: dict) -> int | None:
-    mode = settings.get("safehouseMode", "standard")
+    mode = settings.get("safehouseMode", "off")
     if mode == "standard":
         return 10
     if mode == "easy":
@@ -56,7 +64,7 @@ def resolve_attempt(player_state: dict, settings: dict, success: bool) -> None:
     Aufnahmen fuer den Versuch verbraucht hat, ohne zu checken.
     Schreibt level/highestLevel/Stats fort."""
     start = int(settings.get("startLevel", 121))
-    max_level = int(settings.get("maxLevel", 170))
+    max_level = settings.get("maxLevel")
     player_state["attempts"] += 1
 
     if success:
@@ -64,7 +72,10 @@ def resolve_attempt(player_state: dict, settings: dict, success: bool) -> None:
         player_state["successfulCheckouts"] += 1
         player_state["highestLevel"] = max(player_state["highestLevel"], achieved)
         delta = int(settings.get("onSuccessDelta", 1))
-        player_state["level"] = min(achieved + delta, max_level)
+        new_level = achieved + delta
+        if max_level is not None:
+            new_level = min(new_level, int(max_level))
+        player_state["level"] = new_level
         return
 
     interval = _safehouse_interval(settings)

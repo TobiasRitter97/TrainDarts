@@ -20,6 +20,7 @@ import random
 from backend.adapter.autodarts import throw_label
 from backend.engine.checkout import suggest_route
 from backend.engine.scoring import segment_value
+from backend.games import catch as catch_family
 from backend.games import checkout_range as checkout_range_family
 from backend.games import random_checkout as random_checkout_family
 from backend.games import target_progression as target_progression_family
@@ -30,6 +31,7 @@ FAMILIES = {
     "target_progression": target_progression_family,
     "random_checkout": random_checkout_family,
     "checkout_range": checkout_range_family,
+    "catch": catch_family,
 }
 
 # Welche Wurf-Ergebnisse eine Aufnahme sofort "pending" machen (statt
@@ -40,12 +42,13 @@ FORCES_VISIT_END = {
     "x01": {"bust", "checkout"},
     "random_checkout": {"bust", "checkout"},
     "checkout_range": {"bust", "checkout"},
+    "catch": {"bust", "checkout"},
     "target_progression": {"target_done"},
 }
 
 # Feldname im jeweiligen player_state, der den "Countdown"-Wert traegt
 # (fuer Live-Anzeige und Checkout-Vorschlag generisch nutzbar). Bei
-# checkout_range/random_checkout ist das der ueber mehrere eigene
+# checkout_range/random_checkout/catch ist das der ueber mehrere eigene
 # Aufnahmen hinweg mitgefuehrte Rest INNERHALB des laufenden Versuchs
 # (siehe TASK_BASED_FAMILIES) - nicht der nominale Zielwert.
 COUNTDOWN_FIELD = {
@@ -53,6 +56,7 @@ COUNTDOWN_FIELD = {
     "target_progression": "score",
     "random_checkout": "attemptRemaining",
     "checkout_range": "attemptRemaining",
+    "catch": "attemptRemaining",
 }
 
 # Engine-weite Konstante: eine Aufnahme (Board-Takeout) ist physikalisch
@@ -66,8 +70,13 @@ VISIT_DART_CAP = 3
 # davon, wie viele eigene Aufnahmen ein Spieler insgesamt fuer EINEN
 # Checkout-Versuch bekommt (abwechselnd mit den anderen Spielern, nicht
 # am Stueck) - siehe _commit_task_visit/_maybe_advance_task_round.
-TASK_BASED_FAMILIES = {"checkout_range", "random_checkout"}
-DEFAULT_DARTS_PER_CHECKOUT = {"checkout_range": 9, "random_checkout": 6}
+# catch (Catch 40/Easy, SPEC §7/§21/§22) nutzt dieselbe Maschinerie,
+# aber mit fest 6 Darts (nicht einstellbar) und OHNE "stay on fail" -
+# dort geht es nach jeder Zahl immer zur naechsten weiter (siehe
+# backend/games/catch.py).
+TASK_BASED_FAMILIES = {"checkout_range", "random_checkout", "catch"}
+DEFAULT_DARTS_PER_CHECKOUT = {"checkout_range": 9, "random_checkout": 6, "catch": 6}
+TASK_NOMINAL_FIELD = {"checkout_range": "level", "catch": "level", "random_checkout": "remaining"}
 
 X01_MATCH_MODE_LEGS = {"1_leg": 1, "bo3": 2, "bo5": 3, "bo7": 4}
 BOBS27_MODE_RUNS = {"single": 1, "bo3": 3, "bo5": 5}
@@ -94,6 +103,8 @@ class MatchEngine:
             payload = {}
             if self.family_name == "random_checkout":
                 payload["randomTargets"] = self._generate_random_targets()
+            if self.family_name == "catch":
+                payload["catchTargets"] = self._generate_catch_targets()
             self._append("MATCH_STARTED", payload)
 
         self._replay()
@@ -177,6 +188,17 @@ class MatchEngine:
         count = int(self.settings.get("numberOfCheckouts", 20)) if not endless else 1
         return [random.randint(lo, hi) for _ in range(max(count, 1))]
 
+    def _generate_catch_targets(self) -> list[int]:
+        """Einmal pro Match erzeugte Zahlenfolge (SPEC §8 Fairness: alle
+        Spieler durchlaufen dieselbe Folge) - bei Shuffle gemischt, sonst
+        aufsteigend. Wird im MATCH_STARTED-Event festgehalten, damit
+        Replay deterministisch bleibt."""
+        lo, hi = self.game.get("catchRange", (41, 81))
+        values = list(range(int(lo), int(hi) + 1))
+        if bool(self.settings.get("shuffle", False)):
+            random.shuffle(values)
+        return values
+
     # ------------------------------------------------------------ Replay
     def _replay(self) -> None:
         self.active_index = 0
@@ -194,6 +216,7 @@ class MatchEngine:
 
         self.random_target_index = 0
         self.random_targets: list[int] = list(self.events[0]["payload"].get("randomTargets", []))
+        self.catch_targets: list[int] = list(self.events[0]["payload"].get("catchTargets", []))
 
         self.player_states = {p["id"]: self._create_player_state() for p in self.players}
 
@@ -222,6 +245,9 @@ class MatchEngine:
             return target_progression_family.create_player_state(targets)
         if self.family_name == "checkout_range":
             state = checkout_range_family.create_player_state(self.settings)
+            return self._init_task_fields(state, "level")
+        if self.family_name == "catch":
+            state = catch_family.create_player_state(self.catch_targets)
             return self._init_task_fields(state, "level")
         return x01_family.create_player_state()
 
@@ -311,6 +337,8 @@ class MatchEngine:
             self._commit_task_visit(state, result)
             if self.family_name == "checkout_range":
                 self._maybe_finish_checkout_range(player_id)
+            elif self.family_name == "catch":
+                self._maybe_finish_catch(player_id)
             self._clear_visit()
             if not self.finished:
                 self._maybe_advance_task_round()
@@ -365,7 +393,7 @@ class MatchEngine:
         return max(1, darts // VISIT_DART_CAP)
 
     def _task_nominal_field(self) -> str:
-        return "level" if self.family_name == "checkout_range" else "remaining"
+        return TASK_NOMINAL_FIELD.get(self.family_name, "remaining")
 
     def _commit_task_visit(self, state: dict, result: dict) -> None:
         """Wertet EINE Aufnahme innerhalb eines mehrteiligen Checkout-
@@ -526,6 +554,29 @@ class MatchEngine:
             ),
         )["id"]
 
+    # ------------------------------------------------------------ catch (Catch 40 usw.)
+    def _maybe_finish_catch(self, player_id: str) -> None:
+        """Kein Endless bei Catch 40/Easy (mit Tobias abgestimmt,
+        08.09.2026) - nur "kompletter Durchlauf" (= Laenge der
+        Zahlenfolge) oder eine kuerzere Custom-Anzahl."""
+        mode = self.settings.get("gameLengthMode", "full")
+        if mode == "custom":
+            target_attempts = int(self.settings.get("customTargets", len(self.catch_targets)))
+        else:
+            target_attempts = len(self.catch_targets)
+
+        all_done = all(self.player_states[p["id"]]["attempts"] >= target_attempts for p in self.players)
+        if not all_done:
+            return
+        self.finished = True
+        self.winner_id = max(
+            self.players,
+            key=lambda p: (
+                self.player_states[p["id"]]["successfulCheckouts"],
+                -self.player_states[p["id"]]["attempts"],
+            ),
+        )["id"]
+
     # ------------------------------------------------------------ bob's 27 runs
     def _maybe_finish_run(self, player_id: str) -> None:
         state = self.player_states[player_id]
@@ -583,12 +634,12 @@ class MatchEngine:
         if self.family_name == "random_checkout":
             idx = min(self.random_target_index, len(self.random_targets) - 1)
             return str(self.random_targets[idx]) if self.random_targets else None
-        if self.family_name == "checkout_range":
+        if self.family_name in ("checkout_range", "catch"):
             return str(state["level"])
         return None
 
     def _checkout_suggestion(self) -> list[str] | None:
-        if self.pending_confirmation or self.family_name not in ("x01", "random_checkout", "checkout_range"):
+        if self.pending_confirmation or self.family_name not in ("x01", "random_checkout", "checkout_range", "catch"):
             return None
         active_id = self.players[self.active_index]["id"]
         remaining = self._live_score(active_id)

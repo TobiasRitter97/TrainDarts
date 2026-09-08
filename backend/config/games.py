@@ -5,9 +5,9 @@ Hub und Setup-Screen. Die eigentliche Spiellogik (Engine-Familien mit
 handleThrow etc.) entsteht ab Phase 6/9 gemaess Bau-Reihenfolge in
 docs/ARCHITEKTUR.md Abschnitt 12.
 
-170, Bob's 27, Random Checkout, 121 und Bob's 27 Easy sind aktuell
-"implemented": True. Die restlichen fuenf stehen als "Coming soon"-
-Cards im Hub.
+170, Bob's 27, Random Checkout, 121, Bob's 27 Easy, Catch 40 Easy und
+Catch 40 sind aktuell "implemented": True. Die restlichen drei stehen
+als "Coming soon"-Cards im Hub.
 """
 from __future__ import annotations
 
@@ -32,6 +32,33 @@ def bobs27_settings_schema() -> list[dict]:
             ],
             "default": "single",
         },
+    ]
+
+
+def catch_settings_schema() -> list[dict]:
+    """Gemeinsames Settings-Schema fuer die catch-Familie (Catch 40,
+    Catch 40 Easy, SPEC §21/§22). Kein Endless (mit Tobias abgestimmt,
+    08.09.2026: das Spiel dauert durch die feste Range schon lang
+    genug) - nur ein kompletter Durchgang oder eine kuerzere
+    Custom-Anzahl. Die Range selbst (41-81 bzw. 61-100) ist keine
+    Einstellung, sondern haengt an der GameDefinition ("catchRange")."""
+    return [
+        {
+            "key": "gameLengthMode",
+            "label": "Game Length",
+            "type": "select",
+            "options": [
+                {"value": "full", "label": "Kompletter Durchlauf"},
+                {"value": "custom", "label": "Custom"},
+            ],
+            "default": "full",
+        },
+        {
+            "key": "customTargets", "label": "Anzahl Targets (Custom)", "type": "number",
+            "default": 20, "min": 1, "max": 100,
+            "showIf": {"key": "gameLengthMode", "equals": "custom"},
+        },
+        {"key": "shuffle", "label": "Shuffle", "type": "toggle", "default": False},
     ]
 
 
@@ -228,17 +255,33 @@ GAMES: list[dict] = [
         "targets": target_progression_family.BOBS27_EASY_TARGETS,
         "settingsSchema": bobs27_settings_schema(),
     },
+    {
+        "id": "catch40_easy",
+        "name": "Catch 40 Easy",
+        "description": "Catch-Training: 41 bis 81, bis zu 6 Darts pro Zahl.",
+        "category": "CHECKOUT",
+        "icon": "🎯",
+        "engineFamily": "catch",
+        "playerRange": [1, 4],
+        "implemented": True,
+        "durationModes": ["targets", "custom"],
+        "catchRange": (41, 81),
+        "settingsSchema": catch_settings_schema(),
+    },
+    {
+        "id": "catch40",
+        "name": "Catch 40",
+        "description": "Catch-Training: 61 bis 100, bis zu 6 Darts pro Zahl.",
+        "category": "CHECKOUT",
+        "icon": "🎯",
+        "engineFamily": "catch",
+        "playerRange": [1, 4],
+        "implemented": True,
+        "durationModes": ["targets", "custom"],
+        "catchRange": (61, 100),
+        "settingsSchema": catch_settings_schema(),
+    },
     # -- Bau-Reihenfolge lt. docs/ARCHITEKTUR.md Abschnitt 12, noch nicht implementiert --
-    {
-        "id": "catch40_easy", "name": "Catch 40 Easy", "description": "Catch-Training, Checkout 41–81.",
-        "category": "CHECKOUT", "icon": "🎯", "engineFamily": "checkout_range",
-        "playerRange": [1, 4], "implemented": False, "durationModes": [], "settingsSchema": [],
-    },
-    {
-        "id": "catch40", "name": "Catch 40", "description": "Catch-Training, Checkout 61–100.",
-        "category": "CHECKOUT", "icon": "🎯", "engineFamily": "checkout_range",
-        "playerRange": [1, 4], "implemented": False, "durationModes": [], "settingsSchema": [],
-    },
     {
         "id": "60plusminus", "name": "60 +/-", "description": "+10 bei Erfolg, −1 bei Fehlversuch.",
         "category": "CHECKOUT", "icon": "📈", "engineFamily": "checkout_range",

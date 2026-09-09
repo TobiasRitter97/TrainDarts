@@ -25,6 +25,7 @@ export function OnlineGameScreen({ pin, game, myUid, onExit }: Props) {
       match={online.state}
       game={game}
       persistsProgress
+      canAct={online.isMyTurn}
       onExit={onExit}
       actions={{
         onUndo: online.undo,

@@ -104,6 +104,18 @@
   margin-bottom: var(--sp-2);
 }
 
+.waiting-for-turn-label {
+  font-size: var(--fs-sm);
+  color: var(--c-text-faint);
+  letter-spacing: 0.05em;
+  margin-top: var(--sp-1);
+}
+
+.history-chip:disabled,
+.dart-slot:disabled .dart-chip {
+  opacity: 0.5;
+}
+
 .open-numbers {
   margin-top: var(--sp-5);
 }

@@ -27,6 +27,12 @@ type Props = {
   // Spiele: ja, per Backend/SQLite. Lokale Spiele vor Phase E: nein -
   // andere Bestaetigungsmeldung noetig, siehe handleExit).
   persistsProgress: boolean;
+  // Ob DIESES Geraet gerade Aenderungen vornehmen darf - bei lokalen
+  // Partien immer true (ein Geraet, ein Board), bei Online-Partien nur
+  // fuer den Teilnehmer, dessen Spieler gerade am Zug ist (Tobias-
+  // Feedback 09.09.2026: der jeweils andere Mitspieler soll fremde
+  // Aufnahmen nicht korrigieren koennen).
+  canAct?: boolean;
   onExit: () => void;
 };
 
@@ -44,7 +50,7 @@ function pendingLabel(outcome: string | null): string {
 // bis Takeout oder der manuelle "Aufnahme bestätigen"-Button den State
 // committet. Jeder Dart der aktuellen und der letzten Aufnahmen ist
 // antippbar und korrigierbar.
-export function GameScreenView({ match, game, actions, persistsProgress, onExit }: Props) {
+export function GameScreenView({ match, game, actions, persistsProgress, canAct = true, onExit }: Props) {
   const [correction, setCorrection] = useState<CorrectionTarget | null>(null);
 
   if (match.finished) {
@@ -59,7 +65,7 @@ export function GameScreenView({ match, game, actions, persistsProgress, onExit 
   }
 
   function handleCorrectionSelect(segment: Segment) {
-    if (!correction) return;
+    if (!correction || !canAct) return;
     if (correction.mode === "add") {
       actions.onAddThrow(segment);
     } else {
@@ -85,6 +91,7 @@ export function GameScreenView({ match, game, actions, persistsProgress, onExit 
           {match.pendingConfirmation ? pendingLabel(match.pendingOutcome) : "CURRENT PLAYER"}
         </div>
         <div className="active-player-name">{activePlayer?.name ?? "—"}</div>
+        {!canAct && <div className="waiting-for-turn-label">Nicht dein Zug — nur Zuschauen</div>}
         {match.phase && <div className="jdc-phase-label">{match.phase}</div>}
         {match.target && (
           <>
@@ -121,8 +128,9 @@ export function GameScreenView({ match, game, actions, persistsProgress, onExit 
               key={i}
               type="button"
               className="dart-slot"
-              disabled={!t && !isNextEmpty}
+              disabled={!canAct || (!t && !isNextEmpty)}
               onClick={() => {
+                if (!canAct) return;
                 if (t) setCorrection({ mode: "correct", throwSeq: t.throwSeq });
                 else if (isNextEmpty) setCorrection({ mode: "add" });
               }}
@@ -148,7 +156,8 @@ export function GameScreenView({ match, game, actions, persistsProgress, onExit 
                     key={t.throwSeq}
                     type="button"
                     className="history-chip"
-                    onClick={() => setCorrection({ mode: "correct", throwSeq: t.throwSeq })}
+                    disabled={!canAct}
+                    onClick={() => canAct && setCorrection({ mode: "correct", throwSeq: t.throwSeq })}
                   >
                     {t.label}
                   </button>
@@ -164,8 +173,9 @@ export function GameScreenView({ match, game, actions, persistsProgress, onExit 
       <GameActions
         canUndo={match.canUndo}
         canConfirm={match.pendingConfirmation}
+        canAct={canAct}
         onUndo={actions.onUndo}
-        onAddDart={() => setCorrection({ mode: "add" })}
+        onAddDart={() => canAct && setCorrection({ mode: "add" })}
         onConfirm={actions.onConfirm}
         onExit={handleExit}
       />

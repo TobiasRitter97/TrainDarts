@@ -2,8 +2,9 @@ import { useEffect, useState } from "react";
 import { api, PendingResume } from "./api";
 import { BoardControlBar } from "./components/BoardControlBar";
 import { GameHubScreen } from "./screens/GameHubScreen";
-import { GameSetupScreen } from "./screens/GameSetupScreen";
+import { GameSetupScreen, LocalStartInfo } from "./screens/GameSetupScreen";
 import { GameScreen } from "./screens/GameScreen";
+import { LocalGameScreen } from "./screens/LocalGameScreen";
 import { ProfileScreen } from "./screens/ProfileScreen";
 import { PiSettingsModal } from "./screens/PiSettingsModal";
 import { BoardDebugScreen } from "./screens/BoardDebugScreen";
@@ -14,6 +15,7 @@ type View =
   | { screen: "hub" }
   | { screen: "setup"; gameId: string }
   | { screen: "game" }
+  | { screen: "local-game"; session: LocalStartInfo }
   | { screen: "profiles" }
   | { screen: "board-debug" };
 
@@ -81,7 +83,7 @@ export default function App() {
 
   return (
     <div className="app-shell">
-      {view.screen !== "game" && (
+      {view.screen !== "game" && view.screen !== "local-game" && (
         <header className="app-header">
           <div className="app-title">DARTS TRAINING PLATFORM</div>
           <div className="app-header-actions">
@@ -110,10 +112,18 @@ export default function App() {
           <GameSetupScreen
             gameId={view.gameId}
             onBack={() => setView({ screen: "hub" })}
-            onStart={() => setView({ screen: "game" })}
+            onStart={(local) => (local ? setView({ screen: "local-game", session: local }) : setView({ screen: "game" }))}
           />
         )}
         {view.screen === "game" && <GameScreen onExit={() => setView({ screen: "hub" })} />}
+        {view.screen === "local-game" && (
+          <LocalGameScreen
+            game={view.session.game}
+            players={view.session.players}
+            settings={view.session.settings}
+            onExit={() => setView({ screen: "hub" })}
+          />
+        )}
         {view.screen === "profiles" && <ProfileScreen onBack={() => setView({ screen: "hub" })} />}
         {view.screen === "board-debug" && <BoardDebugScreen onBack={() => setView({ screen: "hub" })} />}
       </main>

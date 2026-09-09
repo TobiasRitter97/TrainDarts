@@ -3,12 +3,19 @@ import { api, defaultSettingsValues, GameDefinition, Leaderboard, Profile } from
 import { PlayerPicker } from "../components/PlayerPicker";
 import { GameSettingsForm } from "../components/GameSettingsForm";
 import { STATIC_GAMES } from "../staticGames";
+import { LOCAL_ENGINE_FAMILIES } from "../engine/localFamilies";
 import "./GameSetupScreen.css";
+
+export type LocalStartInfo = { game: GameDefinition; players: Profile[]; settings: Record<string, unknown> };
 
 type Props = {
   gameId: string;
   onBack: () => void;
-  onStart: () => void;
+  // Ohne Argument: Match lief ueber das alte Backend (api.createMatch()
+  // ist hier schon passiert). Mit LocalStartInfo: das Spiel gehoert zu
+  // einer bereits auf die Client-Engine portierten Familie (Phase C/D
+  // des Client-Rewrites) - App.tsx baut daraus einen LocalGameScreen.
+  onStart: (local?: LocalStartInfo) => void;
 };
 
 // SPEC §32: derselbe Setup-Aufbau fuer jedes Spiel - Players, dann
@@ -52,6 +59,10 @@ export function GameSetupScreen({ gameId, onBack, onStart }: Props) {
 
   async function handleStart() {
     if (!game) return;
+    if (LOCAL_ENGINE_FAMILIES.has(game.engineFamily)) {
+      onStart({ game, players, settings });
+      return;
+    }
     setStarting(true);
     setError(null);
     try {

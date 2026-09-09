@@ -224,6 +224,7 @@ export function DartboardPicker({ onSelect }: Props) {
       <svg ref={svgRef} className="dartboard-svg" viewBox="0 0 400 400" />
       <div className="dart-magnifier" ref={magnifierRef}>
         <svg ref={magSvgRef} viewBox="0 0 400 400" />
+        <div className="dart-magnifier-crosshair" />
       </div>
       <div className="dart-confirm" ref={confirmRef}>
         <div className="label">{confirmLabel}</div>

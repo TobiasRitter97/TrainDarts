@@ -64,3 +64,30 @@ service cloud.firestore {
   }
 }
 ```
+
+Zusaetzlich Realtime Database (Region `europe-west1`, explizite
+databaseURL in `firebase.ts` noetig - sonst versucht das SDK die
+falsche Standard-Region zu erraten und Schreibzugriffe haengen) fuer
+den ephemeren Online-Multiplayer-Raumzustand (Phase F, `frontend/src/
+online/`):
+
+```json
+{
+  "rules": {
+    "rooms": {
+      "$pin": {
+        ".read": "auth != null",
+        ".write": "auth != null"
+      }
+    }
+  }
+}
+```
+
+Bewusst ohne `runTransaction()`: in Tests zeigte sich, dass
+`runTransaction()` in dieser Umgebung (Firebase JS SDK 12.x) auf einem
+vom aktuellen Client noch nie gelesenen Pfad zuverlaessig einen
+falschen "existiert nicht"-Zwischenstand liefert. Alle Schreibzugriffe
+in `roomDb.ts` verwenden deshalb "erst lesen (get), dann schreiben
+(update)" statt einer echten Transaktion - fuer ein freundschaftliches
+2-4-Spieler-Onlinespiel ein akzeptables Risiko.

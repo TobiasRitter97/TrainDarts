@@ -1,0 +1,52 @@
+.online-lobby {
+  max-width: 720px;
+  margin: 0 auto;
+}
+
+.online-mode-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--sp-4);
+  margin-top: var(--sp-5);
+}
+
+.online-mode-card {
+  text-align: left;
+  background: var(--c-surface);
+  border: 1px solid var(--c-border);
+  border-radius: var(--radius-lg);
+  padding: var(--sp-5);
+  cursor: pointer;
+  color: var(--c-text);
+  transition: border-color var(--anim-fast) var(--anim-ease-out);
+}
+
+.online-mode-card:hover {
+  border-color: var(--c-accent);
+}
+
+.online-mode-title {
+  font-size: var(--fs-lg);
+  font-weight: var(--fw-strong);
+  margin-bottom: var(--sp-2);
+}
+
+.online-mode-desc {
+  color: var(--c-text-muted);
+  font-size: var(--fs-sm);
+}
+
+.online-pin-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  margin-bottom: var(--sp-4);
+}
+
+.online-pin-input {
+  font-size: var(--fs-xl);
+  font-weight: var(--fw-display);
+  letter-spacing: 0.3em;
+  text-align: center;
+  padding: var(--sp-3);
+}

@@ -19,6 +19,7 @@
 import { initializeApp } from "firebase/app";
 import { getAuth, onAuthStateChanged, signInAnonymously, type User } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
+import { getDatabase } from "firebase/database";
 
 const firebaseConfig = {
   apiKey: "AIzaSyCcvmvIwu_pV-Ojng2QLLyPI6qvfzs2dD0",
@@ -32,6 +33,17 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 export const db = getFirestore(app);
 export const auth = getAuth(app);
+// Realtime Database (Phase F, Online-Multiplayer): fuer den EPHEMEREN
+// Raum-Zustand waehrend einer laufenden Online-Partie besser geeignet
+// als Firestore (einfachere Echtzeit-Listener, kein Index-Aufwand fuer
+// den simplen "ganzer Raum aendert sich"-Anwendungsfall). Dauerhafte
+// Daten (Profile/Statistiken) bleiben in Firestore (siehe profiles.ts/
+// matches.ts/stats.ts).
+//
+// Explizite databaseURL noetig: die Datenbank wurde in europe-west1
+// angelegt, ohne diese URL versucht das SDK die (falsche) Standard-
+// US-Region zu erraten und Schreibzugriffe haengen dann unbemerkt.
+export const rtdb = getDatabase(app, "https://traindarts-default-rtdb.europe-west1.firebasedatabase.app");
 
 let readyPromise: Promise<User> | null = null;
 

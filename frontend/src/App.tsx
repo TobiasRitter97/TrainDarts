@@ -7,6 +7,8 @@ import { LocalGameScreen } from "./screens/LocalGameScreen";
 import { ProfileScreen } from "./screens/ProfileScreen";
 import { PiSettingsModal } from "./screens/PiSettingsModal";
 import { BoardDebugScreen } from "./screens/BoardDebugScreen";
+import { OnlineLobbyScreen } from "./screens/OnlineLobbyScreen";
+import { OnlineRoomScreen } from "./screens/OnlineRoomScreen";
 import { getStoredPiIp } from "./piConnection";
 import * as matchesDb from "./data/matches";
 import * as profilesDb from "./data/profiles";
@@ -19,7 +21,9 @@ type View =
   | { screen: "setup"; gameId: string }
   | { screen: "local-game"; session: LocalStartInfo; resume?: ResumeInfo }
   | { screen: "profiles" }
-  | { screen: "board-debug" };
+  | { screen: "board-debug" }
+  | { screen: "online-lobby" }
+  | { screen: "online-room"; pin: string; myProfile: Profile };
 
 type PendingResumeInfo = { matchId: string; gameId: string; gameName: string; playerNames: string[] };
 
@@ -90,10 +94,15 @@ export default function App() {
 
   return (
     <div className="app-shell">
-      {view.screen !== "local-game" && (
+      {view.screen !== "local-game" && view.screen !== "online-room" && (
         <header className="app-header">
           <div className="app-title">DARTS TRAINING PLATFORM</div>
           <div className="app-header-actions">
+            {view.screen !== "online-lobby" && (
+              <button className="btn-outline" onClick={() => setView({ screen: "online-lobby" })}>
+                🌐 ONLINE
+              </button>
+            )}
             {view.screen !== "profiles" && (
               <button className="btn-outline" onClick={() => setView({ screen: "profiles" })}>
                 PROFILE
@@ -133,6 +142,15 @@ export default function App() {
         )}
         {view.screen === "profiles" && <ProfileScreen onBack={() => setView({ screen: "hub" })} />}
         {view.screen === "board-debug" && <BoardDebugScreen onBack={() => setView({ screen: "hub" })} />}
+        {view.screen === "online-lobby" && (
+          <OnlineLobbyScreen
+            onBack={() => setView({ screen: "hub" })}
+            onEnterRoom={(pin, myProfile) => setView({ screen: "online-room", pin, myProfile })}
+          />
+        )}
+        {view.screen === "online-room" && (
+          <OnlineRoomScreen pin={view.pin} myProfile={view.myProfile} onExit={() => setView({ screen: "hub" })} />
+        )}
       </main>
 
       {pendingResume && (

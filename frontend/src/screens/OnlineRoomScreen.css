@@ -1,0 +1,43 @@
+.online-room {
+  max-width: 720px;
+  margin: 0 auto;
+}
+
+.online-room-pin {
+  font-size: var(--fs-display);
+  font-weight: var(--fw-display);
+  letter-spacing: 0.15em;
+  text-align: center;
+  color: var(--c-accent);
+  margin: var(--sp-4) 0;
+}
+
+.online-player-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+}
+
+.online-player-row {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  padding: var(--sp-2);
+}
+
+.online-host-tag {
+  margin-left: auto;
+  font-size: var(--fs-xs);
+  color: var(--c-accent);
+  letter-spacing: 0.1em;
+  font-weight: var(--fw-strong);
+}
+
+.online-game-grid {
+  margin-bottom: var(--sp-4);
+}
+
+.online-game-grid .game-card.selected {
+  border-color: var(--c-accent);
+  background: var(--c-surface-raised);
+}

@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { api, defaultSettingsValues, GameDefinition, Leaderboard, Profile } from "../api";
 import { PlayerPicker } from "../components/PlayerPicker";
 import { GameSettingsForm } from "../components/GameSettingsForm";
+import { STATIC_GAMES } from "../staticGames";
 import "./GameSetupScreen.css";
 
 type Props = {
@@ -19,11 +20,12 @@ export function GameSetupScreen({ gameId, onBack, onStart }: Props) {
   const [settings, setSettings] = useState<Record<string, unknown>>({});
   const [starting, setStarting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [offline, setOffline] = useState(false);
   const [leaderboards, setLeaderboards] = useState<Leaderboard[]>([]);
 
   useEffect(() => {
     setGame(null);
-    setError(null);
+    setOffline(false);
     api
       .listGames()
       .then((list) => {
@@ -31,12 +33,21 @@ export function GameSetupScreen({ gameId, onBack, onStart }: Props) {
         setGame(found);
         if (found) setSettings(defaultSettingsValues(found.settingsSchema));
       })
-      .catch(() => setError("Keine Verbindung zum Board. Bitte oben auf „⚙ EINSTELLUNGEN“ klicken."));
+      .catch(() => {
+        // Kein Board erreichbar - Setup-Screen trotzdem mit den
+        // statischen Spieldaten anzeigen, damit man sich die Settings
+        // ansehen kann (Tobias-Feedback 09.09.2026). Tatsaechlich
+        // starten geht erst mit echter Verbindung (siehe handleStart).
+        const found = STATIC_GAMES.find((g) => g.id === gameId) ?? null;
+        setGame(found);
+        if (found) setSettings(defaultSettingsValues(found.settingsSchema));
+        setOffline(true);
+      });
     api.getGameLeaderboard(gameId).then(setLeaderboards).catch(() => setLeaderboards([]));
   }, [gameId]);
 
   if (!game) {
-    return <p className={error ? "screen-error" : "screen-note"}>{error ?? "Lade Spiel…"}</p>;
+    return <p className="screen-note">Lade Spiel…</p>;
   }
 
   async function handleStart() {
@@ -60,6 +71,11 @@ export function GameSetupScreen({ gameId, onBack, onStart }: Props) {
       </button>
       <h1 className="screen-title">{game.name}</h1>
       <p className="screen-note">{game.description}</p>
+      {offline && (
+        <p className="screen-note">
+          Kein Board verbunden — zum Spielen oben auf „⚙ EINSTELLUNGEN" klicken und die IP deines Pi eingeben.
+        </p>
+      )}
 
       <h2 className="section-title">Players</h2>
       <div className="panel">

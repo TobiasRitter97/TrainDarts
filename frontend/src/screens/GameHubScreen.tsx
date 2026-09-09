@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { api, GameDefinition } from "../api";
+import { STATIC_GAMES } from "../staticGames";
 import "./GameHubScreen.css";
 
 const CATEGORY_ORDER = ["CHECKOUT", "DOUBLES", "ACCURACY"];
@@ -16,7 +17,7 @@ type Props = {
 export function GameHubScreen({ onSelectGame }: Props) {
   const [games, setGames] = useState<GameDefinition[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(false);
+  const [offline, setOffline] = useState(false);
 
   useEffect(() => {
     api
@@ -26,8 +27,13 @@ export function GameHubScreen({ onSelectGame }: Props) {
         setLoading(false);
       })
       .catch(() => {
+        // Kein Board erreichbar - trotzdem die (statische) Spieleliste
+        // zeigen, damit die Oberflaeche komplett durchsuchbar bleibt
+        // (Tobias-Feedback 09.09.2026). Nur das eigentliche Spielen
+        // braucht die echte Verbindung.
+        setGames(STATIC_GAMES);
         setLoading(false);
-        setError(true);
+        setOffline(true);
       });
   }, []);
 
@@ -40,9 +46,10 @@ export function GameHubScreen({ onSelectGame }: Props) {
     <div className="game-hub">
       <h1 className="screen-title">GAME HUB</h1>
       {loading && <p className="screen-note">Lade Spiele…</p>}
-      {error && (
-        <p className="screen-error">
-          Keine Verbindung zum Board. Bitte oben auf „⚙ EINSTELLUNGEN" klicken und die IP deines Pi eingeben.
+      {offline && (
+        <p className="screen-note">
+          Kein Board verbunden — Spiele können angesehen werden, zum Spielen bitte oben auf „⚙ EINSTELLUNGEN"
+          klicken und die IP deines Pi eingeben.
         </p>
       )}
 

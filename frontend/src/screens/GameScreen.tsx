@@ -35,9 +35,12 @@ export function GameScreen({ onExit }: Props) {
 
   useEffect(() => {
     if (!match) return;
-    api.listGames().then((list) => {
-      setGame((prev) => (prev?.id === match.gameId ? prev : list.find((g) => g.id === match.gameId) ?? null));
-    });
+    api
+      .listGames()
+      .then((list) => {
+        setGame((prev) => (prev?.id === match.gameId ? prev : list.find((g) => g.id === match.gameId) ?? null));
+      })
+      .catch(() => {});
   }, [match?.gameId]);
 
   if (!match || !game) {

@@ -19,22 +19,27 @@ export function ProfileScreen({ onBack }: Props) {
   const [showCreate, setShowCreate] = useState(false);
   const [newName, setNewName] = useState("");
   const [newInitials, setNewInitials] = useState("");
+  const [loadError, setLoadError] = useState(false);
 
   useEffect(() => {
     reloadProfiles();
   }, []);
 
   function reloadProfiles(selectAfter?: string) {
-    api.listProfiles().then((list) => {
-      setProfiles(list);
-      if (selectAfter) {
-        setSelectedId(selectAfter);
-      } else if (list.length > 0) {
-        setSelectedId((prev) => (prev && list.some((p) => p.id === prev) ? prev : list[0].id));
-      } else {
-        setSelectedId(null);
-      }
-    });
+    api
+      .listProfiles()
+      .then((list) => {
+        setLoadError(false);
+        setProfiles(list);
+        if (selectAfter) {
+          setSelectedId(selectAfter);
+        } else if (list.length > 0) {
+          setSelectedId((prev) => (prev && list.some((p) => p.id === prev) ? prev : list[0].id));
+        } else {
+          setSelectedId(null);
+        }
+      })
+      .catch(() => setLoadError(true));
   }
 
   async function submitCreate(e: FormEvent) {
@@ -63,6 +68,7 @@ export function ProfileScreen({ onBack }: Props) {
     api
       .getProfileStats(selectedId)
       .then(setStats)
+      .catch(() => setStats(null))
       .finally(() => setLoadingStats(false));
   }, [selectedId]);
 
@@ -90,7 +96,10 @@ export function ProfileScreen({ onBack }: Props) {
               </button>
             </div>
           ))}
-          {profiles.length === 0 && <p className="screen-note">Noch keine Profile angelegt.</p>}
+          {loadError && (
+            <p className="screen-error">Keine Verbindung zum Board. Bitte oben auf „⚙ EINSTELLUNGEN" klicken.</p>
+          )}
+          {!loadError && profiles.length === 0 && <p className="screen-note">Noch keine Profile angelegt.</p>}
 
           {showCreate ? (
             <form className="inline-form profile-create-form" onSubmit={submitCreate}>

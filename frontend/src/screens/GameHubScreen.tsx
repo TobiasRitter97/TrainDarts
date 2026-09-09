@@ -16,12 +16,19 @@ type Props = {
 export function GameHubScreen({ onSelectGame }: Props) {
   const [games, setGames] = useState<GameDefinition[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
 
   useEffect(() => {
-    api.listGames().then((list) => {
-      setGames(list);
-      setLoading(false);
-    });
+    api
+      .listGames()
+      .then((list) => {
+        setGames(list);
+        setLoading(false);
+      })
+      .catch(() => {
+        setLoading(false);
+        setError(true);
+      });
   }, []);
 
   const categories = CATEGORY_ORDER.map((category) => ({
@@ -33,6 +40,11 @@ export function GameHubScreen({ onSelectGame }: Props) {
     <div className="game-hub">
       <h1 className="screen-title">GAME HUB</h1>
       {loading && <p className="screen-note">Lade Spiele…</p>}
+      {error && (
+        <p className="screen-error">
+          Keine Verbindung zum Board. Bitte oben auf „⚙ EINSTELLUNGEN" klicken und die IP deines Pi eingeben.
+        </p>
+      )}
 
       {categories.map((group) => (
         <section key={group.category} className="game-category" data-category={group.category}>

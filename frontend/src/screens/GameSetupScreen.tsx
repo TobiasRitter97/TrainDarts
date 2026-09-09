@@ -23,16 +23,20 @@ export function GameSetupScreen({ gameId, onBack, onStart }: Props) {
 
   useEffect(() => {
     setGame(null);
-    api.listGames().then((list) => {
-      const found = list.find((g) => g.id === gameId) ?? null;
-      setGame(found);
-      if (found) setSettings(defaultSettingsValues(found.settingsSchema));
-    });
-    api.getGameLeaderboard(gameId).then(setLeaderboards);
+    setError(null);
+    api
+      .listGames()
+      .then((list) => {
+        const found = list.find((g) => g.id === gameId) ?? null;
+        setGame(found);
+        if (found) setSettings(defaultSettingsValues(found.settingsSchema));
+      })
+      .catch(() => setError("Keine Verbindung zum Board. Bitte oben auf „⚙ EINSTELLUNGEN“ klicken."));
+    api.getGameLeaderboard(gameId).then(setLeaderboards).catch(() => setLeaderboards([]));
   }, [gameId]);
 
   if (!game) {
-    return <p className="screen-note">Lade Spiel…</p>;
+    return <p className={error ? "screen-error" : "screen-note"}>{error ?? "Lade Spiel…"}</p>;
   }
 
   async function handleStart() {

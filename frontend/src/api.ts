@@ -203,22 +203,6 @@ export const api = {
     return fetch(`${apiBase()}/games/${gameId}/leaderboard`).then((res) => asJson<Leaderboard[]>(res));
   },
 
-  getBoardInfo(): Promise<{ boardHost: string; boardPort: number; calibrationUrl: string; hasControlApi: boolean }> {
-    return fetch(`${apiBase()}/board/info`).then((res) => asJson(res));
-  },
-
-  startBoard(): Promise<{ ok: boolean }> {
-    return fetch(`${apiBase()}/board/start`, { method: "POST" }).then((res) => asJson(res));
-  },
-
-  stopBoard(): Promise<{ ok: boolean }> {
-    return fetch(`${apiBase()}/board/stop`, { method: "POST" }).then((res) => asJson(res));
-  },
-
-  resetBoard(): Promise<{ ok: boolean }> {
-    return fetch(`${apiBase()}/board/reset`, { method: "POST" }).then((res) => asJson(res));
-  },
-
   createMatch(gameId: string, playerIds: string[], settings: Record<string, unknown>): Promise<{ matchId: string; state: MatchState }> {
     return fetch(`${apiBase()}/matches`, {
       method: "POST",

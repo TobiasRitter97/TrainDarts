@@ -1,4 +1,4 @@
-import { BoardStatus } from "../useBoardStatus";
+import { BoardStatus } from "../board/autodartsAdapter";
 import "./BoardStatusBadge.css";
 
 const LABELS = {

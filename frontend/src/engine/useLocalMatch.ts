@@ -1,17 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import { GameDefinition, MatchState, Profile, Segment } from "../api";
 import { AutodartsAdapter, BoardStatus } from "../board/autodartsAdapter";
-import { getStoredPiIp } from "../piConnection";
+import { getBoardHost } from "../board/boardHost";
 import { MatchEngine, MatchPlayerRef } from "./matchEngine";
-
-// Kein eigenes Backend mehr fuer lokal unterstuetzte Spiele (Phase C
-// des Client-Rewrites) - Standard "localhost" passt zum lokalen
-// Wurf-Simulator (Dev-Betrieb) und zum Python-Adapter-Original. Im
-// Vercel-Betrieb ist immer eine gespeicherte Pi-IP vorhanden, da die
-// App ohne sie ohnehin nirgends echte Daten zeigen kann.
-function getBoardHost(): string {
-  return getStoredPiIp() ?? "localhost";
-}
 
 function toPlayerRefs(players: Profile[]): MatchPlayerRef[] {
   return players.map((p) => ({ id: p.id, name: p.name, color: p.color, initials: p.initials }));

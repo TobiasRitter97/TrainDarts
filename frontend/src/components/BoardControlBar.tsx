@@ -1,46 +1,38 @@
-import { useEffect, useState } from "react";
-import { api } from "../api";
-import { useBoardStatus } from "../useBoardStatus";
+import { useState } from "react";
+import { useAutodartsBoard } from "../board/useAutodartsBoard";
+import { getBoardHost } from "../board/boardHost";
 import { BoardStatusBadge } from "./BoardStatusBadge";
 import "./BoardControlBar.css";
 
-// Dezente Board-Leiste: Status + Start/Stop/Reset (verifizierte
-// Board-Manager-REST-API, siehe CLAUDE.md) + Link zur echten
-// Board-Manager-Oberfläche für die Kalibrierung (kein Nachbau).
+// Dezente Board-Leiste: Status + Start/Stop/Reset + Link zur echten
+// Board-Manager-Oberflaeche fuer die Kalibrierung (kein Nachbau).
 //
-// Der lokale Wurf-Simulator bildet nur die Wurf-Events nach, hat aber
-// keine Steuer-API - hasControlApi (per echtem Live-Check im Backend,
-// nicht anhand des Hostnamens geraten) blendet die Buttons in dem
-// Fall aus, statt eine irrefuehrende Fehlermeldung zu zeigen.
+// Verbindet seit Phase A des Client-Rewrites (siehe
+// ~/.claude/plans/agile-brewing-wadler.md) DIREKT mit dem Autodarts-
+// Board-Manager (Port 3180) statt ueber unser altes Backend (Port
+// 8088) - behebt nebenbei auch den fehlerhaften Kalibrierungslink
+// (der frueher IMMER "localhost" zeigte, weil das Backend selbst auf
+// demselben Pi wie das Board laeuft - fuer einen entfernten Browser
+// war das nie die richtige Adresse) und vermeidet zwei parallele
+// WebSocket-Verbindungen zum selben Board waehrend eines lokal
+// gespielten Matches (siehe useLocalMatch.ts).
+//
+// Der lokale Wurf-Simulator hat keine Steuer-API - hasControlApi (per
+// echtem Live-Check, nicht anhand des Hostnamens geraten) blendet die
+// Buttons in dem Fall aus, statt eine irrefuehrende Fehlermeldung zu
+// zeigen.
 export function BoardControlBar() {
-  const status = useBoardStatus();
-  const [calibrationUrl, setCalibrationUrl] = useState<string | null>(null);
-  const [hasControlApi, setHasControlApi] = useState(false);
+  const board = useAutodartsBoard(getBoardHost());
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    // Bei jedem Statuswechsel neu pruefen (z.B. wenn der Simulator
-    // oder das echte Board erst nach dem Laden der Seite verbindet).
-    api
-      .getBoardInfo()
-      .then((info) => {
-        setCalibrationUrl(info.calibrationUrl);
-        setHasControlApi(info.hasControlApi);
-      })
-      .catch(() => {
-        setCalibrationUrl(null);
-        setHasControlApi(false);
-      });
-  }, [status]);
 
   async function run(action: "start" | "stop" | "reset") {
     setBusy(action);
     setError(null);
     try {
-      if (action === "start") await api.startBoard();
-      if (action === "stop") await api.stopBoard();
-      if (action === "reset") await api.resetBoard();
+      if (action === "start") await board.start();
+      if (action === "stop") await board.stop();
+      if (action === "reset") await board.reset();
     } catch {
       setError("Board nicht erreichbar");
     } finally {
@@ -50,9 +42,9 @@ export function BoardControlBar() {
 
   return (
     <div className="board-control-bar">
-      <BoardStatusBadge status={status} />
+      <BoardStatusBadge status={board.status} />
 
-      {hasControlApi && (
+      {board.hasControlApi && (
         <div className="board-control-buttons">
           <button className="board-btn" disabled={busy !== null} onClick={() => run("start")}>
             Start
@@ -63,15 +55,13 @@ export function BoardControlBar() {
           <button className="board-btn" disabled={busy !== null} onClick={() => run("reset")}>
             Reset
           </button>
-          {calibrationUrl && (
-            <a className="board-btn calibration-link" href={calibrationUrl} target="_blank" rel="noreferrer">
-              Kalibrierung ↗
-            </a>
-          )}
+          <a className="board-btn calibration-link" href={board.calibrationUrl()} target="_blank" rel="noreferrer">
+            Kalibrierung ↗
+          </a>
         </div>
       )}
 
-      {!hasControlApi && status === "connected" && (
+      {!board.hasControlApi && board.status === "connected" && (
         <span className="board-control-hint">Simulator — Steuerung nur am echten Board</span>
       )}
 

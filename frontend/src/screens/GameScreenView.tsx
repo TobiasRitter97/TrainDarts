@@ -109,18 +109,29 @@ export function GameScreenView({ match, game, actions, persistsProgress, onExit 
       <CheckoutRouteDisplay route={match.checkoutSuggestion} />
 
       <section className="current-throw-panel">
-        {darts.map((t, i) => (
-          <button
-            key={i}
-            type="button"
-            className="dart-slot"
-            disabled={!t}
-            onClick={() => t && setCorrection({ mode: "correct", throwSeq: t.throwSeq })}
-          >
-            <div className="dart-slot-label">DART {i + 1}</div>
-            <div className={`dart-chip ${t ? "filled" : "empty"}`}>{t?.label ?? "—"}</div>
-          </button>
-        ))}
+        {darts.map((t, i) => {
+          // Das jeweils naechste noch leere Feld darf direkt befuellt
+          // werden (ersetzt den Umweg ueber den separaten "+ DART"-
+          // Button) - weiter hinten liegende leere Felder bleiben
+          // gesperrt, die Engine kennt nur eine fortlaufende Reihenfolge
+          // innerhalb der Aufnahme, kein Ueberspringen moeglich.
+          const isNextEmpty = !t && !match.pendingConfirmation && i === match.currentVisitThrows.length;
+          return (
+            <button
+              key={i}
+              type="button"
+              className="dart-slot"
+              disabled={!t && !isNextEmpty}
+              onClick={() => {
+                if (t) setCorrection({ mode: "correct", throwSeq: t.throwSeq });
+                else if (isNextEmpty) setCorrection({ mode: "add" });
+              }}
+            >
+              <div className="dart-slot-label">DART {i + 1}</div>
+              <div className={`dart-chip ${t ? "filled" : isNextEmpty ? "addable" : "empty"}`}>{t?.label ?? (isNextEmpty ? "+" : "—")}</div>
+            </button>
+          );
+        })}
       </section>
 
       {match.history.length > 0 && (

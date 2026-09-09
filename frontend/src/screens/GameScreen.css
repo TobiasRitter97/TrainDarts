@@ -179,6 +179,12 @@
   border-style: dashed;
 }
 
+.dart-chip.addable {
+  color: var(--c-accent);
+  border-color: var(--c-accent);
+  border-style: dashed;
+}
+
 /* ---------- History (Korrektur vergangener Aufnahmen) ---------- */
 .visit-history {
   text-align: center;

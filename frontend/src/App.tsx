@@ -6,10 +6,16 @@ import { GameSetupScreen } from "./screens/GameSetupScreen";
 import { GameScreen } from "./screens/GameScreen";
 import { ProfileScreen } from "./screens/ProfileScreen";
 import { PiSettingsModal } from "./screens/PiSettingsModal";
+import { BoardDebugScreen } from "./screens/BoardDebugScreen";
 import { getStoredPiIp } from "./piConnection";
 import "./App.css";
 
-type View = { screen: "hub" } | { screen: "setup"; gameId: string } | { screen: "game" } | { screen: "profiles" };
+type View =
+  | { screen: "hub" }
+  | { screen: "setup"; gameId: string }
+  | { screen: "game" }
+  | { screen: "profiles" }
+  | { screen: "board-debug" };
 
 // Ob die Pi-Einstellungen automatisch beim ersten Laden vorgeschlagen
 // werden sollten (Vercel-Deployment ohne Backend am selben Origin).
@@ -84,6 +90,11 @@ export default function App() {
                 PROFILE
               </button>
             )}
+            {view.screen !== "board-debug" && (
+              <button className="btn-outline" onClick={() => setView({ screen: "board-debug" })}>
+                🔧 BOARD-TEST
+              </button>
+            )}
             <button className="btn-outline" onClick={() => setShowPiSettings(true)}>
               ⚙ EINSTELLUNGEN
             </button>
@@ -104,6 +115,7 @@ export default function App() {
         )}
         {view.screen === "game" && <GameScreen onExit={() => setView({ screen: "hub" })} />}
         {view.screen === "profiles" && <ProfileScreen onBack={() => setView({ screen: "hub" })} />}
+        {view.screen === "board-debug" && <BoardDebugScreen onBack={() => setView({ screen: "hub" })} />}
       </main>
 
       {pendingResume && (

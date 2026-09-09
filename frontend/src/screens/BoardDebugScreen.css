@@ -1,0 +1,63 @@
+.board-debug {
+  max-width: 720px;
+  margin: 0 auto;
+}
+
+.board-debug-form {
+  display: flex;
+  gap: var(--sp-3);
+  margin-bottom: var(--sp-4);
+}
+
+.board-debug-form input {
+  flex: 1;
+}
+
+.board-debug-status {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+  margin-bottom: var(--sp-4);
+}
+
+.board-debug-badge {
+  align-self: flex-start;
+  padding: var(--sp-1) var(--sp-3);
+  border-radius: var(--radius-full);
+  font-weight: var(--fw-strong);
+  font-size: var(--fs-sm);
+}
+
+.board-debug-badge.connected {
+  background: var(--c-success);
+  color: var(--c-text);
+}
+
+.board-debug-badge.reconnecting {
+  background: var(--c-accent);
+  color: #1a1500;
+}
+
+.board-debug-badge.disconnected {
+  background: var(--c-danger);
+  color: var(--c-text);
+}
+
+.board-debug-actions {
+  display: flex;
+  gap: var(--sp-2);
+}
+
+.board-debug-throw-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+}
+
+.board-debug-throw {
+  background: var(--c-surface-raised);
+  border-radius: var(--radius-md);
+  padding: var(--sp-2) var(--sp-3);
+  font-weight: var(--fw-strong);
+  font-size: var(--fs-lg);
+}

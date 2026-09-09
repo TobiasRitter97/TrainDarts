@@ -1,16 +1,33 @@
 # Deployment
 
-## Backend (Raspberry Pi)
+## Architektur (seit dem Client-Rewrite, ~/.claude/plans/agile-brewing-wadler.md)
 
-Läuft als systemd-Dienst `darts-platform` auf dem Pi (192.168.188.97),
-neben dem bestehenden `autodarts.service` (Board Manager, Port 3180).
+Die komplette Spiellogik läuft seit Phase C/D im Browser
+(`frontend/src/engine/`) — kein eigenes Backend mehr nötig für das
+eigentliche Spielen. Der Browser verbindet sich direkt mit dem
+Standard-Autodarts-Board-Manager (Port 3180, `frontend/src/board/`).
+Profile, Match-Historie, Statistiken und Bestenlisten liegen seit
+Phase E in Firebase/Firestore (`frontend/src/data/`) statt in der
+SQLite-Datenbank des alten Backends.
+
+Jede Browser-Installation bekommt automatisch eine anonyme
+Firebase-Identität (kein Login-Formular) — analog zur früheren
+Isolation "jeder Pi hat nur seine eigenen Daten". Bekannte
+Einschränkung: die Identität ist an den jeweiligen Browser/das jeweilige
+Gerät gebunden, ein Wechsel startet mit leeren Profilen.
+
+## Altes Backend (Raspberry Pi) — noch nicht abgeschaltet
+
+Läuft weiterhin als systemd-Dienst `darts-platform` auf dem Pi
+(192.168.188.97), neben `autodarts.service` (Board Manager, Port
+3180) — wird vom Frontend inzwischen aber nicht mehr angesprochen.
+Bleibt bis Phase G bewusst unangetastet (kann jederzeit gefahrlos
+gestoppt werden, sobald Tobias das möchte).
 
 - Port: 8088
-- `DARTS_BOARD_HOST=localhost` (Board Manager läuft auf demselben Pi)
 - Status: `ssh darts-pi "systemctl status darts-platform"`
 - Logs: `ssh darts-pi "journalctl -u darts-platform -f"`
-- Neustart bei Absturz: automatisch (`Restart=on-failure`)
-- Neustart bei Pi-Boot: automatisch (`enable`d)
+- Stilllegen (Phase G): `ssh darts-pi "sudo systemctl disable --now darts-platform"`
 
 ## Frontend (Vercel)
 
@@ -24,7 +41,26 @@ Git-Integration: Vercel-Projekt `darts10/traindart` ist mit
 `github.com/TobiasRitter97/TrainDarts` (Branch `main`) verbunden —
 jeder Push auf `main` löst automatisch ein Production-Deployment aus.
 
-Der Browser spricht direkt (nicht über Vercel) mit dem Backend auf dem
-Pi im Heimnetz — die Pi-IP wird einmalig über den
+Der Browser spricht direkt (nicht über Vercel) mit dem Board-Manager
+auf dem Pi im Heimnetz — die Pi-IP wird einmalig über den
 „⚙ EINSTELLUNGEN"-Dialog abgefragt und in `localStorage` gemerkt
 (`frontend/src/piConnection.ts`).
+
+## Firebase
+
+Projekt `traindarts` (console.firebase.google.com), Firestore +
+Anonyme Anmeldung aktiviert. Konfiguration liegt (bewusst öffentlich,
+Firebase-Web-API-Keys sind kein Geheimnis) in
+`frontend/src/data/firebase.ts`. Sicherheitsregeln beschränken jeden
+Zugriff auf den eigenen `users/{uid}`-Pfad:
+
+```
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /users/{uid}/{document=**} {
+      allow read, write: if request.auth != null && request.auth.uid == uid;
+    }
+  }
+}
+```

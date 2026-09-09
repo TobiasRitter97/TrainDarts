@@ -1,5 +1,7 @@
 import { useEffect, useState, FormEvent } from "react";
-import { api, Profile, ProfileStats } from "../api";
+import { Profile, ProfileStats } from "../api";
+import * as profilesDb from "../data/profiles";
+import { computeProfileStats } from "../data/stats";
 import "./ProfileScreen.css";
 
 const DEFAULT_COLOR = "#d9a441";
@@ -9,7 +11,7 @@ type Props = {
 };
 
 // SPEC §5/§34/§35: dauerhafter Profile-Screen mit Statistiken und
-// Bestleistungen ueber alle Matches hinweg (backend/persistence/stats.py).
+// Bestleistungen ueber alle Matches hinweg (data/stats.ts, Phase E).
 export function ProfileScreen({ onBack }: Props) {
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -26,7 +28,7 @@ export function ProfileScreen({ onBack }: Props) {
   }, []);
 
   function reloadProfiles(selectAfter?: string) {
-    api
+    profilesDb
       .listProfiles()
       .then((list) => {
         setLoadError(false);
@@ -46,7 +48,7 @@ export function ProfileScreen({ onBack }: Props) {
     e.preventDefault();
     const name = newName.trim();
     if (!name) return;
-    const profile = await api.createProfile({ name, initials: newInitials.trim() || undefined });
+    const profile = await profilesDb.createProfile({ name, initials: newInitials.trim() || undefined });
     setNewName("");
     setNewInitials("");
     setShowCreate(false);
@@ -55,7 +57,7 @@ export function ProfileScreen({ onBack }: Props) {
 
   async function handleDelete(profile: Profile) {
     if (!confirm(`${profile.name} wirklich entfernen? Alte Ergebnisse bleiben erhalten.`)) return;
-    await api.deleteProfile(profile.id);
+    await profilesDb.archiveProfile(profile.id);
     reloadProfiles();
   }
 
@@ -65,8 +67,7 @@ export function ProfileScreen({ onBack }: Props) {
       return;
     }
     setLoadingStats(true);
-    api
-      .getProfileStats(selectedId)
+    computeProfileStats(selectedId)
       .then(setStats)
       .catch(() => setStats(null))
       .finally(() => setLoadingStats(false));
@@ -96,9 +97,7 @@ export function ProfileScreen({ onBack }: Props) {
               </button>
             </div>
           ))}
-          {loadError && (
-            <p className="screen-error">Keine Verbindung zum Board. Bitte oben auf „⚙ EINSTELLUNGEN" klicken.</p>
-          )}
+          {loadError && <p className="screen-error">Profile konnten nicht geladen werden.</p>}
           {!loadError && profiles.length === 0 && <p className="screen-note">Noch keine Profile angelegt.</p>}
 
           {showCreate ? (

@@ -1,16 +1,11 @@
-// Verbindung zum Pi im Heimnetz (Vercel-Deployment): das Frontend wird
-// statisch von Vercel ausgeliefert, spricht aber direkt vom Browser aus
-// mit dem Backend auf dem Pi (gleiches Heimnetz, kein Umweg ueber
-// Vercel selbst - siehe CLAUDE.md "Browser spricht NUR mit unserem
-// Backend"). Die IP wird einmalig abgefragt (siehe ConnectScreen) und
-// in localStorage gemerkt.
-//
-// Im lokalen Dev-Betrieb (Vite) und wenn das Backend das Frontend
-// selbst ausliefert (direkter Aufruf von z.B. http://<pi-ip>:8088/),
-// wird KEINE gespeicherte IP benoetigt - dann reicht der gleiche
-// Origin bzw. Vite's Dev-Modus (siehe api.ts/wsUrl.ts).
+// Board-IP im Heimnetz (Vercel-Deployment): das Frontend wird statisch
+// von Vercel ausgeliefert, der Browser spricht aber direkt mit dem
+// Autodarts-Board-Manager im selben Heimnetz (Phase A des Client-
+// Rewrites, ~/.claude/plans/agile-brewing-wadler.md - kein eigenes
+// Backend mehr, siehe board/autodartsAdapter.ts). Die IP wird einmalig
+// abgefragt (siehe PiSettingsModal) und in localStorage gemerkt.
 const STORAGE_KEY = "darts-pi-ip";
-const BACKEND_PORT = 8088;
+const BOARD_PORT = 3180;
 
 export function getStoredPiIp(): string | null {
   try {
@@ -31,7 +26,7 @@ export function setStoredPiIp(host: string): void {
 }
 
 // Nimmt eine Nutzereingabe wie "192.168.188.97", "http://192.168.188.97"
-// oder "192.168.188.97:8088" entgegen und liefert nur den nackten Host
+// oder "192.168.188.97:3180" entgegen und liefert nur den nackten Host
 // zurueck - http:// und Port ergaenzt die App selbst.
 export function normalizeHost(input: string): string {
   let value = input.trim();
@@ -41,17 +36,13 @@ export function normalizeHost(input: string): string {
   return value;
 }
 
-export function apiBaseFor(host: string): string {
-  return `http://${host}:${BACKEND_PORT}/api`;
-}
-
-export function wsUrlFor(host: string): string {
-  return `ws://${host}:${BACKEND_PORT}/ws`;
-}
-
+// Verifiziert die Board-Manager-REST-API direkt (siehe CLAUDE.md
+// "Verifizierte Board-Manager-REST-API") - testet damit genau das,
+// was die App tatsaechlich braucht (direkte Board-Verbindung), nicht
+// mehr den Umweg ueber ein eigenes Backend.
 export async function testConnection(host: string): Promise<boolean> {
   try {
-    const res = await fetch(`${apiBaseFor(host)}/board/info`, { signal: AbortSignal.timeout(5000) });
+    const res = await fetch(`http://${host}:${BOARD_PORT}/api/ping`, { signal: AbortSignal.timeout(5000) });
     return res.ok;
   } catch {
     return false;

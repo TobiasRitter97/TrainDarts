@@ -1,5 +1,6 @@
 import { useEffect, useState, FormEvent } from "react";
-import { api, Profile } from "../api";
+import { Profile } from "../api";
+import * as profilesDb from "../data/profiles";
 import "./PlayerPicker.css";
 
 const DEFAULT_COLOR = "#d9a441";
@@ -29,13 +30,13 @@ export function PlayerPicker({ selected, onChange, max = 4 }: Props) {
   const [editName, setEditName] = useState("");
 
   useEffect(() => {
-    api
+    profilesDb
       .listProfiles()
       .then((list) => {
         setProfiles(list);
         setError(null);
       })
-      .catch(() => setError("Profile konnten nicht geladen werden. Läuft das Backend?"))
+      .catch(() => setError("Profile konnten nicht geladen werden."))
       .finally(() => setLoading(false));
   }, []);
 
@@ -67,7 +68,7 @@ export function PlayerPicker({ selected, onChange, max = 4 }: Props) {
     e.preventDefault();
     const name = newName.trim();
     if (!name) return;
-    const profile = await api.createProfile({
+    const profile = await profilesDb.createProfile({
       name,
       initials: newInitials.trim() || undefined,
       color: DEFAULT_COLOR,
@@ -83,7 +84,7 @@ export function PlayerPicker({ selected, onChange, max = 4 }: Props) {
     e.preventDefault();
     const name = guestName.trim();
     if (!name) return;
-    const profile = await api.createProfile({ name, is_guest: true, color: "#6b756c" });
+    const profile = await profilesDb.createProfile({ name, is_guest: true, color: "#6b756c" });
     setProfiles((prev) => [...prev, profile]);
     if (selected.length < max) onChange([...selected, profile]);
     setGuestName("");
@@ -99,7 +100,8 @@ export function PlayerPicker({ selected, onChange, max = 4 }: Props) {
     e.preventDefault();
     const name = editName.trim();
     if (!name) return;
-    const updated = await api.updateProfile(id, { name });
+    const updated = await profilesDb.updateProfile(id, { name });
+    if (!updated) return;
     setProfiles((prev) => prev.map((p) => (p.id === id ? updated : p)));
     onChange(selected.map((p) => (p.id === id ? updated : p)));
     setEditingId(null);
@@ -107,7 +109,7 @@ export function PlayerPicker({ selected, onChange, max = 4 }: Props) {
 
   async function handleDelete(profile: Profile) {
     if (!confirm(`${profile.name} wirklich entfernen? Alte Ergebnisse bleiben erhalten.`)) return;
-    await api.deleteProfile(profile.id);
+    await profilesDb.archiveProfile(profile.id);
     setProfiles((prev) => prev.filter((p) => p.id !== profile.id));
     onChange(selected.filter((p) => p.id !== profile.id));
   }

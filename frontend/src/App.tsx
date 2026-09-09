@@ -1,89 +1,96 @@
 import { useEffect, useState } from "react";
-import { api, PendingResume } from "./api";
+import { Profile } from "./api";
 import { BoardControlBar } from "./components/BoardControlBar";
 import { GameHubScreen } from "./screens/GameHubScreen";
 import { GameSetupScreen, LocalStartInfo } from "./screens/GameSetupScreen";
-import { GameScreen } from "./screens/GameScreen";
 import { LocalGameScreen } from "./screens/LocalGameScreen";
 import { ProfileScreen } from "./screens/ProfileScreen";
 import { PiSettingsModal } from "./screens/PiSettingsModal";
 import { BoardDebugScreen } from "./screens/BoardDebugScreen";
 import { getStoredPiIp } from "./piConnection";
+import * as matchesDb from "./data/matches";
+import * as profilesDb from "./data/profiles";
+import { ResumeInfo } from "./engine/useLocalMatch";
+import { STATIC_GAMES } from "./staticGames";
 import "./App.css";
 
 type View =
   | { screen: "hub" }
   | { screen: "setup"; gameId: string }
-  | { screen: "game" }
-  | { screen: "local-game"; session: LocalStartInfo }
+  | { screen: "local-game"; session: LocalStartInfo; resume?: ResumeInfo }
   | { screen: "profiles" }
   | { screen: "board-debug" };
 
+type PendingResumeInfo = { matchId: string; gameId: string; gameName: string; playerNames: string[] };
+
 // Ob die Pi-Einstellungen automatisch beim ersten Laden vorgeschlagen
-// werden sollten (Vercel-Deployment ohne Backend am selben Origin).
-// NUR ein Vorschlag, keine Sperre (Tobias-Feedback 08.09.2026: die
-// Seite muss immer erreichbar bleiben) - der Nutzer kann das Overlay
-// jederzeit schliessen und/oder spaeter ueber den "Einstellungen"-
-// Knopf im Header erneut oeffnen.
+// werden sollten (Vercel-Deployment). NUR ein Vorschlag, keine Sperre
+// (Tobias-Feedback 08.09.2026: die Seite muss immer erreichbar
+// bleiben) - der Nutzer kann das Overlay jederzeit schliessen und/oder
+// spaeter ueber den "Einstellungen"-Knopf im Header erneut oeffnen.
+// Seit dem Client-Rewrite (~/.claude/plans/agile-brewing-wadler.md)
+// braucht nur noch die Board-Verbindung (Phase A) eine gespeicherte
+// IP - Profile/Statistiken kommen aus Firestore, kein Backend-Probe
+// mehr noetig.
 function useShouldSuggestPiSettings(): boolean {
-  const [suggest, setSuggest] = useState(false);
-
-  useEffect(() => {
-    let cancelled = false;
-    async function check() {
-      if (import.meta.env.DEV || getStoredPiIp()) return;
-      try {
-        const res = await fetch("/api/board/info", { signal: AbortSignal.timeout(3000) });
-        if (!cancelled && !res.ok) setSuggest(true);
-      } catch {
-        if (!cancelled) setSuggest(true);
-      }
-    }
-    check();
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
-  return suggest;
+  return !import.meta.env.DEV && !getStoredPiIp();
 }
 
-// Fortsetzen-Dialog nach Neustart (docs/ARCHITEKTUR.md Abschnitt 8):
-// weder automatisch fortsetzen noch verwerfen - einmal beim Laden der
-// App pruefen und den Nutzer entscheiden lassen.
+// Fortsetzen-Dialog nach Neustart: weder automatisch fortsetzen noch
+// verwerfen - einmal beim Laden der App pruefen und den Nutzer
+// entscheiden lassen. Seit Phase E kommt das aus Firestore
+// (matchesDb.findInProgressMatch()) statt vom eigenen Backend.
 export default function App() {
   const [view, setView] = useState<View>({ screen: "hub" });
-  const [pendingResume, setPendingResume] = useState<PendingResume | null>(null);
+  const [pendingResume, setPendingResume] = useState<PendingResumeInfo | null>(null);
   const suggestPiSettings = useShouldSuggestPiSettings();
-  const [showPiSettings, setShowPiSettings] = useState(false);
+  const [showPiSettings, setShowPiSettings] = useState(suggestPiSettings);
 
   useEffect(() => {
-    if (suggestPiSettings) setShowPiSettings(true);
-  }, [suggestPiSettings]);
-
-  useEffect(() => {
-    api
-      .getPendingResume()
-      .then(setPendingResume)
+    matchesDb
+      .findInProgressMatch()
+      .then(async (match) => {
+        if (!match) return;
+        const game = STATIC_GAMES.find((g) => g.id === match.gameId);
+        const profiles = await Promise.all(match.playerIds.map((pid) => profilesDb.getProfile(pid)));
+        setPendingResume({
+          matchId: match.id,
+          gameId: match.gameId,
+          gameName: game?.name ?? match.gameId,
+          playerNames: profiles.filter((p): p is Profile => p !== null).map((p) => p.name),
+        });
+      })
       .catch(() => setPendingResume(null));
   }, []);
 
   async function handleResume() {
     if (!pendingResume) return;
-    await api.resumeMatch(pendingResume.matchId);
+    const match = await matchesDb.getMatch(pendingResume.matchId);
+    const game = STATIC_GAMES.find((g) => g.id === pendingResume.gameId);
+    if (!match || !game) {
+      setPendingResume(null);
+      return;
+    }
+    const profiles = (await Promise.all(match.playerIds.map((pid) => profilesDb.getProfile(pid)))).filter(
+      (p): p is Profile => p !== null
+    );
     setPendingResume(null);
-    setView({ screen: "game" });
+    setView({
+      screen: "local-game",
+      session: { game, players: profiles, settings: match.settings },
+      resume: { matchId: match.id, events: match.events },
+    });
   }
 
   async function handleAbandon() {
     if (!pendingResume) return;
-    await api.abandonMatch(pendingResume.matchId);
+    await matchesDb.setStatus(pendingResume.matchId, "abandoned");
     setPendingResume(null);
   }
 
   return (
     <div className="app-shell">
-      {view.screen !== "game" && view.screen !== "local-game" && (
+      {view.screen !== "local-game" && (
         <header className="app-header">
           <div className="app-title">DARTS TRAINING PLATFORM</div>
           <div className="app-header-actions">
@@ -112,15 +119,15 @@ export default function App() {
           <GameSetupScreen
             gameId={view.gameId}
             onBack={() => setView({ screen: "hub" })}
-            onStart={(local) => (local ? setView({ screen: "local-game", session: local }) : setView({ screen: "game" }))}
+            onStart={(local) => setView({ screen: "local-game", session: local })}
           />
         )}
-        {view.screen === "game" && <GameScreen onExit={() => setView({ screen: "hub" })} />}
         {view.screen === "local-game" && (
           <LocalGameScreen
             game={view.session.game}
             players={view.session.players}
             settings={view.session.settings}
+            resume={view.resume}
             onExit={() => setView({ screen: "hub" })}
           />
         )}

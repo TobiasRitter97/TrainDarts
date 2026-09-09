@@ -116,7 +116,7 @@ export class AutodartsAdapter {
     } catch {
       // Mixed-Content-Block (https-Seite ohne erlaubte unsichere
       // Inhalte) wirft SYNCHRON beim Konstruieren, nicht erst beim
-      // Verbindungsversuch - siehe useMatchState.ts fuer denselben Fix.
+      // Verbindungsversuch.
       this.logUnreachableThrottled();
       this.setStatus("disconnected");
       this.scheduleReconnect();

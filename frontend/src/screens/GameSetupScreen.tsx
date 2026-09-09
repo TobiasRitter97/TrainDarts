@@ -1,9 +1,9 @@
 import { useEffect, useState } from "react";
-import { api, defaultSettingsValues, GameDefinition, Leaderboard, Profile } from "../api";
+import { defaultSettingsValues, GameDefinition, Leaderboard, Profile } from "../api";
 import { PlayerPicker } from "../components/PlayerPicker";
 import { GameSettingsForm } from "../components/GameSettingsForm";
 import { STATIC_GAMES } from "../staticGames";
-import { LOCAL_ENGINE_FAMILIES } from "../engine/localFamilies";
+import { computeLeaderboardsForGame } from "../data/stats";
 import "./GameSetupScreen.css";
 
 export type LocalStartInfo = { game: GameDefinition; players: Profile[]; settings: Record<string, unknown> };
@@ -11,68 +11,36 @@ export type LocalStartInfo = { game: GameDefinition; players: Profile[]; setting
 type Props = {
   gameId: string;
   onBack: () => void;
-  // Ohne Argument: Match lief ueber das alte Backend (api.createMatch()
-  // ist hier schon passiert). Mit LocalStartInfo: das Spiel gehoert zu
-  // einer bereits auf die Client-Engine portierten Familie (Phase C/D
-  // des Client-Rewrites) - App.tsx baut daraus einen LocalGameScreen.
-  onStart: (local?: LocalStartInfo) => void;
+  onStart: (local: LocalStartInfo) => void;
 };
 
 // SPEC §32: derselbe Setup-Aufbau fuer jedes Spiel - Players, dann
 // Game Settings (aus settingsSchema generiert), dann Start. Keine
 // eigene Setup-Seite pro Spiel.
+//
+// Seit Phase E des Client-Rewrites (~/.claude/plans/agile-brewing-
+// wadler.md) braucht dieser Screen KEIN Backend mehr: die Spieldaten
+// kommen direkt aus staticGames.ts (frueher nur Offline-Fallback, jetzt
+// die einzige Quelle) und die Bestenliste wird lokal aus Firestore
+// berechnet (data/stats.ts) - nur PlayerPicker braucht noch eine
+// Firestore-Verbindung fuer die Profile, das eigentliche Spiel danach
+// zusaetzlich die Board-Verbindung (Phase A).
 export function GameSetupScreen({ gameId, onBack, onStart }: Props) {
-  const [game, setGame] = useState<GameDefinition | null>(null);
+  const game = STATIC_GAMES.find((g) => g.id === gameId) ?? null;
   const [players, setPlayers] = useState<Profile[]>([]);
-  const [settings, setSettings] = useState<Record<string, unknown>>({});
-  const [starting, setStarting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [offline, setOffline] = useState(false);
+  const [settings, setSettings] = useState<Record<string, unknown>>(game ? defaultSettingsValues(game.settingsSchema) : {});
   const [leaderboards, setLeaderboards] = useState<Leaderboard[]>([]);
 
   useEffect(() => {
-    setGame(null);
-    setOffline(false);
-    api
-      .listGames()
-      .then((list) => {
-        const found = list.find((g) => g.id === gameId) ?? null;
-        setGame(found);
-        if (found) setSettings(defaultSettingsValues(found.settingsSchema));
-      })
-      .catch(() => {
-        // Kein Board erreichbar - Setup-Screen trotzdem mit den
-        // statischen Spieldaten anzeigen, damit man sich die Settings
-        // ansehen kann (Tobias-Feedback 09.09.2026). Tatsaechlich
-        // starten geht erst mit echter Verbindung (siehe handleStart).
-        const found = STATIC_GAMES.find((g) => g.id === gameId) ?? null;
-        setGame(found);
-        if (found) setSettings(defaultSettingsValues(found.settingsSchema));
-        setOffline(true);
-      });
-    api.getGameLeaderboard(gameId).then(setLeaderboards).catch(() => setLeaderboards([]));
+    setSettings(game ? defaultSettingsValues(game.settingsSchema) : {});
+    computeLeaderboardsForGame(gameId)
+      .then(setLeaderboards)
+      .catch(() => setLeaderboards([]));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [gameId]);
 
   if (!game) {
-    return <p className="screen-note">Lade Spiel…</p>;
-  }
-
-  async function handleStart() {
-    if (!game) return;
-    if (LOCAL_ENGINE_FAMILIES.has(game.engineFamily)) {
-      onStart({ game, players, settings });
-      return;
-    }
-    setStarting(true);
-    setError(null);
-    try {
-      await api.createMatch(game.id, players.map((p) => p.id), settings);
-      onStart();
-    } catch {
-      setError("Match konnte nicht gestartet werden.");
-    } finally {
-      setStarting(false);
-    }
+    return <p className="screen-error">Unbekanntes Spiel "{gameId}".</p>;
   }
 
   return (
@@ -82,11 +50,6 @@ export function GameSetupScreen({ gameId, onBack, onStart }: Props) {
       </button>
       <h1 className="screen-title">{game.name}</h1>
       <p className="screen-note">{game.description}</p>
-      {offline && (
-        <p className="screen-note">
-          Kein Board verbunden — zum Spielen oben auf „⚙ EINSTELLUNGEN" klicken und die IP deines Pi eingeben.
-        </p>
-      )}
 
       <h2 className="section-title">Players</h2>
       <div className="panel">
@@ -130,14 +93,12 @@ export function GameSetupScreen({ gameId, onBack, onStart }: Props) {
         </>
       )}
 
-      {error && <p className="screen-error">{error}</p>}
-
       <button
         className="btn-primary continue-btn"
-        disabled={players.length === 0 || starting}
-        onClick={handleStart}
+        disabled={players.length === 0}
+        onClick={() => onStart({ game, players, settings })}
       >
-        {starting ? "STARTE…" : "START GAME"}
+        START GAME
       </button>
     </div>
   );

@@ -5,10 +5,23 @@
 // endet sofort, sobald EIN Spieler seine Liste leert - dieser Spieler
 // gewinnt, andere spielen nicht weiter (kein Ausgleich).
 //
-// Required Hits = 1 (Sonderregel): innerhalb EINER Aufnahme wird bei
-// jedem Treffer sofort zur naechsten offenen Zahl gewechselt (fuer den
-// naechsten Dart derselben Aufnahme). Required Hits = 2/3: alle 3
-// Darts einer Aufnahme immer auf dieselbe Zahl.
+// Required Hits = 1: innerhalb EINER Aufnahme wird bei jedem Treffer
+// sofort zur naechsten offenen Zahl gewechselt (fuer den naechsten
+// Dart derselben Aufnahme) - das ist immer so, unabhaengig von der
+// Einstellung "Zielwechsel" (die erst ab Required Hits 2/3 ueberhaupt
+// eine Wahl ist, siehe staticGames.ts showIf).
+//
+// Required Hits = 2/3 kennt seit Tobias-Feedback (09.09.2026) zwei
+// Modi ueber die Einstellung "targetChangeMode":
+// - "per_visit" (Aufnahme, bisheriges Verhalten): alle 3 Darts einer
+//   Aufnahme bleiben auf derselben Zahl, auch wenn die noetigen
+//   Treffer schon vorher erreicht wurden (z.B. 2 Treffer mit den
+//   ersten beiden Darts bei Required Hits=2 - der dritte Dart zielt
+//   trotzdem noch auf dieselbe Zahl).
+// - "per_dart" (Dart): sobald die noetige Trefferzahl auf die aktuelle
+//   Zahl erreicht ist, wechselt das Ziel sofort fuer die restlichen
+//   Darts derselben Aufnahme zur naechsten offenen Zahl (verallgemeinert
+//   das Required-Hits=1-Verhalten auf eine hoehere Trefferschwelle).
 import { Segment } from "../scoring";
 
 export type HitKind = "single" | "double" | "triple" | null;
@@ -99,6 +112,44 @@ function simulateRequiredHits1(
   return { endingTarget: target, hitNumbers, hitKindsPerDart };
 }
 
+// Reine Berechnung (kein Seiteneffekt): verallgemeinerte Version von
+// simulateRequiredHits1 fuer eine beliebige Trefferschwelle - sobald
+// "requiredHits" Treffer auf die aktuelle Zahl erreicht sind, wechselt
+// das Ziel fuer die restlichen Darts derselben Aufnahme zur naechsten
+// offenen Zahl (Modus "per_dart").
+function simulatePerDart(
+  openNumbers: (number | string)[],
+  startTarget: number | string | null,
+  visitThrows: Segment[],
+  segmentMode: string,
+  requiredHits: number
+) {
+  const remaining = [...openNumbers];
+  let target = startTarget;
+  let hitsOnCurrent = 0;
+  const hitNumbers: (number | string)[] = [];
+  const hitKindsPerDart: HitKind[] = [];
+  for (const segment of visitThrows) {
+    if (target === null) {
+      hitKindsPerDart.push(null);
+      continue;
+    }
+    const kind = hitKind(segment, target);
+    const qualified = qualifies(kind, segmentMode);
+    hitKindsPerDart.push(qualified ? kind : null);
+    if (qualified) {
+      hitsOnCurrent += 1;
+      if (hitsOnCurrent >= requiredHits) {
+        hitNumbers.push(target);
+        remaining.splice(remaining.indexOf(target), 1);
+        target = remaining[0] ?? null;
+        hitsOnCurrent = 0;
+      }
+    }
+  }
+  return { endingTarget: target, hitNumbers, hitKindsPerDart };
+}
+
 export type AccuracyThrowResult = {
   outcome: "continue" | "target_done";
   endingTarget?: number | string | null;
@@ -120,8 +171,15 @@ export function applyThrow(
     return { outcome, endingTarget: sim.endingTarget, hitNumbers: sim.hitNumbers, hitKindsPerDart: sim.hitKindsPerDart };
   }
 
-  // Required Hits 2/3: alle 3 Darts immer auf dieselbe Zahl - erst
-  // nach dem 3. Dart wird gewertet.
+  const targetChangeMode = (settings.targetChangeMode as string) ?? "per_visit";
+  if (targetChangeMode === "per_dart") {
+    const sim = simulatePerDart(playerState.openNumbers, playerState.currentTarget, visitThrows, segmentMode, requiredHits);
+    const outcome = visitThrows.length >= 3 ? "target_done" : "continue";
+    return { outcome, endingTarget: sim.endingTarget, hitNumbers: sim.hitNumbers, hitKindsPerDart: sim.hitKindsPerDart };
+  }
+
+  // "per_visit" (Aufnahme, Standard): alle 3 Darts immer auf dieselbe
+  // Zahl - erst nach dem 3. Dart wird gewertet.
   if (visitThrows.length < 3) return { outcome: "continue" };
   const target = playerState.currentTarget;
   const hitKindsPerDart = visitThrows.map((t) => hitKind(t, target));

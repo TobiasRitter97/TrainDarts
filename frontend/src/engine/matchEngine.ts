@@ -758,13 +758,16 @@ export class MatchEngine {
       return targetProgressionFamily.currentTarget(state as targetProgressionFamily.TargetProgressionPlayerState);
     }
     if (this.familyName === "accuracy_progression") {
-      // Required Hits = 1: das Ziel kann sich INNERHALB der laufenden
-      // Aufnahme mit jedem Dart aendern - live neu berechnen, ohne den
-      // committeten State zu veraendern. Required Hits 2/3: Ziel
-      // bleibt waehrend der Aufnahme gleich.
+      // Required Hits = 1 oder Zielwechsel-Modus "Dart": das Ziel kann
+      // sich INNERHALB der laufenden Aufnahme mit jedem Dart aendern -
+      // live neu berechnen, ohne den committeten State zu veraendern.
+      // Required Hits 2/3 im Modus "Aufnahme" (Standard): Ziel bleibt
+      // waehrend der Aufnahme gleich.
       const requiredHits = Number(this.settings.requiredHits ?? 1);
+      const targetChangeMode = (this.settings.targetChangeMode as string) ?? "per_visit";
+      const livePreview = requiredHits === 1 || targetChangeMode === "per_dart";
       let target: number | string | null;
-      if (requiredHits === 1 && this.currentVisitThrows.length > 0) {
+      if (livePreview && this.currentVisitThrows.length > 0) {
         const result = this.applyThrow(state, this.currentVisitThrows) as accuracyProgressionFamily.AccuracyThrowResult;
         target = result.endingTarget ?? state.currentTarget;
       } else {

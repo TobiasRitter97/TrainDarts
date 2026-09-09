@@ -23,7 +23,10 @@ export type SettingField = {
   min?: number;
   max?: number;
   presets?: number[];
-  showIf?: { key: string; equals: unknown };
+  // "equals" akzeptiert auch ein Array, um ein Feld bei MEHREREN
+  // Werten eines anderen Feldes anzuzeigen (z.B. Around the World:
+  // "Zielwechsel" nur bei requiredHits 2 ODER 3 relevant).
+  showIf?: { key: string; equals: unknown | unknown[] };
 };
 
 export type GameDefinition = {

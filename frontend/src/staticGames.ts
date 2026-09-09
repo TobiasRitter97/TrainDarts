@@ -733,6 +733,26 @@ export const STATIC_GAMES = [
         "default": 1
       },
       {
+        "key": "targetChangeMode",
+        "label": "Zielwechsel",
+        "type": "select",
+        "options": [
+          {
+            "value": "per_visit",
+            "label": "Aufnahme"
+          },
+          {
+            "value": "per_dart",
+            "label": "Dart"
+          }
+        ],
+        "default": "per_visit",
+        "showIf": {
+          "key": "requiredHits",
+          "equals": [2, 3]
+        }
+      },
+      {
         "key": "includeBull",
         "label": "Include Bull",
         "type": "toggle",

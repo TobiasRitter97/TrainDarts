@@ -216,6 +216,44 @@ describe("accuracy_progression (Around the World)", () => {
     engine.handleThrow("S1", { segment: seg("S1") });
     expect(engine.toDict().target).toBe("2");
   });
+
+  const GAME_RH2: GameDefinition = {
+    id: "around_the_world",
+    name: "Around the World",
+    description: "",
+    category: "ACCURACY",
+    icon: "🌍",
+    engineFamily: "accuracy_progression",
+    playerRange: [1, 4],
+    implemented: true,
+    durationModes: ["race"],
+    settingsSchema: [],
+  };
+
+  it("targetChangeMode 'per_visit' (Standard): stays on the same number for all 3 darts even after the requirement is already met", () => {
+    const engine = new MatchEngine("m6b", GAME_RH2, [{ id: "solo", name: "Solo" }], {
+      segmentMode: "single",
+      requiredHits: 2,
+      targetChangeMode: "per_visit",
+    });
+    engine.handleThrow("S1", { segment: seg("S1") });
+    engine.handleThrow("S1", { segment: seg("S1") }); // 2 Treffer erreicht, bleibt trotzdem auf "1"
+    expect(engine.toDict().target).toBe("1");
+    engine.handleThrow("S1", { segment: seg("S1") });
+    engine.confirmVisit(); // erst nach Bestaetigung der Aufnahme wechselt das Ziel
+    expect(engine.toDict().target).toBe("2");
+  });
+
+  it("targetChangeMode 'per_dart' (Tobias-Feedback 09.09.2026): switches mid-visit as soon as the hit requirement is met", () => {
+    const engine = new MatchEngine("m6c", GAME_RH2, [{ id: "solo", name: "Solo" }], {
+      segmentMode: "single",
+      requiredHits: 2,
+      targetChangeMode: "per_dart",
+    });
+    engine.handleThrow("S1", { segment: seg("S1") });
+    engine.handleThrow("S1", { segment: seg("S1") }); // 2 Treffer erreicht -> sofort weiter zu "2"
+    expect(engine.toDict().target).toBe("2");
+  });
 });
 
 describe("jdc (JDC Challenge)", () => {

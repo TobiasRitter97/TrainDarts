@@ -12,7 +12,8 @@ type Props = {
 export function GameSettingsForm({ schema, values, onChange }: Props) {
   function isVisible(field: SettingField): boolean {
     if (!field.showIf) return true;
-    return values[field.showIf.key] === field.showIf.equals;
+    const { key, equals } = field.showIf;
+    return Array.isArray(equals) ? equals.includes(values[key]) : values[key] === equals;
   }
 
   return (

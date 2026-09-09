@@ -35,6 +35,14 @@ export type GameDefinition = {
   implemented: boolean;
   durationModes: string[];
   settingsSchema: SettingField[];
+  // Familienspezifische Zusatzfelder (nur bei manchen Spielen gesetzt) -
+  // targets: feste Zielroute (target_progression, z.B. Bob's 27).
+  // catchRange: [von, bis] der Zahlenfolge (catch, z.B. Catch 40).
+  // dartsPerCheckout: an der GameDefinition fest vorgegeben statt als
+  // Einstellung waehlbar (z.B. 60 +/-, siehe engine.py _visitsPerAttempt).
+  targets?: string[];
+  catchRange?: [number, number];
+  dartsPerCheckout?: number;
 };
 
 export function defaultSettingsValues(schema: SettingField[]): Record<string, unknown> {

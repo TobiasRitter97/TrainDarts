@@ -14,7 +14,16 @@ export function useBoardStatus(): BoardStatus {
     let ws: WebSocket | null = null;
 
     function connect() {
-      ws = new WebSocket(getWsUrl());
+      try {
+        ws = new WebSocket(getWsUrl());
+      } catch {
+        // z.B. Mixed-Content-Block (ws:// von einer https-Seite ohne
+        // erlaubte unsichere Inhalte) - wirft synchron beim Konstruieren,
+        // nicht erst beim Verbindungsaufbau. Ohne dieses catch stuerzt
+        // die gesamte App ab (kein WS-Reconnect-Pfad greift dann mehr).
+        if (!cancelled) setTimeout(connect, 1500);
+        return;
+      }
       ws.onmessage = (event) => {
         const msg = JSON.parse(event.data);
         if (msg.type === "board_status") {

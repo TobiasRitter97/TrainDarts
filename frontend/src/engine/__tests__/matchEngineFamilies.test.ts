@@ -9,6 +9,7 @@
 // weiterlaeuft.
 import { describe, expect, it } from "vitest";
 import { GameDefinition } from "../../api";
+import * as groupingFamily from "../families/grouping";
 import { MatchEngine, MatchPlayerRef } from "../matchEngine";
 import { Segment } from "../scoring";
 
@@ -28,6 +29,10 @@ function throwDarts(engine: MatchEngine, labels: string[]): void {
 function throwAndConfirm(engine: MatchEngine, labels: string[]): void {
   throwDarts(engine, labels);
   engine.confirmVisit();
+}
+
+function throwWithCoords(engine: MatchEngine, throws: { label: string; coords?: { x: number; y: number } }[]): void {
+  for (const t of throws) engine.handleThrow(t.label, { segment: seg(t.label), coords: t.coords });
 }
 
 const PLAYERS: MatchPlayerRef[] = [
@@ -328,5 +333,89 @@ describe("jdc (JDC Challenge)", () => {
     expect(engine.toDict().target).toBe("D1");
     engine.handleThrow("S1", { segment: seg("S1") }); // Fehlwurf auf D1
     expect(engine.toDict().target).toBe("D2"); // trotzdem weiter zum naechsten Doppel
+  });
+});
+
+describe("grouping (Grouping Championship)", () => {
+  const GAME: GameDefinition = {
+    id: "grouping_championship",
+    name: "Grouping Championship",
+    description: "",
+    category: "ACCURACY",
+    icon: "📏",
+    engineFamily: "grouping",
+    playerRange: [1, 4],
+    implemented: true,
+    durationModes: ["rounds"],
+    settingsSchema: [],
+  };
+
+  it("scores Triple=100/Single=20/Miss=0 on T20 and computes the grouping distance from coords", () => {
+    const engine = new MatchEngine("g1", GAME, [{ id: "solo", name: "Solo" }], {});
+    expect(engine.toDict().target).toBe("T20");
+    throwWithCoords(engine, [
+      { label: "T20", coords: { x: 0, y: 0 } },
+      { label: "T20", coords: { x: 3, y: 0 } }, // 3mm vom ersten Dart
+      { label: "S1", coords: { x: 0, y: 4 } }, // daneben (kein T20/S20) -> 0 Punkte
+    ]);
+    engine.confirmVisit();
+    const state = engine.toDict();
+    expect(state.players[0].score).toBe(200); // 100 + 100 + 0
+    // Paare: (0,0)-(3,0)=3, (0,0)-(0,4)=4, (3,0)-(0,4)=5 -> Durchschnitt 4
+    expect(state.players[0].groupingRounds?.[0].mm).toBeCloseTo(4, 5);
+    expect(state.players[0].groupingRounds?.[0].hits).toEqual({ triple: 2, single: 0, miss: 1 });
+  });
+
+  it("marks a round's mm as null when fewer than 2 darts have real coordinates", () => {
+    const engine = new MatchEngine("g2", GAME, [{ id: "solo", name: "Solo" }], {});
+    throwWithCoords(engine, [
+      { label: "S20", coords: { x: 1, y: 1 } },
+      { label: "S20" }, // manuell/ohne Koordinaten
+      { label: "S20" },
+    ]);
+    engine.confirmVisit();
+    expect(engine.toDict().players[0].groupingRounds?.[0].mm).toBeNull();
+  });
+
+  it("Tobias-Feedback 11.09.2026: early takeout with <3 darts still evaluates the round (padded, no crash/skip)", () => {
+    const engine = new MatchEngine("g3", GAME, [{ id: "solo", name: "Solo" }], {});
+    throwWithCoords(engine, [{ label: "T20", coords: { x: 0, y: 0 } }]); // nur 1 Dart, dann Takeout
+    engine.confirmVisit();
+    const state = engine.toDict();
+    expect(state.players[0].score).toBe(100); // nur der eine echte Treffer zaehlt
+    expect(state.players[0].groupingRounds?.[0].mm).toBeNull(); // <2 echte Koordinaten
+    expect(state.target).toBe("T20"); // Ziel bleibt immer T20
+  });
+
+  it("tracks the best (smallest mm) round across the match", () => {
+    const engine = new MatchEngine("g4", GAME, [{ id: "solo", name: "Solo" }], {});
+    throwWithCoords(engine, [
+      { label: "S1", coords: { x: 0, y: 0 } },
+      { label: "S1", coords: { x: 10, y: 0 } },
+      { label: "S1", coords: { x: 20, y: 0 } },
+    ]);
+    engine.confirmVisit(); // Runde 1: weites Grouping
+    throwWithCoords(engine, [
+      { label: "S1", coords: { x: 0, y: 0 } },
+      { label: "S1", coords: { x: 1, y: 0 } },
+      { label: "S1", coords: { x: 2, y: 0 } },
+    ]);
+    engine.confirmVisit(); // Runde 2: enges Grouping - sollte "beste Runde" werden
+    const state = engine.toDict();
+    expect(state.players[0].bestGroupingRoundIndex).toBe(1);
+  });
+
+  it("players alternate turns and the match only finishes once EVERY player has played all 20 rounds", () => {
+    const engine = new MatchEngine("g5", GAME, PLAYERS, {});
+    for (let i = 0; i < groupingFamily.TOTAL_ROUNDS - 1; i++) {
+      throwAndConfirm(engine, ["S1", "S1", "S1"]); // Alice
+      throwAndConfirm(engine, ["S1", "S1", "S1"]); // Bob
+    }
+    expect(engine.toDict().finished).toBe(false);
+    throwAndConfirm(engine, ["S1", "S1", "S1"]); // Alice's letzte (20.) Runde
+    expect(engine.toDict().finished).toBe(false); // Bob hat seine 20. Runde noch nicht gespielt
+    expect(engine.toDict().activePlayerId).toBe("p2");
+    throwAndConfirm(engine, ["S1", "S1", "S1"]); // Bob's letzte (20.) Runde
+    expect(engine.toDict().finished).toBe(true); // erst jetzt, wo BEIDE fertig sind
   });
 });

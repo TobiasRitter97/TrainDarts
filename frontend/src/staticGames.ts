@@ -832,5 +832,22 @@ export const STATIC_GAMES = [
         }
       }
     ]
+  },
+  {
+    "id": "grouping_championship",
+    "name": "Grouping Championship",
+    "description": "Reines Präzisionstraining: 20 Runden T20, gemessen wird der Abstand zwischen deinen 3 Darts.",
+    "category": "ACCURACY",
+    "icon": "📏",
+    "engineFamily": "grouping",
+    "playerRange": [
+      1,
+      4
+    ],
+    "implemented": true,
+    "durationModes": [
+      "rounds"
+    ],
+    "settingsSchema": []
   }
 ] as unknown as GameDefinition[];

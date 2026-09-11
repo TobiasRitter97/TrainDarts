@@ -20,6 +20,7 @@ import { suggestRoute } from "./checkout";
 import * as accuracyProgressionFamily from "./families/accuracyProgression";
 import * as catchFamily from "./families/catch";
 import * as checkoutRangeFamily from "./families/checkoutRange";
+import * as groupingFamily from "./families/grouping";
 import * as jdcFamily from "./families/jdc";
 import * as randomCheckoutFamily from "./families/randomCheckout";
 import * as targetProgressionFamily from "./families/targetProgression";
@@ -28,8 +29,16 @@ import { CheckoutMode, Segment, segmentValue } from "./scoring";
 
 export type MatchPlayerRef = { id: string; name: string; color?: string | null; initials?: string | null };
 
-type ThrowEvent = { type: "THROW"; payload: { throwSeq: number; segment: Segment; source: string } };
-type VisitConfirmedEvent = { type: "VISIT_CONFIRMED"; payload: Record<string, never> };
+// "coords" nur fuer Grouping Championship genutzt (Tobias-Feedback
+// 11.09.2026) - bei allen anderen Familien einfach ungenutzt
+// durchgereicht. "at" auf VISIT_CONFIRMED: einmalig beim Bestaetigen
+// erzeugter Zeitstempel, damit ein Replay deterministisch bleibt
+// (gleiches Prinzip wie ROUND_RANDOM_GENERATED).
+type ThrowEvent = {
+  type: "THROW";
+  payload: { throwSeq: number; segment: Segment; source: string; coords?: { x: number; y: number } };
+};
+type VisitConfirmedEvent = { type: "VISIT_CONFIRMED"; payload: { at?: number } };
 type CorrectThrowEvent = { type: "CORRECT_THROW"; payload: { targetThrowSeq: number; segment: Segment } };
 type MatchStartedEvent = {
   type: "MATCH_STARTED";
@@ -49,6 +58,7 @@ const FORCES_VISIT_END: Record<string, Set<string>> = {
   target_progression: new Set(["target_done"]),
   accuracy_progression: new Set(["target_done"]),
   jdc: new Set(["target_done"]),
+  grouping: new Set(["round_done"]),
 };
 
 const COUNTDOWN_FIELD: Record<string, string> = {
@@ -58,6 +68,7 @@ const COUNTDOWN_FIELD: Record<string, string> = {
   checkout_range: "attemptRemaining",
   catch: "attemptRemaining",
   jdc: "runScore",
+  grouping: "totalScore",
 };
 
 const X01_MATCH_MODE_LEGS: Record<string, number> = { "1_leg": 1, bo3: 2, bo5: 3, bo7: 4 };
@@ -95,6 +106,7 @@ export class MatchEngine {
   activeIndex = 0;
   currentVisitThrows: Segment[] = [];
   currentVisitSeqs: number[] = [];
+  currentVisitCoords: ({ x: number; y: number } | undefined)[] = [];
   roundNumber = 1;
   legNumber = 1;
   setNumber = 1;
@@ -157,16 +169,25 @@ export class MatchEngine {
   // Aufnahme auf Bestaetigung wartet, werden keine weiteren Darts
   // gezaehlt - erst confirmVisit() oder correctThrow() aendern wieder
   // etwas.
-  handleThrow(_label: string, raw: { segment?: Segment }, source: "auto" | "manual" = "auto"): boolean {
+  handleThrow(
+    _label: string,
+    raw: { segment?: Segment; coords?: { x: number; y: number } },
+    source: "auto" | "manual" = "auto"
+  ): boolean {
     if (this.finished || this.pendingConfirmation) return false;
     const segment = raw.segment ?? { number: 0, multiplier: 0 };
-    this.append("THROW", { throwSeq: this.nextThrowSeq(), segment, source });
+    const payload: Record<string, unknown> = { throwSeq: this.nextThrowSeq(), segment, source };
+    // "coords" nur setzen, wenn tatsaechlich vorhanden - Firestore lehnt
+    // "undefined" als Feldwert ab (setDoc() wirft sonst einen Fehler und
+    // das GESAMTE Match wuerde nicht mehr gespeichert werden koennen).
+    if (raw.coords) payload.coords = raw.coords;
+    this.append("THROW", payload);
     this.replay();
     return true;
   }
 
   // + DART: manuell erfasster Dart, technisch identisch zu einem
-  // automatisch erkannten Wurf.
+  // automatisch erkannten Wurf - hat naturgemaess keine Board-coords.
   addManualThrow(segment: Segment): boolean {
     return this.handleThrow(throwLabel(segment), { segment }, "manual");
   }
@@ -175,7 +196,7 @@ export class MatchEngine {
   // Fallback. Erst danach greifen Spielerwechsel, Leg-/Run-Wechsel.
   confirmVisit(): boolean {
     if (this.currentVisitThrows.length === 0) return false;
-    this.append("VISIT_CONFIRMED", {});
+    this.append("VISIT_CONFIRMED", { at: Date.now() });
     this.replay();
     this.ensureEndlessTarget();
     return true;
@@ -240,6 +261,7 @@ export class MatchEngine {
     this.activeIndex = 0;
     this.currentVisitThrows = [];
     this.currentVisitSeqs = [];
+    this.currentVisitCoords = [];
     this.roundNumber = 1;
     this.legNumber = 1;
     this.setNumber = 1;
@@ -270,9 +292,9 @@ export class MatchEngine {
     for (const e of this.events) {
       if (e.type === "THROW") {
         const segment = corrections.get(e.payload.throwSeq) ?? e.payload.segment;
-        this.replayThrow(segment, e.payload.throwSeq);
+        this.replayThrow(segment, e.payload.throwSeq, e.payload.coords);
       } else if (e.type === "VISIT_CONFIRMED") {
-        this.replayConfirm();
+        this.replayConfirm(e.payload.at ?? Date.now());
       } else if (e.type === "ROUND_RANDOM_GENERATED") {
         this.randomTargets.push(e.payload.value);
       }
@@ -295,6 +317,8 @@ export class MatchEngine {
         return accuracyProgressionFamily.createPlayerState(accuracyProgressionFamily.buildOpenNumbers(this.settings));
       case "jdc":
         return jdcFamily.createPlayerState();
+      case "grouping":
+        return groupingFamily.createPlayerState();
       default:
         throw new Error(`Unbekannte Engine-Familie "${this.familyName}"`);
     }
@@ -304,7 +328,7 @@ export class MatchEngine {
     return this.randomTargets[this.randomTargetIndex];
   }
 
-  private replayThrow(segment: Segment, throwSeq: number): void {
+  private replayThrow(segment: Segment, throwSeq: number, coords?: { x: number; y: number }): void {
     if (this.finished || this.pendingConfirmation) {
       // Kann bei einer Korrektur passieren, die eine fruehere Aufnahme
       // rueckwirkend zum Bust/Checkout macht - danach geworfene Darts
@@ -314,6 +338,7 @@ export class MatchEngine {
     }
     this.currentVisitThrows.push(segment);
     this.currentVisitSeqs.push(throwSeq);
+    this.currentVisitCoords.push(coords);
 
     const activeId = this.players[this.activeIndex].id;
     this.throwLog.push({ playerId: activeId, segment });
@@ -327,13 +352,17 @@ export class MatchEngine {
     }
   }
 
-  private replayConfirm(): void {
+  private replayConfirm(at: number): void {
     if (this.currentVisitThrows.length === 0) return; // nichts zu bestaetigen
     const activeId = this.players[this.activeIndex].id;
     const state = this.playerStates[activeId];
-    const throwsForEvaluation = this.padIncompleteVisitIfNeeded(this.currentVisitThrows, state);
-    const result = this.applyThrow(state, throwsForEvaluation);
-    this.commitVisit(activeId, result);
+    const { throws: throwsForEvaluation, coords: coordsForEvaluation } = this.padIncompleteVisitIfNeeded(
+      this.currentVisitThrows,
+      this.currentVisitCoords,
+      state
+    );
+    const result = this.applyThrow(state, throwsForEvaluation, coordsForEvaluation);
+    this.commitVisit(activeId, result, at);
     this.pendingConfirmation = false;
     this.pendingOutcome = null;
   }
@@ -341,29 +370,43 @@ export class MatchEngine {
   // Ein Board-Takeout kann vor dem 3. Dart kommen (Darts vorzeitig
   // abgeraeumt, oder ein Dart wurde nicht erkannt) - bei Familien, die
   // IMMER exakt 3 Darts zum Werten brauchen (target_progression,
-  // accuracy_progression, JDCs Shanghai-Phasen; die Doubles-Phase
-  // sowie alle Countdown-Familien werten dagegen mit jeder Dart-Anzahl
-  // schon korrekt), liefert applyThrow() sonst ein leeres
+  // accuracy_progression, grouping, JDCs Shanghai-Phasen; die Doubles-
+  // Phase sowie alle Countdown-Familien werten dagegen mit jeder Dart-
+  // Anzahl schon korrekt), liefert applyThrow() sonst ein leeres
   // "continue"-Ergebnis OHNE endingTarget/hitNumbers/score. commitVisit
   // wuerde das faelschlich als abgeschlossene Aufnahme behandeln und
   // z.B. bei Around the World auf die ALLERERSTE offene Zahl
   // zurueckspringen (Tobias-Feedback 10.09.2026). Fehlende Darts
-  // zaehlen deshalb als Fehlwurf - NUR fuer die applyThrow()-Auswertung,
-  // throwLog/visitLog/visitHistory nutzen weiterhin ausschliesslich die
-  // tatsaechlich geworfenen Darts (siehe commitVisit).
-  private padIncompleteVisitIfNeeded(throws: Segment[], state: PlayerState): Segment[] {
-    if (throws.length >= VISIT_DART_CAP) return throws;
+  // zaehlen deshalb als Fehlwurf (ohne Koordinaten) - NUR fuer die
+  // applyThrow()-Auswertung, throwLog/visitLog/visitHistory nutzen
+  // weiterhin ausschliesslich die tatsaechlich geworfenen Darts (siehe
+  // commitVisit).
+  private padIncompleteVisitIfNeeded(
+    throws: Segment[],
+    coords: ({ x: number; y: number } | undefined)[],
+    state: PlayerState
+  ): { throws: Segment[]; coords: ({ x: number; y: number } | undefined)[] } {
+    if (throws.length >= VISIT_DART_CAP) return { throws, coords };
     const needsFullVisit =
       this.familyName === "target_progression" ||
       this.familyName === "accuracy_progression" ||
+      this.familyName === "grouping" ||
       (this.familyName === "jdc" && jdcFamily.currentPhase(state as jdcFamily.JdcPlayerState) !== "doubles");
-    if (!needsFullVisit) return throws;
-    const padded = [...throws];
-    while (padded.length < VISIT_DART_CAP) padded.push({ number: 0, multiplier: 0 });
-    return padded;
+    if (!needsFullVisit) return { throws, coords };
+    const paddedThrows = [...throws];
+    const paddedCoords = [...coords];
+    while (paddedThrows.length < VISIT_DART_CAP) {
+      paddedThrows.push({ number: 0, multiplier: 0 });
+      paddedCoords.push(undefined);
+    }
+    return { throws: paddedThrows, coords: paddedCoords };
   }
 
-  private applyThrow(state: PlayerState, visitThrows: Segment[]): ThrowResult {
+  private applyThrow(
+    state: PlayerState,
+    visitThrows: Segment[],
+    visitCoords?: ({ x: number; y: number } | undefined)[]
+  ): ThrowResult {
     switch (this.familyName) {
       case "x01":
         return x01Family.applyThrow(state as x01Family.X01PlayerState, visitThrows, this.settings);
@@ -373,6 +416,8 @@ export class MatchEngine {
         return checkoutRangeFamily.applyThrow(state as checkoutRangeFamily.CheckoutRangePlayerState, visitThrows, this.settings);
       case "catch":
         return catchFamily.applyThrow(state as catchFamily.CatchPlayerState, visitThrows);
+      case "grouping":
+        return groupingFamily.applyThrow(state as groupingFamily.GroupingPlayerState, visitThrows, visitCoords ?? []);
       case "target_progression":
         return targetProgressionFamily.applyThrow(state as targetProgressionFamily.TargetProgressionPlayerState, visitThrows);
       case "accuracy_progression":
@@ -389,7 +434,7 @@ export class MatchEngine {
   }
 
   // ------------------------------------------------------------ commit (nach Bestaetigung)
-  private commitVisit(playerId: string, result: ThrowResult): void {
+  private commitVisit(playerId: string, result: ThrowResult, at: number = Date.now()): void {
     const state = this.playerStates[playerId];
     const outcome = (result.outcome as string) ?? null;
     const checkoutValue = this.currentVisitThrows.reduce((sum, t) => sum + segmentValue(t), 0);
@@ -450,6 +495,18 @@ export class MatchEngine {
       return;
     }
 
+    if (this.familyName === "grouping") {
+      // Alle Spieler bekommen fair dieselbe Rundenzahl (anders als
+      // Around the World) - das Match endet erst, wenn JEDER seine 20
+      // Runden fertig hat, ein bereits fertiger Spieler wird beim
+      // Weiterreichen uebersprungen (siehe advanceToNextUnfinishedGroupingPlayer).
+      groupingFamily.resolveVisit(state as groupingFamily.GroupingPlayerState, result as groupingFamily.GroupingThrowResult, at);
+      this.clearVisit();
+      this.maybeFinishGrouping();
+      if (!this.finished) this.advanceToNextUnfinishedGroupingPlayer();
+      return;
+    }
+
     if (this.familyName === "accuracy_progression") {
       // Jeder Spieler hat seine eigene Zahlenliste, das Spiel endet
       // SOFORT, wenn ein Spieler seine Liste leert - er gewinnt,
@@ -471,6 +528,7 @@ export class MatchEngine {
   private clearVisit(): void {
     this.currentVisitThrows = [];
     this.currentVisitSeqs = [];
+    this.currentVisitCoords = [];
   }
 
   private advancePlayer(): void {
@@ -696,6 +754,38 @@ export class MatchEngine {
     return BOBS27_MODE_RUNS[mode] ?? null;
   }
 
+  // ------------------------------------------------------------ grouping championship
+  private maybeFinishGrouping(): void {
+    const allDone = this.players.every(
+      (p) => (this.playerStates[p.id] as groupingFamily.GroupingPlayerState).roundIndex >= groupingFamily.TOTAL_ROUNDS
+    );
+    if (!allDone) return;
+    this.finished = true;
+    this.winnerId = this.players.reduce((best, p) =>
+      (this.playerStates[p.id] as groupingFamily.GroupingPlayerState).totalScore >
+      (this.playerStates[best.id] as groupingFamily.GroupingPlayerState).totalScore
+        ? p
+        : best
+    ).id;
+  }
+
+  // Ueberspringt Spieler, die ihre 20 Runden schon fertig haben, bis
+  // alle fertig sind (maybeFinishGrouping beendet dann das Match) -
+  // gleiches Prinzip wie advanceToNextEligiblePlayer bei den
+  // TASK_BASED_FAMILIES, aber eigenstaendig, da grouping keine davon ist.
+  private advanceToNextUnfinishedGroupingPlayer(): void {
+    this.advancePlayer();
+    let guard = 0;
+    while (
+      (this.playerStates[this.players[this.activeIndex].id] as groupingFamily.GroupingPlayerState).roundIndex >=
+        groupingFamily.TOTAL_ROUNDS &&
+      guard < this.players.length
+    ) {
+      this.advancePlayer();
+      guard += 1;
+    }
+  }
+
   // ------------------------------------------------------------ bob's 27 runs
   private maybeFinishRun(playerId: string): void {
     const state = this.playerStates[playerId];
@@ -823,6 +913,9 @@ export class MatchEngine {
       const target = jdcFamily.currentTarget(jdcState);
       return target !== null ? String(target) : null;
     }
+    if (this.familyName === "grouping") {
+      return `T${groupingFamily.TARGET_SEGMENT_NUMBER}`; // immer dasselbe Ziel, alle 20 Runden
+    }
     return null;
   }
 
@@ -854,13 +947,21 @@ export class MatchEngine {
   // anders als checkout_range/catch (jeder Spieler hat sein EIGENES
   // Tempo) hat random_checkout einen einzigen GETEILTEN Versuchs-
   // Zaehler (randomTargetIndex) - hier lohnt sich eine explizite
-  // Anzeige. total=null bei Endless (kein Zielwert).
-  private attemptInfoDisplay(): { current: number; total: number | null } | null {
+  // Anzeige. total=null bei Endless (kein Zielwert). Grouping
+  // Championship (Tobias-Feedback 11.09.2026) hat zwar eigenes Tempo je
+  // Spieler, zeigt aber aus demselben Grund "RUNDE X VON 20" an.
+  private attemptInfoDisplay(): { current: number; total: number | null; label: string } | null {
+    if (this.familyName === "grouping") {
+      const activeId = this.players[this.activeIndex].id;
+      const state = this.playerStates[activeId] as groupingFamily.GroupingPlayerState;
+      return { current: state.roundIndex + 1, total: groupingFamily.TOTAL_ROUNDS, label: "RUNDE" };
+    }
     if (this.familyName !== "random_checkout") return null;
     const endless = Boolean(this.settings.endless);
     return {
       current: this.randomTargetIndex + 1,
       total: endless ? null : this.randomTargets.length,
+      label: "CHECKOUT",
     };
   }
 
@@ -920,6 +1021,8 @@ export class MatchEngine {
       openNumbers: state.openNumbers ?? null,
       shanghaiCount: state.shanghaiCount ?? null,
       phaseScores: state.phaseScores ?? null,
+      groupingRounds: state.rounds ?? null,
+      bestGroupingRoundIndex: state.bestRoundIndex ?? null,
     };
   }
 }

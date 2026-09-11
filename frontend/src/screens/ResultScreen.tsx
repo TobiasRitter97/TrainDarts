@@ -75,6 +75,12 @@ export function ResultScreen({ match, onRematch, onExit }: Props) {
                 <div className="result-stat-row">Perfect Targets: <b>{p.perfectTargets}</b></div>
               </>
             ) : null}
+            {p.groupingRounds !== null && p.bestGroupingRoundIndex !== null ? (
+              <div className="result-stat-row">
+                Bestes Grouping: Runde <b>{p.bestGroupingRoundIndex + 1}</b> (
+                {p.groupingRounds[p.bestGroupingRoundIndex].mm?.toFixed(1)} mm, vorläufig unkalibriert)
+              </div>
+            ) : null}
           </div>
         ))}
       </div>

@@ -133,6 +133,12 @@
   margin-top: var(--sp-5);
 }
 
+.grouping-info {
+  margin-top: var(--sp-5);
+  width: 100%;
+  max-width: 320px;
+}
+
 .open-numbers-list {
   display: flex;
   flex-wrap: wrap;

@@ -90,6 +90,11 @@ export type MatchPlayer = {
   openNumbers: (number | string)[] | null;
   shanghaiCount: number | null;
   phaseScores: Record<string, number> | null;
+  // Nur bei Grouping Championship gesetzt (Tobias-Feedback 11.09.2026):
+  // eine Zeile pro bereits gespielter Runde (mm=null, wenn zu wenige
+  // echte Board-Koordinaten vorlagen) + Index der bisher besten Runde.
+  groupingRounds: { mm: number | null; score: number; hits: { triple: number; single: number; miss: number }; timestamp: number }[] | null;
+  bestGroupingRoundIndex: number | null;
 };
 
 export type MatchThrow = { throwSeq: number; label: string };
@@ -108,14 +113,15 @@ export type MatchState = {
   target: string | null;
   phase: string | null;
   checkoutSuggestion: string[] | null;
-  // Nur bei Random Checkout gesetzt: geteilter Versuchs-Zaehler ueber
-  // alle Spieler hinweg ("Runde X von Y", total=null bei Endless).
-  attemptInfo: { current: number; total: number | null } | null;
+  // Bei Random Checkout (geteilter Versuchs-Zaehler, "CHECKOUT X von Y",
+  // total=null bei Endless) und Grouping Championship ("RUNDE X von 20")
+  // gesetzt - "label" steuert die Beschriftung im Game Screen.
+  attemptInfo: { current: number; total: number | null; label: string } | null;
   round: number;
   legNumber: number | null;
   setNumber: number | null;
   pendingConfirmation: boolean;
-  pendingOutcome: "bust" | "checkout" | "target_done" | "continue" | null;
+  pendingOutcome: "bust" | "checkout" | "target_done" | "round_done" | "continue" | null;
   history: MatchVisit[];
   canUndo: boolean;
   finished: boolean;

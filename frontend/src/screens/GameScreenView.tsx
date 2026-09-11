@@ -6,6 +6,7 @@ import { CheckoutRouteDisplay } from "../components/CheckoutRouteDisplay";
 import { GameProgress } from "../components/GameProgress";
 import { GameActions } from "../components/GameActions";
 import { DartCorrectionModal } from "../components/DartCorrectionModal";
+import { GroupingTrendChart } from "../components/GroupingTrendChart";
 import { ResultScreen } from "./ResultScreen";
 import "./GameScreen.css";
 
@@ -39,6 +40,7 @@ type Props = {
 function pendingLabel(outcome: string | null): string {
   if (outcome === "bust") return "BUST — BESTÄTIGEN";
   if (outcome === "checkout") return "CHECKOUT! — BESTÄTIGEN";
+  if (outcome === "round_done") return "RUNDE FERTIG — BESTÄTIGEN";
   return "AUFNAHME FERTIG — BESTÄTIGEN";
 }
 
@@ -100,7 +102,7 @@ export function GameScreenView({ match, game, actions, persistsProgress, canAct 
         {match.phase && <div className="jdc-phase-label">{match.phase}</div>}
         {match.attemptInfo && (
           <div className="attempt-info-label">
-            CHECKOUT {match.attemptInfo.current}
+            {match.attemptInfo.label} {match.attemptInfo.current}
             {match.attemptInfo.total !== null ? ` VON ${match.attemptInfo.total}` : ""}
           </div>
         )}
@@ -110,11 +112,22 @@ export function GameScreenView({ match, game, actions, persistsProgress, canAct 
             <div className="target-value">{match.target}</div>
           </>
         )}
-        {match.attemptInfo && activePlayer?.score !== null && activePlayer?.score !== undefined && (
+        {match.engineFamily === "random_checkout" && activePlayer?.score !== null && activePlayer?.score !== undefined && (
           <>
             <div className="target-label">DEIN REST</div>
             <div className="target-value">{activePlayer.score}</div>
           </>
+        )}
+        {activePlayer?.groupingRounds && activePlayer.groupingRounds.length > 0 && (
+          <div className="grouping-info">
+            <div className="target-label">
+              LETZTE RUNDE
+              {activePlayer.groupingRounds[activePlayer.groupingRounds.length - 1].mm !== null
+                ? ` — ${activePlayer.groupingRounds[activePlayer.groupingRounds.length - 1].mm!.toFixed(1)} mm (vorläufig, unkalibriert)`
+                : " — keine gültigen Koordinaten"}
+            </div>
+            <GroupingTrendChart rounds={activePlayer.groupingRounds} bestIndex={activePlayer.bestGroupingRoundIndex} />
+          </div>
         )}
         {activePlayer?.openNumbers && (
           <div className="open-numbers">

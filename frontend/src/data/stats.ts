@@ -24,6 +24,7 @@ export const PRIMARY_METRIC: Record<string, string> = {
   target_progression: "bestRun",
   accuracy_progression: "successfulTargets",
   jdc: "totalScore",
+  grouping: "totalScore",
 };
 
 // Nur diese Familien haben ein "Checkout" im klassischen Sinn

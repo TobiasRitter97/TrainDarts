@@ -189,7 +189,9 @@ export function GameScreenView({ match, game, actions, persistsProgress, canAct 
 
       <GameActions
         canUndo={match.canUndo}
-        canConfirm={match.pendingConfirmation}
+        canAddDart={!match.pendingConfirmation && match.currentVisitThrows.length < 3}
+        canConfirm={match.currentVisitThrows.length > 0}
+        visitComplete={match.pendingConfirmation}
         canAct={canAct}
         onUndo={actions.onUndo}
         onAddDart={() => canAct && setCorrection({ mode: "add" })}

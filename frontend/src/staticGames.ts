@@ -756,7 +756,8 @@ export const STATIC_GAMES = [
         "showIf": {
           "key": "requiredHits",
           "equals": [2, 3]
-        }
+        },
+        "hint": "Aufnahme: es werden immer alle 3 Darts auf dieselbe Zahl geworfen, danach wechselt die Zahl - egal ob die nötige Trefferzahl erreicht wurde oder nicht. Dart: es wird so lange auf dieselbe Zahl geworfen (auch über mehrere Aufnahmen hinweg), bis die nötige Trefferzahl erreicht ist - erst dann wechselt die Zahl."
       },
       {
         "key": "includeBull",

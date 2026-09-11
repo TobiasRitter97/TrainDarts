@@ -255,6 +255,23 @@ describe("accuracy_progression (Around the World)", () => {
     expect(engine.toDict().target).toBe("2");
   });
 
+  it("Tobias-Bug 11.09.2026: targetChangeMode 'per_dart' must accumulate hits ACROSS multiple visits, not reset every visit", () => {
+    // Vorher wurde der Trefferzaehler bei jeder neuen Aufnahme
+    // faelschlich auf 0 zurueckgesetzt - wer die noetigen Treffer nicht
+    // in EINER einzigen Aufnahme schaffte, blieb fuer immer auf
+    // derselben Zahl haengen.
+    const engine = new MatchEngine("m6e", GAME_RH2, [{ id: "solo", name: "Solo" }], {
+      segmentMode: "single",
+      requiredHits: 2,
+      targetChangeMode: "per_dart",
+    });
+    expect(engine.toDict().target).toBe("1");
+    throwAndConfirm(engine, ["S1", "S9", "S9"]); // 1 Treffer auf "1" in Aufnahme 1
+    expect(engine.toDict().target).toBe("1"); // noch nicht genug (1 von 2)
+    throwAndConfirm(engine, ["S1", "S9", "S9"]); // 2. Treffer auf "1" in Aufnahme 2
+    expect(engine.toDict().target).toBe("2"); // jetzt erreicht -> Wechsel
+  });
+
   it("Tobias-Bug 10.09.2026: an early takeout with only 2 darts must NOT jump back to the very first open number", () => {
     // Der Bug betraf gezielt requiredHits 2/3 im Modus "per_visit"
     // (Standard) - dort lieferte applyThrow() bei weniger als 3 Darts

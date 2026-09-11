@@ -18,10 +18,16 @@
 //   Treffer schon vorher erreicht wurden (z.B. 2 Treffer mit den
 //   ersten beiden Darts bei Required Hits=2 - der dritte Dart zielt
 //   trotzdem noch auf dieselbe Zahl).
-// - "per_dart" (Dart): sobald die noetige Trefferzahl auf die aktuelle
-//   Zahl erreicht ist, wechselt das Ziel sofort fuer die restlichen
-//   Darts derselben Aufnahme zur naechsten offenen Zahl (verallgemeinert
-//   das Required-Hits=1-Verhalten auf eine hoehere Trefferschwelle).
+// - "per_dart" (Dart): es wird so lange auf dieselbe Zahl geworfen -
+//   ueber beliebig viele Aufnahmen hinweg -, bis die noetige
+//   Trefferzahl ERREICHT ist; erst DANN wechselt das Ziel (auch mitten
+//   in einer Aufnahme, fuer die restlichen Darts). Die bereits
+//   erzielten Treffer auf die aktuelle Zahl werden dafuer zwischen
+//   Aufnahmen im Spielerstatus (hitsOnCurrentTarget) mitgefuehrt -
+//   Tobias-Feedback 11.09.2026: vorher wurde der Zaehler bei jeder
+//   neuen Aufnahme faelschlich auf 0 zurueckgesetzt, wodurch das Ziel
+//   nie wechselte, wenn die noetigen Treffer nicht in EINER einzigen
+//   Aufnahme gelangen.
 import { Segment } from "../scoring";
 
 export type HitKind = "single" | "double" | "triple" | null;
@@ -29,6 +35,10 @@ export type HitKind = "single" | "double" | "triple" | null;
 export type AccuracyProgressionPlayerState = {
   openNumbers: (number | string)[];
   currentTarget: number | string | null;
+  // Nur im Zielwechsel-Modus "per_dart" genutzt: bereits erzielte
+  // Treffer auf die aktuelle Zahl, ueber Aufnahmegrenzen hinweg
+  // mitgefuehrt (siehe Kommentar oben).
+  hitsOnCurrentTarget: number;
   successfulTargets: number;
   totalHits: number;
   totalDarts: number;
@@ -48,6 +58,7 @@ export function createPlayerState(openNumbers: (number | string)[]): AccuracyPro
   return {
     openNumbers: [...openNumbers],
     currentTarget: openNumbers[0] ?? null,
+    hitsOnCurrentTarget: 0,
     successfulTargets: 0,
     totalHits: 0,
     totalDarts: 0,
@@ -114,19 +125,21 @@ function simulateRequiredHits1(
 
 // Reine Berechnung (kein Seiteneffekt): verallgemeinerte Version von
 // simulateRequiredHits1 fuer eine beliebige Trefferschwelle - sobald
-// "requiredHits" Treffer auf die aktuelle Zahl erreicht sind, wechselt
-// das Ziel fuer die restlichen Darts derselben Aufnahme zur naechsten
-// offenen Zahl (Modus "per_dart").
+// "requiredHits" Treffer auf die aktuelle Zahl erreicht sind (auch
+// ueber mehrere Aufnahmen hinweg gezaehlt, siehe startHitsOnCurrent),
+// wechselt das Ziel fuer die restlichen Darts derselben Aufnahme zur
+// naechsten offenen Zahl (Modus "per_dart").
 function simulatePerDart(
   openNumbers: (number | string)[],
   startTarget: number | string | null,
   visitThrows: Segment[],
   segmentMode: string,
-  requiredHits: number
+  requiredHits: number,
+  startHitsOnCurrent: number
 ) {
   const remaining = [...openNumbers];
   let target = startTarget;
-  let hitsOnCurrent = 0;
+  let hitsOnCurrent = startHitsOnCurrent;
   const hitNumbers: (number | string)[] = [];
   const hitKindsPerDart: HitKind[] = [];
   for (const segment of visitThrows) {
@@ -147,7 +160,7 @@ function simulatePerDart(
       }
     }
   }
-  return { endingTarget: target, hitNumbers, hitKindsPerDart };
+  return { endingTarget: target, hitNumbers, hitKindsPerDart, endingHitsOnCurrent: hitsOnCurrent };
 }
 
 export type AccuracyThrowResult = {
@@ -155,6 +168,10 @@ export type AccuracyThrowResult = {
   endingTarget?: number | string | null;
   hitNumbers?: (number | string)[];
   hitKindsPerDart?: HitKind[];
+  // Nur Modus "per_dart": auf die aktuelle (noch nicht gewechselte)
+  // Zahl erzielte Treffer, die in die naechste Aufnahme mitgenommen
+  // werden muessen.
+  endingHitsOnCurrent?: number;
 };
 
 export function applyThrow(
@@ -173,9 +190,22 @@ export function applyThrow(
 
   const targetChangeMode = (settings.targetChangeMode as string) ?? "per_visit";
   if (targetChangeMode === "per_dart") {
-    const sim = simulatePerDart(playerState.openNumbers, playerState.currentTarget, visitThrows, segmentMode, requiredHits);
+    const sim = simulatePerDart(
+      playerState.openNumbers,
+      playerState.currentTarget,
+      visitThrows,
+      segmentMode,
+      requiredHits,
+      playerState.hitsOnCurrentTarget
+    );
     const outcome = visitThrows.length >= 3 ? "target_done" : "continue";
-    return { outcome, endingTarget: sim.endingTarget, hitNumbers: sim.hitNumbers, hitKindsPerDart: sim.hitKindsPerDart };
+    return {
+      outcome,
+      endingTarget: sim.endingTarget,
+      hitNumbers: sim.hitNumbers,
+      hitKindsPerDart: sim.hitKindsPerDart,
+      endingHitsOnCurrent: sim.endingHitsOnCurrent,
+    };
   }
 
   // "per_visit" (Aufnahme, Standard): alle 3 Darts immer auf dieselbe
@@ -197,6 +227,7 @@ export function applyThrow(
 // aufgerufen - entfernt erledigte Zahlen aus der Liste, setzt das
 // naechste Ziel und schreibt die Trefferstatistik fort.
 export function resolveVisit(playerState: AccuracyProgressionPlayerState, result: AccuracyThrowResult): void {
+  playerState.hitsOnCurrentTarget = result.endingHitsOnCurrent ?? 0;
   const hitKinds = result.hitKindsPerDart ?? [];
   const hits = hitKinds.filter((h): h is Exclude<HitKind, null> => h !== null);
   playerState.totalDarts += hitKinds.length;

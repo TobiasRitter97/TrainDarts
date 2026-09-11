@@ -21,6 +21,14 @@
   font-weight: var(--fw-strong);
 }
 
+.settings-hint {
+  flex-basis: 100%;
+  margin: 0;
+  font-size: var(--fs-xs);
+  color: var(--c-text-muted);
+  line-height: 1.4;
+}
+
 .option-row {
   display: flex;
   gap: var(--sp-2);

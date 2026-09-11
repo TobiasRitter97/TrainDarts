@@ -57,6 +57,11 @@
   margin-top: var(--sp-1);
 }
 
+.scoreboard-score.bust {
+  color: var(--c-danger-strong);
+  font-size: var(--fs-lg);
+}
+
 /* ---------- Active Player + Target ---------- */
 .active-player-panel {
   text-align: center;
@@ -81,6 +86,14 @@
   font-size: var(--fs-sm);
   color: var(--c-text-muted);
   letter-spacing: 0.1em;
+}
+
+.attempt-info-label {
+  font-size: var(--fs-sm);
+  color: var(--c-accent);
+  letter-spacing: 0.1em;
+  font-weight: var(--fw-strong);
+  margin-bottom: var(--sp-2);
 }
 
 .active-player-name {

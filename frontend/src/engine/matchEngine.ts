@@ -331,10 +331,36 @@ export class MatchEngine {
     if (this.currentVisitThrows.length === 0) return; // nichts zu bestaetigen
     const activeId = this.players[this.activeIndex].id;
     const state = this.playerStates[activeId];
-    const result = this.applyThrow(state, this.currentVisitThrows);
+    const throwsForEvaluation = this.padIncompleteVisitIfNeeded(this.currentVisitThrows, state);
+    const result = this.applyThrow(state, throwsForEvaluation);
     this.commitVisit(activeId, result);
     this.pendingConfirmation = false;
     this.pendingOutcome = null;
+  }
+
+  // Ein Board-Takeout kann vor dem 3. Dart kommen (Darts vorzeitig
+  // abgeraeumt, oder ein Dart wurde nicht erkannt) - bei Familien, die
+  // IMMER exakt 3 Darts zum Werten brauchen (target_progression,
+  // accuracy_progression, JDCs Shanghai-Phasen; die Doubles-Phase
+  // sowie alle Countdown-Familien werten dagegen mit jeder Dart-Anzahl
+  // schon korrekt), liefert applyThrow() sonst ein leeres
+  // "continue"-Ergebnis OHNE endingTarget/hitNumbers/score. commitVisit
+  // wuerde das faelschlich als abgeschlossene Aufnahme behandeln und
+  // z.B. bei Around the World auf die ALLERERSTE offene Zahl
+  // zurueckspringen (Tobias-Feedback 10.09.2026). Fehlende Darts
+  // zaehlen deshalb als Fehlwurf - NUR fuer die applyThrow()-Auswertung,
+  // throwLog/visitLog/visitHistory nutzen weiterhin ausschliesslich die
+  // tatsaechlich geworfenen Darts (siehe commitVisit).
+  private padIncompleteVisitIfNeeded(throws: Segment[], state: PlayerState): Segment[] {
+    if (throws.length >= VISIT_DART_CAP) return throws;
+    const needsFullVisit =
+      this.familyName === "target_progression" ||
+      this.familyName === "accuracy_progression" ||
+      (this.familyName === "jdc" && jdcFamily.currentPhase(state as jdcFamily.JdcPlayerState) !== "doubles");
+    if (!needsFullVisit) return throws;
+    const padded = [...throws];
+    while (padded.length < VISIT_DART_CAP) padded.push({ number: 0, multiplier: 0 });
+    return padded;
   }
 
   private applyThrow(state: PlayerState, visitThrows: Segment[]): ThrowResult {
@@ -824,6 +850,20 @@ export class MatchEngine {
     return suggestRoute(remaining, dartsLeft, checkoutMode);
   }
 
+  // "Runde X von Y" fuer Random Checkout (Tobias-Feedback 10.09.2026):
+  // anders als checkout_range/catch (jeder Spieler hat sein EIGENES
+  // Tempo) hat random_checkout einen einzigen GETEILTEN Versuchs-
+  // Zaehler (randomTargetIndex) - hier lohnt sich eine explizite
+  // Anzeige. total=null bei Endless (kein Zielwert).
+  private attemptInfoDisplay(): { current: number; total: number | null } | null {
+    if (this.familyName !== "random_checkout") return null;
+    const endless = Boolean(this.settings.endless);
+    return {
+      current: this.randomTargetIndex + 1,
+      total: endless ? null : this.randomTargets.length,
+    };
+  }
+
   toDict(): MatchState {
     const activePlayer = this.players[this.activeIndex];
     return {
@@ -841,6 +881,7 @@ export class MatchEngine {
       target: this.targetDisplay(),
       phase: this.jdcPhaseLabel(),
       checkoutSuggestion: this.checkoutSuggestion(),
+      attemptInfo: this.attemptInfoDisplay(),
       round: this.roundNumber,
       legNumber: this.familyName === "x01" ? this.legNumber : null,
       setNumber: this.familyName === "x01" && this.setsEnabled() ? this.setNumber : null,

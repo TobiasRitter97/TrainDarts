@@ -27,6 +27,10 @@ export type SettingField = {
   // Werten eines anderen Feldes anzuzeigen (z.B. Around the World:
   // "Zielwechsel" nur bei requiredHits 2 ODER 3 relevant).
   showIf?: { key: string; equals: unknown | unknown[] };
+  // Kurzer Erklaerungstext unter der Einstellung (Tobias-Feedback
+  // 10.09.2026: bei 121 war z.B. der Unterschied zwischen den
+  // Safehouse-Optionen nicht selbsterklaerend).
+  hint?: string;
 };
 
 export type GameDefinition = {
@@ -99,6 +103,9 @@ export type MatchState = {
   target: string | null;
   phase: string | null;
   checkoutSuggestion: string[] | null;
+  // Nur bei Random Checkout gesetzt: geteilter Versuchs-Zaehler ueber
+  // alle Spieler hinweg ("Runde X von Y", total=null bei Endless).
+  attemptInfo: { current: number; total: number | null } | null;
   round: number;
   legNumber: number | null;
   setNumber: number | null;

@@ -254,6 +254,28 @@ describe("accuracy_progression (Around the World)", () => {
     engine.handleThrow("S1", { segment: seg("S1") }); // 2 Treffer erreicht -> sofort weiter zu "2"
     expect(engine.toDict().target).toBe("2");
   });
+
+  it("Tobias-Bug 10.09.2026: an early takeout with only 2 darts must NOT jump back to the very first open number", () => {
+    // Der Bug betraf gezielt requiredHits 2/3 im Modus "per_visit"
+    // (Standard) - dort lieferte applyThrow() bei weniger als 3 Darts
+    // bisher ein leeres {outcome:"continue"} OHNE endingTarget, wodurch
+    // resolveVisit() faelschlich auf openNumbers[0] zurueckfiel.
+    const engine = new MatchEngine("m6d", GAME_RH2, [{ id: "solo", name: "Solo" }], {
+      segmentMode: "single",
+      requiredHits: 2,
+      targetChangeMode: "per_visit",
+    });
+    // Aktuelles Ziel ist "5" (drei Aufnahmen auf "1","2","3","4" schon
+    // verfehlt), dann Takeout nach nur 2 Darts (drittes nicht erkannt).
+    for (let i = 0; i < 4; i++) throwAndConfirm(engine, ["S9", "S9", "S9"]); // "1".."4" je verfehlt
+    expect(engine.toDict().target).toBe("5");
+    throwDarts(engine, ["S9", "S9"]); // verfehlt "5" mit nur 2 Darts
+    engine.confirmVisit(); // Takeout nach nur 2 Darts
+    // Korrekt waere "6" (verfehlt -> normaler Wechsel zur naechsten
+    // Zahl, wie bei jeder anderen verfehlten Aufnahme auch). Der Bug
+    // sprang stattdessen auf "1" zurueck (openNumbers[0]) zurueck.
+    expect(engine.toDict().target).toBe("6");
+  });
 });
 
 describe("jdc (JDC Challenge)", () => {

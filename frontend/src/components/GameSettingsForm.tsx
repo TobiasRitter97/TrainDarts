@@ -69,6 +69,8 @@ export function GameSettingsForm({ schema, values, onChange }: Props) {
               />
             </div>
           )}
+
+          {field.hint && <p className="settings-hint">{field.hint}</p>}
         </div>
       ))}
     </div>

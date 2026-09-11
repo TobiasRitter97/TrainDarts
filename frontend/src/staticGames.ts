@@ -297,7 +297,8 @@ export const STATIC_GAMES = [
         "type": "number",
         "default": 121,
         "min": 2,
-        "max": 170
+        "max": 170,
+        "hint": "Checkout-Wert, mit dem jeder Spieler startet."
       },
       {
         "key": "maxLevel",
@@ -305,7 +306,8 @@ export const STATIC_GAMES = [
         "type": "number",
         "default": 170,
         "min": 2,
-        "max": 170
+        "max": 170,
+        "hint": "Höchster erreichbarer Checkout-Wert. Bei Game Length \"Until 170\" ist das zugleich das Spielziel."
       },
       {
         "key": "safehouseMode",
@@ -325,7 +327,8 @@ export const STATIC_GAMES = [
             "label": "Easy"
           }
         ],
-        "default": "standard"
+        "default": "standard",
+        "hint": "Legt fest, wohin ein gescheiterter Versuch (alle eigenen Darts verbraucht, ohne auszuchecken) zurückfällt. Standard: zurück auf die letzte 10er-Stufe (z.B. von 127 auf 120). Easy: zurück auf die letzte 5er-Stufe (z.B. von 127 auf 125). Off: kein Rückfall, der Wert sinkt nur um den eingestellten Betrag (Decrease on Miss)."
       },
       {
         "key": "checkoutMode",
@@ -345,7 +348,8 @@ export const STATIC_GAMES = [
             "label": "Straight Out"
           }
         ],
-        "default": "double_out"
+        "default": "double_out",
+        "hint": "Double Out: nur ein Doppel oder Bullseye beendet den Versuch. Master Out: zusätzlich zählt auch ein Dreifachfeld. Straight Out: jeder Wurf kann den Versuch beenden."
       },
       {
         "key": "gameLengthMode",
@@ -377,7 +381,8 @@ export const STATIC_GAMES = [
             "label": "Until 170"
           }
         ],
-        "default": "targets_20"
+        "default": "targets_20",
+        "hint": "Wie viele Checkout-Versuche insgesamt gespielt werden. \"Until 170\" endet automatisch, sobald ein Spieler den Maximalwert erreicht - \"Endless\" endet nie von selbst."
       },
       {
         "key": "customTargets",
@@ -413,7 +418,8 @@ export const STATIC_GAMES = [
             "label": "12"
           }
         ],
-        "default": 9
+        "default": 9,
+        "hint": "Wie viele eigene Darts (aufgeteilt auf mehrere 3er-Aufnahmen, abwechselnd mit den Mitspielern) du insgesamt für einen Versuch hast, bevor er als gescheitert gilt."
       }
     ]
   },

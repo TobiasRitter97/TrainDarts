@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Profile } from "./api";
 import { BoardControlBar } from "./components/BoardControlBar";
 import { GameHubScreen } from "./screens/GameHubScreen";
@@ -47,14 +47,26 @@ function useShouldSuggestPiSettings(): boolean {
 export default function App() {
   const [view, setView] = useState<View>({ screen: "hub" });
   const [pendingResume, setPendingResume] = useState<PendingResumeInfo | null>(null);
+  // Der Dialog ("Fortsetzen?"/"Verwerfen") poppt nur EINMAL automatisch
+  // auf (beim allerersten Laden der Seite) - nicht jedes Mal, wenn man
+  // z.B. nach "Spiel verlassen" wieder im Game Hub landet, das waere
+  // aufdringlich. Stattdessen erscheint dann ein dauerhafter Button im
+  // Header (Tobias-Feedback 10.09.2026: vorher kam man ohne
+  // Seiten-Neuladen gar nicht mehr an ein verlassenes Spiel heran).
+  const [showResumeModal, setShowResumeModal] = useState(false);
+  const hasPromptedRef = useRef(false);
   const suggestPiSettings = useShouldSuggestPiSettings();
   const [showPiSettings, setShowPiSettings] = useState(suggestPiSettings);
 
   useEffect(() => {
+    if (view.screen !== "hub") return;
     matchesDb
       .findInProgressMatch()
       .then(async (match) => {
-        if (!match) return;
+        if (!match) {
+          setPendingResume(null);
+          return;
+        }
         const game = STATIC_GAMES.find((g) => g.id === match.gameId);
         const profiles = await Promise.all(match.playerIds.map((pid) => profilesDb.getProfile(pid)));
         setPendingResume({
@@ -63,9 +75,13 @@ export default function App() {
           gameName: game?.name ?? match.gameId,
           playerNames: profiles.filter((p): p is Profile => p !== null).map((p) => p.name),
         });
+        if (!hasPromptedRef.current) {
+          hasPromptedRef.current = true;
+          setShowResumeModal(true);
+        }
       })
       .catch(() => setPendingResume(null));
-  }, []);
+  }, [view.screen]);
 
   async function handleResume() {
     if (!pendingResume) return;
@@ -79,6 +95,7 @@ export default function App() {
       (p): p is Profile => p !== null
     );
     setPendingResume(null);
+    setShowResumeModal(false);
     setView({
       screen: "local-game",
       session: { game, players: profiles, settings: match.settings },
@@ -88,6 +105,7 @@ export default function App() {
 
   async function handleAbandon() {
     if (!pendingResume) return;
+    setShowResumeModal(false);
     await matchesDb.setStatus(pendingResume.matchId, "abandoned");
     setPendingResume(null);
   }
@@ -98,6 +116,11 @@ export default function App() {
         <header className="app-header">
           <div className="app-title">DARTS TRAINING PLATFORM</div>
           <div className="app-header-actions">
+            {pendingResume && (
+              <button className="btn-primary" onClick={handleResume}>
+                ▶ Zurück zum aktiven Spiel
+              </button>
+            )}
             {view.screen !== "online-lobby" && (
               <button className="btn-outline" onClick={() => setView({ screen: "online-lobby" })}>
                 🌐 ONLINE
@@ -153,7 +176,7 @@ export default function App() {
         )}
       </main>
 
-      {pendingResume && (
+      {pendingResume && showResumeModal && (
         <div className="resume-overlay">
           <div className="resume-modal">
             <h3>Angefangenes Spiel fortsetzen?</h3>

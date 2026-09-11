@@ -4,6 +4,11 @@
   align-items: baseline;
   justify-content: center;
   gap: var(--sp-3);
+  min-height: var(--fs-lg);
+}
+
+.checkout-route-empty .checkout-route-path {
+  color: var(--c-text-faint);
 }
 
 .checkout-route-label {

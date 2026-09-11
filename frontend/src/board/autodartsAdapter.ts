@@ -66,6 +66,23 @@ export class AutodartsAdapter {
     }
   }
 
+  // Liefert den rohen Board-Zustand (CLAUDE.md "Verifizierte Board-
+  // Manager-REST-API") - fuer die Anzeige "Board aktiv/inaktiv" in
+  // BoardControlBar.tsx (Tobias-Feedback 10.09.2026), unabhaengig vom
+  // WebSocket-Verbindungsstatus (der zeigt nur, ob WIR verbunden sind,
+  // nicht ob das Board selbst gerade Wuerfe entgegennimmt).
+  async getState(): Promise<{ connected: boolean; running: boolean; status: string; event: string; numThrows: number } | null> {
+    try {
+      const res = await fetch(`http://${this.boardHost}:${this.boardPort}/api/state`, {
+        signal: AbortSignal.timeout(3000),
+      });
+      if (!res.ok) return null;
+      return await res.json();
+    } catch {
+      return null;
+    }
+  }
+
   async start(): Promise<void> {
     await this.control("PUT", "/api/start");
   }

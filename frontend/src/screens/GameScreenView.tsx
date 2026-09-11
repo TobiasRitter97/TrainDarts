@@ -84,7 +84,12 @@ export function GameScreenView({ match, game, actions, persistsProgress, canAct 
         <BoardControlBar />
       </header>
 
-      <PlayerScoreboard players={match.players} activePlayerId={match.activePlayerId} />
+      <PlayerScoreboard
+        players={match.players}
+        activePlayerId={match.activePlayerId}
+        pendingConfirmation={match.pendingConfirmation}
+        pendingOutcome={match.pendingOutcome}
+      />
 
       <section className={`active-player-panel ${match.pendingConfirmation ? "pending" : ""}`}>
         <div className="active-player-label">
@@ -93,10 +98,22 @@ export function GameScreenView({ match, game, actions, persistsProgress, canAct 
         <div className="active-player-name">{activePlayer?.name ?? "—"}</div>
         {!canAct && <div className="waiting-for-turn-label">Nicht dein Zug — nur Zuschauen</div>}
         {match.phase && <div className="jdc-phase-label">{match.phase}</div>}
+        {match.attemptInfo && (
+          <div className="attempt-info-label">
+            CHECKOUT {match.attemptInfo.current}
+            {match.attemptInfo.total !== null ? ` VON ${match.attemptInfo.total}` : ""}
+          </div>
+        )}
         {match.target && (
           <>
             <div className="target-label">TARGET</div>
             <div className="target-value">{match.target}</div>
+          </>
+        )}
+        {match.attemptInfo && activePlayer?.score !== null && activePlayer?.score !== undefined && (
+          <>
+            <div className="target-label">DEIN REST</div>
+            <div className="target-value">{activePlayer.score}</div>
           </>
         )}
         {activePlayer?.openNumbers && (

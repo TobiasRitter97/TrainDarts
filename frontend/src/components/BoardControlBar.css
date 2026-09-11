@@ -35,6 +35,29 @@
   color: var(--c-text-muted);
 }
 
+.board-running-badge {
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-strong);
+  letter-spacing: 0.05em;
+  padding: 2px var(--sp-2);
+  border-radius: var(--radius-sm);
+}
+
+.board-running-badge.running {
+  color: var(--c-success-strong);
+  background: color-mix(in srgb, var(--c-success) 20%, transparent);
+}
+
+.board-running-badge.stopped {
+  color: var(--c-text-faint);
+  background: var(--c-surface-raised);
+}
+
+.board-running-badge.busy {
+  color: var(--c-accent);
+  background: color-mix(in srgb, var(--c-accent) 20%, transparent);
+}
+
 .board-control-hint {
   color: var(--c-text-faint);
   font-size: var(--fs-xs);

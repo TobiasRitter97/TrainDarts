@@ -4,6 +4,12 @@ import { getBoardHost } from "../board/boardHost";
 import { BoardStatusBadge } from "./BoardStatusBadge";
 import "./BoardControlBar.css";
 
+const BUSY_LABEL: Record<string, string> = {
+  start: "Starte…",
+  stop: "Stoppe…",
+  reset: "Reset läuft…",
+};
+
 // Dezente Board-Leiste: Status + Start/Stop/Reset + Link zur echten
 // Board-Manager-Oberflaeche fuer die Kalibrierung (kein Nachbau).
 //
@@ -43,6 +49,13 @@ export function BoardControlBar() {
   return (
     <div className="board-control-bar">
       <BoardStatusBadge status={board.status} />
+
+      {board.hasControlApi && board.boardRunning !== null && !busy && (
+        <span className={`board-running-badge ${board.boardRunning ? "running" : "stopped"}`}>
+          {board.boardRunning ? "Board aktiv" : "Board inaktiv"}
+        </span>
+      )}
+      {busy && <span className="board-running-badge busy">{BUSY_LABEL[busy]}</span>}
 
       {board.hasControlApi && (
         <div className="board-control-buttons">

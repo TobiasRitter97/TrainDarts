@@ -18,7 +18,14 @@ export function GameSettingsForm({ schema, values, onChange }: Props) {
 
   return (
     <div className="settings-form">
-      {schema.filter(isVisible).map((field) => (
+      {schema.filter(isVisible).map((field) => {
+        // Hat die aktive Option einen eigenen Hint, ersetzt dieser den
+        // allgemeinen Feld-Hint - so zeigt z.B. "Safehouse" nur die
+        // Erklaerung der gerade gewaehlten Option (Standard/Easy/Off),
+        // nicht alle drei auf einmal (Tobias-Feedback 11.09.2026).
+        const activeOption = field.options?.find((opt) => values[field.key] === opt.value);
+        const hint = activeOption?.hint ?? field.hint;
+        return (
         <div key={field.key} className="settings-row">
           <label className="settings-label">{field.label}</label>
 
@@ -70,9 +77,10 @@ export function GameSettingsForm({ schema, values, onChange }: Props) {
             </div>
           )}
 
-          {field.hint && <p className="settings-hint">{field.hint}</p>}
+          {hint && <p className="settings-hint">{hint}</p>}
         </div>
-      ))}
+        );
+      })}
     </div>
   );
 }

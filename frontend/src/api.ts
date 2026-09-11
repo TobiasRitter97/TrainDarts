@@ -19,7 +19,12 @@ export type SettingField = {
   label: string;
   type: "toggle" | "select" | "number";
   default: unknown;
-  options?: { value: string | number; label: string }[];
+  // "hint" pro Option ueberschreibt fuer diese Option den allgemeinen
+  // Feld-Hint - Tobias-Feedback 11.09.2026: bei Optionen mit spuerbar
+  // unterschiedlicher Bedeutung (z.B. Safehouse Standard/Easy/Off)
+  // soll nur die Erklaerung der GEWAEHLTEN Option angezeigt werden,
+  // nicht immer derselbe Text fuer alle Buttons.
+  options?: { value: string | number; label: string; hint?: string }[];
   min?: number;
   max?: number;
   presets?: number[];

@@ -316,19 +316,21 @@ export const STATIC_GAMES = [
         "options": [
           {
             "value": "standard",
-            "label": "Standard"
+            "label": "Standard",
+            "hint": "Ein gescheiterter Versuch (alle eigenen Darts verbraucht, ohne auszuchecken) fällt zurück auf die letzte 10er-Stufe (z.B. von 127 auf 120)."
           },
           {
             "value": "off",
-            "label": "Off"
+            "label": "Off",
+            "hint": "Kein Rückfall bei einem gescheiterten Versuch - der Wert sinkt nur um den eingestellten Betrag (Decrease on Miss)."
           },
           {
             "value": "easy",
-            "label": "Easy"
+            "label": "Easy",
+            "hint": "Ein gescheiterter Versuch fällt zurück auf die letzte 5er-Stufe (z.B. von 127 auf 125) - milder als Standard."
           }
         ],
-        "default": "standard",
-        "hint": "Legt fest, wohin ein gescheiterter Versuch (alle eigenen Darts verbraucht, ohne auszuchecken) zurückfällt. Standard: zurück auf die letzte 10er-Stufe (z.B. von 127 auf 120). Easy: zurück auf die letzte 5er-Stufe (z.B. von 127 auf 125). Off: kein Rückfall, der Wert sinkt nur um den eingestellten Betrag (Decrease on Miss)."
+        "default": "standard"
       },
       {
         "key": "checkoutMode",
@@ -337,19 +339,21 @@ export const STATIC_GAMES = [
         "options": [
           {
             "value": "double_out",
-            "label": "Double Out"
+            "label": "Double Out",
+            "hint": "Nur ein Doppel oder Bullseye beendet den Versuch."
           },
           {
             "value": "master_out",
-            "label": "Master Out"
+            "label": "Master Out",
+            "hint": "Ein Doppel, ein Dreifachfeld oder Bullseye beendet den Versuch."
           },
           {
             "value": "straight_out",
-            "label": "Straight Out"
+            "label": "Straight Out",
+            "hint": "Jeder Wurf kann den Versuch beenden, auch ein einfaches Feld."
           }
         ],
-        "default": "double_out",
-        "hint": "Double Out: nur ein Doppel oder Bullseye beendet den Versuch. Master Out: zusätzlich zählt auch ein Dreifachfeld. Straight Out: jeder Wurf kann den Versuch beenden."
+        "default": "double_out"
       },
       {
         "key": "gameLengthMode",
@@ -358,31 +362,36 @@ export const STATIC_GAMES = [
         "options": [
           {
             "value": "targets_10",
-            "label": "10 Targets"
+            "label": "10 Targets",
+            "hint": "Das Spiel endet nach 10 Checkout-Versuchen."
           },
           {
             "value": "targets_20",
-            "label": "20 Targets"
+            "label": "20 Targets",
+            "hint": "Das Spiel endet nach 20 Checkout-Versuchen."
           },
           {
             "value": "targets_30",
-            "label": "30 Targets"
+            "label": "30 Targets",
+            "hint": "Das Spiel endet nach 30 Checkout-Versuchen."
           },
           {
             "value": "custom",
-            "label": "Custom"
+            "label": "Custom",
+            "hint": "Lege die Anzahl der Versuche selbst fest (siehe \"Anzahl Targets\" darunter)."
           },
           {
             "value": "endless",
-            "label": "Endless"
+            "label": "Endless",
+            "hint": "Das Spiel endet nie von selbst - du beendest es manuell."
           },
           {
             "value": "until_max",
-            "label": "Until 170"
+            "label": "Until 170",
+            "hint": "Das Spiel endet automatisch, sobald ein Spieler den Maximalwert erreicht hat."
           }
         ],
-        "default": "targets_20",
-        "hint": "Wie viele Checkout-Versuche insgesamt gespielt werden. \"Until 170\" endet automatisch, sobald ein Spieler den Maximalwert erreicht - \"Endless\" endet nie von selbst."
+        "default": "targets_20"
       },
       {
         "key": "customTargets",
@@ -745,19 +754,20 @@ export const STATIC_GAMES = [
         "options": [
           {
             "value": "per_visit",
-            "label": "Aufnahme"
+            "label": "Aufnahme",
+            "hint": "Es werden immer alle 3 Darts einer Aufnahme auf dieselbe Zahl geworfen. Danach wechselt die Zahl - egal ob die nötige Trefferzahl erreicht wurde oder nicht."
           },
           {
             "value": "per_dart",
-            "label": "Dart"
+            "label": "Dart",
+            "hint": "Es wird so lange auf dieselbe Zahl geworfen - auch über mehrere Aufnahmen hinweg -, bis die nötige Trefferzahl erreicht ist. Erst dann wechselt die Zahl, notfalls mitten in einer Aufnahme."
           }
         ],
         "default": "per_visit",
         "showIf": {
           "key": "requiredHits",
           "equals": [2, 3]
-        },
-        "hint": "Aufnahme: es werden immer alle 3 Darts auf dieselbe Zahl geworfen, danach wechselt die Zahl - egal ob die nötige Trefferzahl erreicht wurde oder nicht. Dart: es wird so lange auf dieselbe Zahl geworfen (auch über mehrere Aufnahmen hinweg), bis die nötige Trefferzahl erreicht ist - erst dann wechselt die Zahl."
+        }
       },
       {
         "key": "includeBull",

@@ -589,15 +589,27 @@ export class MatchEngine {
     state.taskVisitsUsed += 1;
     const exhausted = state.taskVisitsUsed >= this.visitsPerAttempt();
 
-    if (outcome === "bust" || exhausted) {
-      state.attemptRemaining = state[nominalField];
-    } else {
-      state.attemptRemaining = result.score;
-    }
-
+    // Tobias-Bug 15.09.2026: ein Bust MITTEN in einem mehrteiligen
+    // Versuch (z.B. "121" mit "Darts per Checkout" > 3, noch nicht
+    // "exhausted") ist NICHT das Ende des Versuchs - die busted
+    // Aufnahme zaehlt einfach nicht, der Rest bleibt auf dem Stand VOR
+    // dieser Aufnahme, exakt wie die echte Darts-Regel. applyCountdownThrow
+    // liefert bei einem Bust bereits result.score = der Rest VOR der
+    // busted Aufnahme (siehe scoring.ts) - hier reicht es also, IMMER
+    // result.score zu uebernehmen, solange der Versuch noch laeuft.
+    // Vorher sprang der Rest bei JEDEM Bust sofort auf den vollen
+    // Versuchs-Startwert zurueck, auch wenn noch eigene Aufnahmen fuer
+    // denselben Versuch uebrig waren (z.B. 121 -> 20 Rest -> Bust ->
+    // faelschlich zurueck auf 121 statt weiterhin 20).
     if (exhausted) {
+      // Letzte eigene Aufnahme des Versuchs verbraucht (mit oder ohne
+      // Bust) - Versuch fuer diesen Spieler jetzt wirklich vorbei,
+      // Anzeige zeigt den (neuen) Zielwert des naechsten Versuchs.
+      state.attemptRemaining = state[nominalField];
       this.resolveAttempt(state, false);
       state.taskDone = true;
+    } else {
+      state.attemptRemaining = result.score;
     }
   }
 

@@ -87,6 +87,31 @@ describe("checkout_range (121) - task rotation", () => {
     // startet wieder bei 40, p2 (Checkout) hat ein neues Ziel bei 45.
     expect(state.activePlayerId).toBe("p1");
   });
+
+  it("Tobias-Bug 15.09.2026: a bust mid-attempt (visits still remaining) must NOT reset the remaining value back to the attempt's starting level", () => {
+    const engine = new MatchEngine("m1b", GAME, [{ id: "solo", name: "Solo" }], {
+      startLevel: 121,
+      safehouseMode: "off",
+      checkoutMode: "double_out",
+      gameLengthMode: "endless",
+      dartsPerCheckout: 9, // 3 eigene Aufnahmen pro Versuch
+    });
+
+    throwAndConfirm(engine, ["S1", "S1", "S1"]); // visit 1: 121 -> 118, continue
+    expect(engine.toDict().players[0].score).toBe(118);
+
+    throwAndConfirm(engine, ["T20", "T20", "T20"]); // visit 2: 118 - 180 -> Bust, aber noch 1 Aufnahme uebrig
+    let state = engine.toDict();
+    // Vorher (Bug): sprang faelschlich auf den vollen Versuchs-Startwert
+    // (121) zurueck, obwohl der Versuch noch nicht vorbei ist.
+    expect(state.players[0].score).toBe(118);
+    expect(state.players[0].attempts).toBe(0); // Versuch laeuft noch
+
+    throwAndConfirm(engine, ["S1", "S1", "S1"]); // visit 3 (letzte): 118 -> 115, Versuch jetzt wirklich erschoepft
+    state = engine.toDict();
+    expect(state.players[0].attempts).toBe(1); // erst jetzt zaehlt der Versuch als gescheitert
+    expect(state.players[0].score).toBe(121); // Anzeige zeigt den (unveraenderten) Zielwert des naechsten Versuchs
+  });
 });
 
 describe("random_checkout - shared target", () => {

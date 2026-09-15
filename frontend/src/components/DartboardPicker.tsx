@@ -228,13 +228,13 @@ export function DartboardPicker({ onSelect }: Props) {
       </div>
       <div className="dart-confirm" ref={confirmRef}>
         <div className="label">{confirmLabel}</div>
-        <div className="q">übernehmen?</div>
+        <div className="q">confirm?</div>
         <div className="row">
           <button type="button" className="btn-primary" onClick={handleYes}>
-            Übernehmen
+            Confirm
           </button>
           <button type="button" className="btn-secondary" onClick={hideConfirm}>
-            Abbrechen
+            Cancel
           </button>
         </div>
       </div>

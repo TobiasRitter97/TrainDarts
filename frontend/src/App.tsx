@@ -118,7 +118,7 @@ export default function App() {
           <div className="app-header-actions">
             {pendingResume && (
               <button className="btn-primary" onClick={handleResume}>
-                ▶ Zurück zum aktiven Spiel
+                ▶ Back to active game
               </button>
             )}
             {view.screen !== "online-lobby" && (
@@ -128,16 +128,16 @@ export default function App() {
             )}
             {view.screen !== "profiles" && (
               <button className="btn-outline" onClick={() => setView({ screen: "profiles" })}>
-                PROFILE
+                PROFILES
               </button>
             )}
             {view.screen !== "board-debug" && (
               <button className="btn-outline" onClick={() => setView({ screen: "board-debug" })}>
-                🔧 BOARD-TEST
+                🔧 BOARD TEST
               </button>
             )}
             <button className="btn-outline" onClick={() => setShowPiSettings(true)}>
-              ⚙ EINSTELLUNGEN
+              ⚙ SETTINGS
             </button>
             <BoardControlBar />
           </div>
@@ -179,16 +179,16 @@ export default function App() {
       {pendingResume && showResumeModal && (
         <div className="resume-overlay">
           <div className="resume-modal">
-            <h3>Angefangenes Spiel fortsetzen?</h3>
+            <h3>Resume unfinished game?</h3>
             <p className="screen-note">
               {pendingResume.gameName} · {pendingResume.playerNames.join(", ")}
             </p>
             <div className="resume-actions">
               <button className="btn-primary" onClick={handleResume}>
-                Fortsetzen
+                Resume
               </button>
               <button className="btn-secondary" onClick={handleAbandon}>
-                Verwerfen
+                Discard
               </button>
             </div>
           </div>

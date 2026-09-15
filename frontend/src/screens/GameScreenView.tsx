@@ -38,10 +38,10 @@ type Props = {
 };
 
 function pendingLabel(outcome: string | null): string {
-  if (outcome === "bust") return "BUST — BESTÄTIGEN";
-  if (outcome === "checkout") return "CHECKOUT! — BESTÄTIGEN";
-  if (outcome === "round_done") return "RUNDE FERTIG — BESTÄTIGEN";
-  return "AUFNAHME FERTIG — BESTÄTIGEN";
+  if (outcome === "bust") return "BUST — CONFIRM";
+  if (outcome === "checkout") return "CHECKOUT! — CONFIRM";
+  if (outcome === "round_done") return "ROUND DONE — CONFIRM";
+  return "VISIT DONE — CONFIRM";
 }
 
 // Einheitlicher Game Screen (SPEC §12/§13) - rein praesentational,
@@ -61,8 +61,8 @@ export function GameScreenView({ match, game, actions, persistsProgress, canAct 
 
   function handleExit() {
     const message = persistsProgress
-      ? "Spiel verlassen? Der Fortschritt bleibt gespeichert und kann später fortgesetzt werden."
-      : "Spiel verlassen? Der Fortschritt geht dabei verloren.";
+      ? "Leave the game? Progress is saved and can be resumed later."
+      : "Leave the game? Progress will be lost.";
     if (confirm(message)) onExit();
   }
 
@@ -98,12 +98,12 @@ export function GameScreenView({ match, game, actions, persistsProgress, canAct 
           {match.pendingConfirmation ? pendingLabel(match.pendingOutcome) : "CURRENT PLAYER"}
         </div>
         <div className="active-player-name">{activePlayer?.name ?? "—"}</div>
-        {!canAct && <div className="waiting-for-turn-label">Nicht dein Zug — nur Zuschauen</div>}
+        {!canAct && <div className="waiting-for-turn-label">Not your turn — spectating only</div>}
         {match.phase && <div className="jdc-phase-label">{match.phase}</div>}
         {match.attemptInfo && (
           <div className="attempt-info-label">
             {match.attemptInfo.label} {match.attemptInfo.current}
-            {match.attemptInfo.total !== null ? ` VON ${match.attemptInfo.total}` : ""}
+            {match.attemptInfo.total !== null ? ` OF ${match.attemptInfo.total}` : ""}
           </div>
         )}
         {match.target && (
@@ -114,24 +114,24 @@ export function GameScreenView({ match, game, actions, persistsProgress, canAct 
         )}
         {match.engineFamily === "random_checkout" && activePlayer?.score !== null && activePlayer?.score !== undefined && (
           <>
-            <div className="target-label">DEIN REST</div>
+            <div className="target-label">YOUR REMAINING</div>
             <div className="target-value">{activePlayer.score}</div>
           </>
         )}
         {activePlayer?.groupingRounds && activePlayer.groupingRounds.length > 0 && (
           <div className="grouping-info">
             <div className="target-label">
-              LETZTE RUNDE
+              LAST ROUND
               {activePlayer.groupingRounds[activePlayer.groupingRounds.length - 1].mm !== null
-                ? ` — ${activePlayer.groupingRounds[activePlayer.groupingRounds.length - 1].mm!.toFixed(1)} mm (vorläufig, unkalibriert)`
-                : " — keine gültigen Koordinaten"}
+                ? ` — ${activePlayer.groupingRounds[activePlayer.groupingRounds.length - 1].mm!.toFixed(1)} mm (provisional, uncalibrated)`
+                : " — no valid coordinates"}
             </div>
             <GroupingTrendChart rounds={activePlayer.groupingRounds} bestIndex={activePlayer.bestGroupingRoundIndex} />
           </div>
         )}
         {activePlayer?.openNumbers && (
           <div className="open-numbers">
-            <div className="target-label">OFFENE ZAHLEN</div>
+            <div className="target-label">OPEN NUMBERS</div>
             <div className="open-numbers-list">
               {activePlayer.openNumbers.map((n) => (
                 <span key={n} className={`open-number-chip ${String(n) === match.target ? "active" : ""}`}>
@@ -174,7 +174,7 @@ export function GameScreenView({ match, game, actions, persistsProgress, canAct 
 
       {match.history.length > 0 && (
         <section className="visit-history">
-          <div className="visit-history-label">Letzte Aufnahmen — antippen zum Korrigieren</div>
+          <div className="visit-history-label">Recent visits — tap to correct</div>
           <div className="visit-history-rows">
             {match.history.map((visit, vi) => (
               <div key={vi} className="visit-history-row">
@@ -214,7 +214,7 @@ export function GameScreenView({ match, game, actions, persistsProgress, canAct 
 
       {correction && (
         <DartCorrectionModal
-          title={correction.mode === "add" ? "Dart hinzufügen" : "Dart korrigieren"}
+          title={correction.mode === "add" ? "Add dart" : "Correct dart"}
           onSelect={handleCorrectionSelect}
           onClose={() => setCorrection(null)}
         />

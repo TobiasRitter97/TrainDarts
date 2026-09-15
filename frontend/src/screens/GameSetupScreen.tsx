@@ -40,7 +40,7 @@ export function GameSetupScreen({ gameId, onBack, onStart }: Props) {
   }, [gameId]);
 
   if (!game) {
-    return <p className="screen-error">Unbekanntes Spiel "{gameId}".</p>;
+    return <p className="screen-error">Unknown game "{gameId}".</p>;
   }
 
   return (

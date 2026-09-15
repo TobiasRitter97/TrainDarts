@@ -5,9 +5,9 @@ import { BoardStatusBadge } from "./BoardStatusBadge";
 import "./BoardControlBar.css";
 
 const BUSY_LABEL: Record<string, string> = {
-  start: "Starte…",
-  stop: "Stoppe…",
-  reset: "Reset läuft…",
+  start: "Starting…",
+  stop: "Stopping…",
+  reset: "Resetting…",
 };
 
 // Dezente Board-Leiste: Status + Start/Stop/Reset + Link zur echten
@@ -40,7 +40,7 @@ export function BoardControlBar() {
       if (action === "stop") await board.stop();
       if (action === "reset") await board.reset();
     } catch {
-      setError("Board nicht erreichbar");
+      setError("Board unreachable");
     } finally {
       setBusy(null);
     }
@@ -52,7 +52,7 @@ export function BoardControlBar() {
 
       {board.hasControlApi && board.boardRunning !== null && !busy && (
         <span className={`board-running-badge ${board.boardRunning ? "running" : "stopped"}`}>
-          {board.boardRunning ? "Board aktiv" : "Board inaktiv"}
+          {board.boardRunning ? "Board active" : "Board inactive"}
         </span>
       )}
       {busy && <span className="board-running-badge busy">{BUSY_LABEL[busy]}</span>}
@@ -69,13 +69,13 @@ export function BoardControlBar() {
             Reset
           </button>
           <a className="board-btn calibration-link" href={board.calibrationUrl()} target="_blank" rel="noreferrer">
-            Kalibrierung ↗
+            Calibration ↗
           </a>
         </div>
       )}
 
       {!board.hasControlApi && board.status === "connected" && (
-        <span className="board-control-hint">Simulator — Steuerung nur am echten Board</span>
+        <span className="board-control-hint">Simulator — controls only available on the real board</span>
       )}
 
       {error && <span className="board-control-error">{error}</span>}

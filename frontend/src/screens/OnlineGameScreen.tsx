@@ -17,7 +17,7 @@ export function OnlineGameScreen({ pin, game, myUid, onExit }: Props) {
   const online = useOnlineMatch(pin, game, myUid);
 
   if (!online.state) {
-    return <p className="screen-note">Warte auf Spielstart…</p>;
+    return <p className="screen-note">Waiting for the game to start…</p>;
   }
 
   return (

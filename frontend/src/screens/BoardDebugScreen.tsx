@@ -8,9 +8,9 @@ type Props = {
 };
 
 const STATUS_LABEL: Record<string, string> = {
-  connected: "VERBUNDEN",
-  reconnecting: "VERBINDE…",
-  disconnected: "GETRENNT",
+  connected: "CONNECTED",
+  reconnecting: "CONNECTING…",
+  disconnected: "DISCONNECTED",
 };
 
 // Phase A des Client-Rewrites (~/.claude/plans/agile-brewing-wadler.md):
@@ -25,28 +25,29 @@ export function BoardDebugScreen({ onBack }: Props) {
   return (
     <div className="board-debug">
       <button className="btn-secondary back-btn" onClick={onBack}>
-        ← Zurück
+        ← Back
       </button>
-      <h1 className="screen-title">BOARD-VERBINDUNGSTEST (Phase A)</h1>
+      <h1 className="screen-title">BOARD CONNECTION TEST (Phase A)</h1>
       <p className="screen-note">
-        Testet die neue direkte Verbindung Browser → Autodarts-Board-Manager (Port 3180), ganz ohne eigenes Backend.
+        Tests the new direct connection from the browser to the Autodarts Board Manager (port 3180), with no
+        backend of our own.
       </p>
 
       <div className="panel board-debug-form">
         <input
-          placeholder="Board-IP, z.B. 192.168.188.97"
+          placeholder="Board IP, e.g. 192.168.188.97"
           value={ip}
           onChange={(e) => setIp(e.target.value)}
         />
         <button className="btn-primary" onClick={() => setActiveHost(ip.trim())} disabled={!ip.trim()}>
-          Verbinden
+          Connect
         </button>
       </div>
 
       {activeHost && (
         <div className="panel board-debug-status">
           <div className={`board-debug-badge ${board.status}`}>{STATUS_LABEL[board.status]}</div>
-          <div className="screen-note">Control-API erkannt: {board.hasControlApi ? "ja (echtes Board)" : "nein"}</div>
+          <div className="screen-note">Control API detected: {board.hasControlApi ? "yes (real board)" : "no"}</div>
           <div className="board-debug-actions">
             <button className="btn-outline" onClick={board.start} disabled={!board.hasControlApi}>
               Start
@@ -63,8 +64,8 @@ export function BoardDebugScreen({ onBack }: Props) {
 
       {activeHost && (
         <div className="panel board-debug-throws">
-          <h2 className="section-title">Live-Würfe (aktuelle Aufnahme)</h2>
-          {board.throws.length === 0 && <p className="screen-note">Noch kein Wurf erkannt.</p>}
+          <h2 className="section-title">Live throws (current visit)</h2>
+          {board.throws.length === 0 && <p className="screen-note">No throw detected yet.</p>}
           <div className="board-debug-throw-list">
             {board.throws.map((t, i) => (
               <span key={i} className="board-debug-throw">

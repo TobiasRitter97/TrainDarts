@@ -34,7 +34,7 @@ export function OnlineRoomScreen({ pin, myProfile, onExit }: Props) {
   }, []);
 
   if (!room || !myUid) {
-    return <p className="screen-note">Verbinde…</p>;
+    return <p className="screen-note">Connecting…</p>;
   }
 
   const isHost = room.hostUid === myUid;
@@ -76,14 +76,14 @@ export function OnlineRoomScreen({ pin, myProfile, onExit }: Props) {
   return (
     <div className="online-room">
       <button className="btn-secondary back-btn" onClick={onExit}>
-        ← Verlassen
+        ← Leave
       </button>
 
-      <h1 className="screen-title">RAUM-PIN</h1>
+      <h1 className="screen-title">ROOM PIN</h1>
       <div className="online-room-pin">{pin}</div>
-      <p className="screen-note">Gib diese PIN an deinen Mitspieler weiter, damit er beitreten kann.</p>
+      <p className="screen-note">Share this PIN with your opponent so they can join.</p>
 
-      <h2 className="section-title">Spieler ({room.players.length}/4)</h2>
+      <h2 className="section-title">Players ({room.players.length}/4)</h2>
       <div className="panel online-player-list">
         {room.players.map((p) => (
           <div key={p.uid} className="online-player-row">
@@ -98,7 +98,7 @@ export function OnlineRoomScreen({ pin, myProfile, onExit }: Props) {
 
       {isHost ? (
         <>
-          <h2 className="section-title">Spiel wählen</h2>
+          <h2 className="section-title">Choose game</h2>
           <div className="game-card-grid online-game-grid">
             {implementedGames.map((g) => (
               <button
@@ -114,7 +114,7 @@ export function OnlineRoomScreen({ pin, myProfile, onExit }: Props) {
 
           {selectedGame && selectedGame.settingsSchema.length > 0 && (
             <>
-              <h2 className="section-title">Einstellungen</h2>
+              <h2 className="section-title">Settings</h2>
               <div className="panel">
                 <GameSettingsForm
                   schema={selectedGame.settingsSchema}
@@ -130,12 +130,12 @@ export function OnlineRoomScreen({ pin, myProfile, onExit }: Props) {
             disabled={!selectedGame || room.players.length < MIN_PLAYERS || starting}
             onClick={handleStart}
           >
-            {starting ? "STARTE…" : room.players.length < MIN_PLAYERS ? "WARTE AUF MITSPIELER…" : "SPIEL STARTEN"}
+            {starting ? "STARTING…" : room.players.length < MIN_PLAYERS ? "WAITING FOR PLAYERS…" : "START GAME"}
           </button>
         </>
       ) : (
         <p className="screen-note">
-          {selectedGame ? `Host hat "${selectedGame.name}" gewählt — warte auf Start…` : "Host wählt gerade ein Spiel…"}
+          {selectedGame ? `Host selected "${selectedGame.name}" — waiting to start…` : "Host is choosing a game…"}
         </p>
       )}
     </div>

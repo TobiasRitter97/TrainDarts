@@ -100,7 +100,7 @@ export class AutodartsAdapter {
       method,
       signal: AbortSignal.timeout(5000),
     });
-    if (!res.ok) throw new Error(`Board-Steuerung fehlgeschlagen: ${res.status}`);
+    if (!res.ok) throw new Error(`Board control request failed: ${res.status}`);
   }
 
   private setStatus(status: BoardStatus): void {

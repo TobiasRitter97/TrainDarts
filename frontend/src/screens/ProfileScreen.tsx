@@ -56,7 +56,7 @@ export function ProfileScreen({ onBack }: Props) {
   }
 
   async function handleDelete(profile: Profile) {
-    if (!confirm(`${profile.name} wirklich entfernen? Alte Ergebnisse bleiben erhalten.`)) return;
+    if (!confirm(`Really remove ${profile.name}? Past results are kept.`)) return;
     await profilesDb.archiveProfile(profile.id);
     reloadProfiles();
   }
@@ -80,7 +80,7 @@ export function ProfileScreen({ onBack }: Props) {
       <button className="btn-secondary back-btn" onClick={onBack}>
         ← Game Hub
       </button>
-      <h1 className="screen-title">PROFILE</h1>
+      <h1 className="screen-title">PROFILES</h1>
 
       <div className="profile-screen-layout">
         <div className="profile-list panel">
@@ -92,70 +92,70 @@ export function ProfileScreen({ onBack }: Props) {
                 </span>
                 <span className="profile-list-name">{p.name}</span>
               </button>
-              <button className="icon-btn" title="Entfernen" onClick={() => handleDelete(p)}>
+              <button className="icon-btn" title="Remove" onClick={() => handleDelete(p)}>
                 ✕
               </button>
             </div>
           ))}
-          {loadError && <p className="screen-error">Profile konnten nicht geladen werden.</p>}
-          {!loadError && profiles.length === 0 && <p className="screen-note">Noch keine Profile angelegt.</p>}
+          {loadError && <p className="screen-error">Could not load profiles.</p>}
+          {!loadError && profiles.length === 0 && <p className="screen-note">No profiles yet.</p>}
 
           {showCreate ? (
             <form className="inline-form profile-create-form" onSubmit={submitCreate}>
               <input autoFocus placeholder="Name" value={newName} onChange={(e) => setNewName(e.target.value)} />
               <input
-                placeholder="Kürzel (optional)"
+                placeholder="Initials (optional)"
                 maxLength={3}
                 value={newInitials}
                 onChange={(e) => setNewInitials(e.target.value)}
               />
               <div className="profile-create-actions">
                 <button className="btn-primary" type="submit">
-                  Anlegen
+                  Create
                 </button>
                 <button className="btn-secondary" type="button" onClick={() => setShowCreate(false)}>
-                  Abbrechen
+                  Cancel
                 </button>
               </div>
             </form>
           ) : (
             <button className="btn-outline add-profile-btn" onClick={() => setShowCreate(true)}>
-              + PROFIL
+              + PROFILE
             </button>
           )}
         </div>
 
         <div className="profile-detail">
-          {!selectedProfile && <p className="screen-note">Profil auswählen, um Statistiken zu sehen.</p>}
-          {selectedProfile && loadingStats && <p className="screen-note">Lade Statistiken…</p>}
+          {!selectedProfile && <p className="screen-note">Select a profile to see its stats.</p>}
+          {selectedProfile && loadingStats && <p className="screen-note">Loading stats…</p>}
           {selectedProfile && stats && !loadingStats && (
             <>
               <h2 className="section-title">{selectedProfile.name}</h2>
 
               <div className="stat-grid panel">
-                <Stat label="Spiele" value={stats.gamesPlayed} />
-                <Stat label="Siege" value={stats.wins} />
-                <Stat label="Sieg-Quote" value={fmtPct(stats.winPercent)} />
-                <Stat label="Trefferquote" value={fmtPct(stats.accuracy)} />
+                <Stat label="Games" value={stats.gamesPlayed} />
+                <Stat label="Wins" value={stats.wins} />
+                <Stat label="Win Rate" value={fmtPct(stats.winPercent)} />
+                <Stat label="Hit Rate" value={fmtPct(stats.accuracy)} />
                 <Stat label="Single %" value={fmtPct(stats.singlePercent)} />
                 <Stat label="Double %" value={fmtPct(stats.doublePercent)} />
                 <Stat label="Triple %" value={fmtPct(stats.triplePercent)} />
                 <Stat label="Bull %" value={fmtPct(stats.bullPercent)} />
                 <Stat label="Checkout %" value={fmtPct(stats.checkoutPercent)} />
-                <Stat label="Ø Darts/Checkout" value={stats.averageCheckoutDarts ?? "—"} />
+                <Stat label="Avg. Darts/Checkout" value={stats.averageCheckoutDarts ?? "—"} />
                 <Stat label="Highest Checkout" value={stats.highestCheckout} />
                 <Stat label="Scoring Average" value={stats.scoringAverage ?? "—"} />
               </div>
 
               {Object.keys(stats.perGame).length > 0 && (
                 <>
-                  <h2 className="section-title">Bestleistungen je Spiel</h2>
+                  <h2 className="section-title">Best Results per Game</h2>
                   <div className="panel per-game-list">
                     {Object.entries(stats.perGame).map(([gameId, g]) => (
                       <div key={gameId} className="per-game-row">
                         <span className="per-game-name">{g.gameName}</span>
                         <span className="per-game-meta">
-                          {g.gamesPlayed} Spiele · {g.wins} Siege
+                          {g.gamesPlayed} games · {g.wins} wins
                         </span>
                         <span className="per-game-best">{g.best ?? "—"}</span>
                       </div>
@@ -166,7 +166,7 @@ export function ProfileScreen({ onBack }: Props) {
 
               {stats.history.length > 0 && (
                 <>
-                  <h2 className="section-title">Trainingshistorie</h2>
+                  <h2 className="section-title">Training History</h2>
                   <div className="panel history-list">
                     {stats.history.map((h) => (
                       <div key={h.matchId} className={`history-row ${h.won ? "won" : ""}`}>
@@ -180,7 +180,7 @@ export function ProfileScreen({ onBack }: Props) {
               )}
 
               {stats.gamesPlayed === 0 && (
-                <p className="screen-note">Noch keine abgeschlossenen Matches für dieses Profil.</p>
+                <p className="screen-note">No completed matches for this profile yet.</p>
               )}
             </>
           )}

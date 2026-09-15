@@ -38,10 +38,10 @@ export function PiSettingsModal({ onClose }: Props) {
   return (
     <div className="resume-overlay">
       <div className="resume-modal connect-modal">
-        <h3>Pi-Verbindung</h3>
+        <h3>Pi connection</h3>
         <p className="screen-note">
-          IP-Adresse deines Raspberry Pi im Heimnetz (z.B. 192.168.188.97) — ohne „http://" und ohne Port, das
-          ergänzt die App automatisch.
+          IP address of your Raspberry Pi on your home network (e.g. 192.168.188.97) — no "http://" and no port,
+          the app adds those automatically.
         </p>
         <form className="connect-form" onSubmit={handleSubmit}>
           <input
@@ -52,22 +52,22 @@ export function PiSettingsModal({ onClose }: Props) {
             inputMode="decimal"
           />
           <button className="btn-primary" type="submit" disabled={testing || !ip.trim()}>
-            {testing ? "Teste…" : "Verbinden & Speichern"}
+            {testing ? "Testing…" : "Connect & Save"}
           </button>
         </form>
         {status === "error" && (
-          <p className="screen-error">Pi nicht erreichbar — läuft das Backend auf deinem Pi?</p>
+          <p className="screen-error">Pi unreachable — is the backend running on your Pi?</p>
         )}
         {status === "ok" && (
-          <p className="screen-note connect-ok">Verbunden! „Neu laden" klicken, damit die App die neue IP überall verwendet.</p>
+          <p className="screen-note connect-ok">Connected! Click "Reload" so the app uses the new IP everywhere.</p>
         )}
         <div className="resume-actions">
           <button className="btn-secondary" onClick={onClose}>
-            Schließen
+            Close
           </button>
           {status === "ok" && (
             <button className="btn-primary" onClick={() => location.reload()}>
-              Neu laden
+              Reload
             </button>
           )}
         </div>

@@ -36,7 +36,7 @@ export function PlayerPicker({ selected, onChange, max = 4 }: Props) {
         setProfiles(list);
         setError(null);
       })
-      .catch(() => setError("Profile konnten nicht geladen werden."))
+      .catch(() => setError("Could not load profiles."))
       .finally(() => setLoading(false));
   }, []);
 
@@ -108,7 +108,7 @@ export function PlayerPicker({ selected, onChange, max = 4 }: Props) {
   }
 
   async function handleDelete(profile: Profile) {
-    if (!confirm(`${profile.name} wirklich entfernen? Alte Ergebnisse bleiben erhalten.`)) return;
+    if (!confirm(`Really remove ${profile.name}? Past results are kept.`)) return;
     await profilesDb.archiveProfile(profile.id);
     setProfiles((prev) => prev.filter((p) => p.id !== profile.id));
     onChange(selected.filter((p) => p.id !== profile.id));
@@ -116,7 +116,7 @@ export function PlayerPicker({ selected, onChange, max = 4 }: Props) {
 
   return (
     <div className="player-picker">
-      {loading && <p className="screen-note">Lade Profile…</p>}
+      {loading && <p className="screen-note">Loading profiles…</p>}
       {error && <p className="screen-error">{error}</p>}
 
       <div className="profile-grid">
@@ -141,14 +141,14 @@ export function PlayerPicker({ selected, onChange, max = 4 }: Props) {
                     {(profile.initials || profile.name.slice(0, 2)).toUpperCase()}
                   </span>
                   <span className="profile-name">{profile.name}</span>
-                  {!!profile.is_guest && <span className="guest-tag">GAST</span>}
+                  {!!profile.is_guest && <span className="guest-tag">GUEST</span>}
                 </button>
               )}
               <div className="profile-tile-actions">
-                <button className="icon-btn" title="Umbenennen" onClick={() => startEdit(profile)}>
+                <button className="icon-btn" title="Rename" onClick={() => startEdit(profile)}>
                   ✎
                 </button>
-                <button className="icon-btn" title="Entfernen" onClick={() => handleDelete(profile)}>
+                <button className="icon-btn" title="Remove" onClick={() => handleDelete(profile)}>
                   ✕
                 </button>
               </div>
@@ -157,10 +157,10 @@ export function PlayerPicker({ selected, onChange, max = 4 }: Props) {
         })}
 
         <button className="profile-tile add-tile" onClick={() => setShowCreate((v) => !v)}>
-          + SPIELER
+          + PLAYER
         </button>
         <button className="profile-tile add-tile" onClick={() => setShowGuest((v) => !v)}>
-          + GAST
+          + GUEST
         </button>
       </div>
 
@@ -168,13 +168,13 @@ export function PlayerPicker({ selected, onChange, max = 4 }: Props) {
         <form className="inline-form" onSubmit={submitCreate}>
           <input autoFocus placeholder="Name" value={newName} onChange={(e) => setNewName(e.target.value)} />
           <input
-            placeholder="Kürzel (optional)"
+            placeholder="Initials (optional)"
             maxLength={3}
             value={newInitials}
             onChange={(e) => setNewInitials(e.target.value)}
           />
           <button className="btn-primary" type="submit">
-            Profil anlegen
+            Create profile
           </button>
         </form>
       )}
@@ -183,12 +183,12 @@ export function PlayerPicker({ selected, onChange, max = 4 }: Props) {
         <form className="inline-form" onSubmit={submitGuest}>
           <input
             autoFocus
-            placeholder="Name des Gasts"
+            placeholder="Guest name"
             value={guestName}
             onChange={(e) => setGuestName(e.target.value)}
           />
           <button className="btn-primary" type="submit">
-            Gast hinzufügen
+            Add guest
           </button>
         </form>
       )}
@@ -204,7 +204,7 @@ export function PlayerPicker({ selected, onChange, max = 4 }: Props) {
                   className="icon-btn"
                   disabled={index === 0}
                   onClick={() => moveSelected(index, -1)}
-                  title="Nach oben"
+                  title="Move up"
                 >
                   ↑
                 </button>
@@ -212,11 +212,11 @@ export function PlayerPicker({ selected, onChange, max = 4 }: Props) {
                   className="icon-btn"
                   disabled={index === selected.length - 1}
                   onClick={() => moveSelected(index, 1)}
-                  title="Nach unten"
+                  title="Move down"
                 >
                   ↓
                 </button>
-                <button className="icon-btn" onClick={() => removeSelected(profile.id)} title="Entfernen">
+                <button className="icon-btn" onClick={() => removeSelected(profile.id)} title="Remove">
                   ✕
                 </button>
               </div>

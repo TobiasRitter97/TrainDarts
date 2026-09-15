@@ -31,7 +31,7 @@ export function OnlineLobbyScreen({ onBack, onEnterRoom }: Props) {
       const pin = await roomDb.createRoom({ profileId: me.id, name: me.name, color: me.color, initials: me.initials });
       onEnterRoom(pin, me);
     } catch {
-      setError("Raum konnte nicht erstellt werden.");
+      setError("Could not create room.");
     } finally {
       setBusy(false);
     }
@@ -47,7 +47,7 @@ export function OnlineLobbyScreen({ onBack, onEnterRoom }: Props) {
       await roomDb.joinRoom(pin, { profileId: me.id, name: me.name, color: me.color, initials: me.initials });
       onEnterRoom(pin, me);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Beitreten fehlgeschlagen.");
+      setError(err instanceof Error ? err.message : "Failed to join.");
     } finally {
       setBusy(false);
     }
@@ -59,17 +59,17 @@ export function OnlineLobbyScreen({ onBack, onEnterRoom }: Props) {
         <button className="btn-secondary back-btn" onClick={onBack}>
           ← Game Hub
         </button>
-        <h1 className="screen-title">ONLINE-SPIEL</h1>
-        <p className="screen-note">Spiele mit jemandem an einem anderen Board über das Internet zusammen.</p>
+        <h1 className="screen-title">ONLINE GAME</h1>
+        <p className="screen-note">Play with someone on a different board over the internet.</p>
 
         <div className="online-mode-grid">
           <button className="online-mode-card" onClick={() => setMode("host-setup")}>
-            <div className="online-mode-title">Online-Spiel hosten</div>
-            <div className="online-mode-desc">Erstellt einen Raum mit PIN, die du an deinen Mitspieler weitergibst.</div>
+            <div className="online-mode-title">Host online game</div>
+            <div className="online-mode-desc">Creates a room with a PIN you share with your opponent.</div>
           </button>
           <button className="online-mode-card" onClick={() => setMode("join-setup")}>
-            <div className="online-mode-title">Online-Spiel beitreten</div>
-            <div className="online-mode-desc">Tritt mit der PIN eines bereits erstellten Raums bei.</div>
+            <div className="online-mode-title">Join online game</div>
+            <div className="online-mode-desc">Join an already created room using its PIN.</div>
           </button>
         </div>
       </div>
@@ -79,14 +79,14 @@ export function OnlineLobbyScreen({ onBack, onEnterRoom }: Props) {
   return (
     <div className="online-lobby">
       <button className="btn-secondary back-btn" onClick={() => setMode("choice")}>
-        ← Zurück
+        ← Back
       </button>
-      <h1 className="screen-title">{mode === "host-setup" ? "RAUM ERSTELLEN" : "RAUM BEITRETEN"}</h1>
+      <h1 className="screen-title">{mode === "host-setup" ? "CREATE ROOM" : "JOIN ROOM"}</h1>
 
       {mode === "join-setup" && (
         <div className="panel online-pin-form">
           <label className="screen-note" htmlFor="room-pin">
-            Raum-PIN
+            Room PIN
           </label>
           <input
             id="room-pin"
@@ -100,7 +100,7 @@ export function OnlineLobbyScreen({ onBack, onEnterRoom }: Props) {
         </div>
       )}
 
-      <h2 className="section-title">Wer bist du?</h2>
+      <h2 className="section-title">Who are you?</h2>
       <div className="panel">
         <PlayerPicker selected={myProfile} onChange={setMyProfile} max={1} />
       </div>
@@ -112,7 +112,7 @@ export function OnlineLobbyScreen({ onBack, onEnterRoom }: Props) {
         disabled={busy || myProfile.length === 0 || (mode === "join-setup" && pinInput.trim().length !== 5)}
         onClick={mode === "host-setup" ? handleCreateRoom : handleJoinRoom}
       >
-        {busy ? "BITTE WARTEN…" : mode === "host-setup" ? "RAUM ERSTELLEN" : "BEITRETEN"}
+        {busy ? "PLEASE WAIT…" : mode === "host-setup" ? "CREATE ROOM" : "JOIN"}
       </button>
     </div>
   );

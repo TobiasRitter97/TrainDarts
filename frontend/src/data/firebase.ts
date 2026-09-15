@@ -70,7 +70,7 @@ export function ensureSignedIn(): Promise<User> {
 export function currentUid(): string {
   const uid = auth.currentUser?.uid;
   if (!uid) {
-    throw new Error("Noch nicht bei Firebase angemeldet - ensureSignedIn() zuerst abwarten.");
+    throw new Error("Not signed in to Firebase yet - await ensureSignedIn() first.");
   }
   return uid;
 }

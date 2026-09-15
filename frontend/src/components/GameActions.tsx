@@ -54,7 +54,7 @@ export function GameActions({
         disabled={!canConfirm || !canAct}
         onClick={onConfirm}
       >
-        AUFNAHME BESTÄTIGEN
+        CONFIRM VISIT
       </button>
       <button className="action-btn action-btn-menu" onClick={onExit}>
         MENU

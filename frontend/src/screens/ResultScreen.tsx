@@ -41,9 +41,9 @@ export function ResultScreen({ match, onRematch, onExit }: Props) {
               {setsEnabled && `${p.setsWon} Sets (${p.legsWon} Legs)`}
               {!setsEnabled && p.highestLevel !== null && `Level ${p.highestLevel} (${p.successfulCheckouts}/${p.attempts})`}
               {!setsEnabled && p.highestLevel === null && p.successfulTargets !== null &&
-                `${p.successfulTargets} Targets (${p.totalHits} Treffer)`}
+                `${p.successfulTargets} Targets (${p.totalHits} hits)`}
               {!setsEnabled && p.highestLevel === null && p.successfulTargets === null && p.legsWon !== null && `${p.legsWon} Legs`}
-              {!setsEnabled && p.highestLevel === null && p.successfulTargets === null && p.legsWon === null && p.totalScore !== null && `${p.totalScore} Punkte`}
+              {!setsEnabled && p.highestLevel === null && p.successfulTargets === null && p.legsWon === null && p.totalScore !== null && `${p.totalScore} points`}
               {!setsEnabled && p.highestLevel === null && p.successfulTargets === null && p.legsWon === null && p.totalScore === null && p.successfulCheckouts !== null &&
                 `${p.successfulCheckouts}/${p.attempts} Checkouts`}
             </span>
@@ -67,7 +67,7 @@ export function ResultScreen({ match, onRematch, onExit }: Props) {
               <>
                 <div className="result-stat-row">Successful Targets: <b>{p.successfulTargets}</b></div>
                 <div className="result-stat-row">
-                  Trefferquote: <b>{p.totalDarts ? Math.round(((p.totalHits ?? 0) / p.totalDarts) * 100) : 0}%</b>
+                  Hit Rate: <b>{p.totalDarts ? Math.round(((p.totalHits ?? 0) / p.totalDarts) * 100) : 0}%</b>
                 </div>
                 <div className="result-stat-row">
                   Singles/Doubles/Triples: <b>{p.singles}/{p.doubles}/{p.triples}</b>
@@ -77,8 +77,8 @@ export function ResultScreen({ match, onRematch, onExit }: Props) {
             ) : null}
             {p.groupingRounds !== null && p.bestGroupingRoundIndex !== null ? (
               <div className="result-stat-row">
-                Bestes Grouping: Runde <b>{p.bestGroupingRoundIndex + 1}</b> (
-                {p.groupingRounds[p.bestGroupingRoundIndex].mm?.toFixed(1)} mm, vorläufig unkalibriert)
+                Best Grouping: Round <b>{p.bestGroupingRoundIndex + 1}</b> (
+                {p.groupingRounds[p.bestGroupingRoundIndex].mm?.toFixed(1)} mm, provisional, uncalibrated)
               </div>
             ) : null}
           </div>

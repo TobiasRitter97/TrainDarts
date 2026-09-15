@@ -320,7 +320,7 @@ export class MatchEngine {
       case "grouping":
         return groupingFamily.createPlayerState();
       default:
-        throw new Error(`Unbekannte Engine-Familie "${this.familyName}"`);
+        throw new Error(`Unknown engine family "${this.familyName}"`);
     }
   }
 
@@ -429,7 +429,7 @@ export class MatchEngine {
       case "jdc":
         return jdcFamily.applyThrow(state as jdcFamily.JdcPlayerState, visitThrows);
       default:
-        throw new Error(`Unbekannte Engine-Familie "${this.familyName}"`);
+        throw new Error(`Unknown engine family "${this.familyName}"`);
     }
   }
 
@@ -954,7 +954,7 @@ export class MatchEngine {
     if (this.familyName === "grouping") {
       const activeId = this.players[this.activeIndex].id;
       const state = this.playerStates[activeId] as groupingFamily.GroupingPlayerState;
-      return { current: state.roundIndex + 1, total: groupingFamily.TOTAL_ROUNDS, label: "RUNDE" };
+      return { current: state.roundIndex + 1, total: groupingFamily.TOTAL_ROUNDS, label: "ROUND" };
     }
     if (this.familyName !== "random_checkout") return null;
     const endless = Boolean(this.settings.endless);

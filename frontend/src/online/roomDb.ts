@@ -83,7 +83,7 @@ export async function createRoom(hostPlayer: Omit<RoomPlayer, "uid">): Promise<s
     await update(roomRef(pin), room);
     return pin;
   }
-  throw new Error("Konnte keinen freien Raum-Code finden - bitte erneut versuchen.");
+  throw new Error("Could not find a free room code - please try again.");
 }
 
 // Tritt einem wartenden Raum bei. Wirft bei ungueltiger/vollständiger/
@@ -92,9 +92,9 @@ export async function createRoom(hostPlayer: Omit<RoomPlayer, "uid">): Promise<s
 export async function joinRoom(pin: string, guestPlayer: Omit<RoomPlayer, "uid">): Promise<void> {
   const user = await ensureSignedIn();
   const room = await readRoom(pin);
-  if (room === null) throw new Error("Kein Raum mit dieser PIN gefunden.");
-  if (room.status !== "waiting") throw new Error("Dieser Raum läuft bereits oder ist beendet.");
-  if (room.players.length >= MAX_PLAYERS) throw new Error("Raum ist voll (maximal 4 Spieler).");
+  if (room === null) throw new Error("No room found with this PIN.");
+  if (room.status !== "waiting") throw new Error("This room is already in progress or has ended.");
+  if (room.players.length >= MAX_PLAYERS) throw new Error("Room is full (4 players max).");
   if (room.players.some((p) => p.uid === user.uid)) return; // schon beigetreten - keine Doppelung
   await update(roomRef(pin), { players: [...room.players, { ...guestPlayer, uid: user.uid }] });
 }

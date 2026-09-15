@@ -19,7 +19,7 @@ const PADDING = 6;
 export function GroupingTrendChart({ rounds, bestIndex }: Props) {
   const known = rounds.map((r) => r.mm).filter((mm): mm is number => mm !== null);
   if (known.length === 0) {
-    return <div className="grouping-chart-empty">Noch keine Runde mit gültigen Koordinaten.</div>;
+    return <div className="grouping-chart-empty">No round with valid coordinates yet.</div>;
   }
   const maxMm = Math.max(...known);
   const minMm = Math.min(...known);

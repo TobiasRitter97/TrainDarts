@@ -28,7 +28,7 @@ export function DartCorrectionModal({ title, onSelect, onClose }: Props) {
       <div className="dart-correction-modal" onClick={(e) => e.stopPropagation()}>
         <div className="dart-correction-header">
           <h3>{title}</h3>
-          <button className="icon-btn" onClick={onClose} title="Schließen">
+          <button className="icon-btn" onClick={onClose} title="Close">
             ✕
           </button>
         </div>
@@ -45,7 +45,7 @@ export function DartCorrectionModal({ title, onSelect, onClose }: Props) {
         </div>
 
         <details className="dart-correction-fallback">
-          <summary>Fallback: Segment + Zahl</summary>
+          <summary>Fallback: Segment + Number</summary>
           <div className="segment-grid">
             <button
               className={`btn-secondary ${fallbackType === "S" ? "active" : ""}`}

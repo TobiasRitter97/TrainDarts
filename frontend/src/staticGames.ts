@@ -13,7 +13,7 @@ export const STATIC_GAMES = [
   {
     "id": "170",
     "name": "170",
-    "description": "Kompakte X01-Trainingsvariante: von 170 auf exakt 0.",
+    "description": "Compact X01 training variant: from 170 down to exactly 0.",
     "category": "CHECKOUT",
     "icon": "🎯",
     "engineFamily": "x01",
@@ -82,7 +82,7 @@ export const STATIC_GAMES = [
       },
       {
         "key": "customLegsToWin",
-        "label": "Legs zum Sieg (X)",
+        "label": "Legs to Win (X)",
         "type": "number",
         "default": 3,
         "min": 1,
@@ -94,13 +94,13 @@ export const STATIC_GAMES = [
       },
       {
         "key": "setsEnabled",
-        "label": "Sets aktivieren",
+        "label": "Enable Sets",
         "type": "toggle",
         "default": false
       },
       {
         "key": "legsPerSet",
-        "label": "Legs pro Set",
+        "label": "Legs per Set",
         "type": "number",
         "default": 3,
         "min": 1,
@@ -112,7 +112,7 @@ export const STATIC_GAMES = [
       },
       {
         "key": "setsToWin",
-        "label": "Sets zum Sieg",
+        "label": "Sets to Win",
         "type": "number",
         "default": 2,
         "min": 1,
@@ -127,7 +127,7 @@ export const STATIC_GAMES = [
   {
     "id": "bobs27",
     "name": "Bob's 27",
-    "description": "Doppel-Training: D1 bis D20, dann Bull.",
+    "description": "Doubles training: D1 to D20, then Bull.",
     "category": "DOUBLES",
     "icon": "🎯",
     "engineFamily": "target_progression",
@@ -193,7 +193,7 @@ export const STATIC_GAMES = [
   {
     "id": "random_checkout",
     "name": "Random Checkout",
-    "description": "Zufälliger Checkout pro Aufgabe, für alle Spieler gleich.",
+    "description": "Random checkout per task, the same for all players.",
     "category": "CHECKOUT",
     "icon": "🎲",
     "engineFamily": "random_checkout",
@@ -276,7 +276,7 @@ export const STATIC_GAMES = [
   {
     "id": "121",
     "name": "121",
-    "description": "Klassisches 121-Checkout-Training mit Safehouse.",
+    "description": "Classic 121 checkout training with Safehouse.",
     "category": "CHECKOUT",
     "icon": "🔢",
     "engineFamily": "checkout_range",
@@ -298,7 +298,7 @@ export const STATIC_GAMES = [
         "default": 121,
         "min": 2,
         "max": 170,
-        "hint": "Checkout-Wert, mit dem jeder Spieler startet."
+        "hint": "Checkout value each player starts at."
       },
       {
         "key": "maxLevel",
@@ -307,7 +307,7 @@ export const STATIC_GAMES = [
         "default": 170,
         "min": 2,
         "max": 170,
-        "hint": "Höchster erreichbarer Checkout-Wert. Bei Game Length \"Until 170\" ist das zugleich das Spielziel."
+        "hint": "Highest reachable checkout value. With Game Length \"Until 170\" this is also the game's target."
       },
       {
         "key": "safehouseMode",
@@ -317,17 +317,17 @@ export const STATIC_GAMES = [
           {
             "value": "standard",
             "label": "Standard",
-            "hint": "Ein gescheiterter Versuch (alle eigenen Darts verbraucht, ohne auszuchecken) fällt zurück auf die letzte 10er-Stufe (z.B. von 127 auf 120)."
+            "hint": "A failed attempt (all your darts used without checking out) drops back to the last multiple of 10 (e.g. from 127 to 120)."
           },
           {
             "value": "off",
             "label": "Off",
-            "hint": "Kein Rückfall bei einem gescheiterten Versuch - der Wert sinkt nur um den eingestellten Betrag (Decrease on Miss)."
+            "hint": "No fallback on a failed attempt - the value only drops by the configured amount (Decrease on Miss)."
           },
           {
             "value": "easy",
             "label": "Easy",
-            "hint": "Ein gescheiterter Versuch fällt zurück auf die letzte 5er-Stufe (z.B. von 127 auf 125) - milder als Standard."
+            "hint": "A failed attempt drops back to the last multiple of 5 (e.g. from 127 to 125) - milder than Standard."
           }
         ],
         "default": "standard"
@@ -340,17 +340,17 @@ export const STATIC_GAMES = [
           {
             "value": "double_out",
             "label": "Double Out",
-            "hint": "Nur ein Doppel oder Bullseye beendet den Versuch."
+            "hint": "Only a double or bullseye ends the attempt."
           },
           {
             "value": "master_out",
             "label": "Master Out",
-            "hint": "Ein Doppel, ein Dreifachfeld oder Bullseye beendet den Versuch."
+            "hint": "A double, a triple, or bullseye ends the attempt."
           },
           {
             "value": "straight_out",
             "label": "Straight Out",
-            "hint": "Jeder Wurf kann den Versuch beenden, auch ein einfaches Feld."
+            "hint": "Any throw can end the attempt, even a single field."
           }
         ],
         "default": "double_out"
@@ -363,39 +363,39 @@ export const STATIC_GAMES = [
           {
             "value": "targets_10",
             "label": "10 Targets",
-            "hint": "Das Spiel endet nach 10 Checkout-Versuchen."
+            "hint": "The game ends after 10 checkout attempts."
           },
           {
             "value": "targets_20",
             "label": "20 Targets",
-            "hint": "Das Spiel endet nach 20 Checkout-Versuchen."
+            "hint": "The game ends after 20 checkout attempts."
           },
           {
             "value": "targets_30",
             "label": "30 Targets",
-            "hint": "Das Spiel endet nach 30 Checkout-Versuchen."
+            "hint": "The game ends after 30 checkout attempts."
           },
           {
             "value": "custom",
             "label": "Custom",
-            "hint": "Lege die Anzahl der Versuche selbst fest (siehe \"Anzahl Targets\" darunter)."
+            "hint": "Set the number of attempts yourself (see \"Number of Targets\" below)."
           },
           {
             "value": "endless",
             "label": "Endless",
-            "hint": "Das Spiel endet nie von selbst - du beendest es manuell."
+            "hint": "The game never ends on its own - you end it manually."
           },
           {
             "value": "until_max",
             "label": "Until 170",
-            "hint": "Das Spiel endet automatisch, sobald ein Spieler den Maximalwert erreicht hat."
+            "hint": "The game ends automatically once a player reaches the maximum value."
           }
         ],
         "default": "targets_20"
       },
       {
         "key": "customTargets",
-        "label": "Anzahl Targets (Custom)",
+        "label": "Number of Targets (Custom)",
         "type": "number",
         "default": 20,
         "min": 1,
@@ -428,14 +428,14 @@ export const STATIC_GAMES = [
           }
         ],
         "default": 9,
-        "hint": "Wie viele eigene Darts (aufgeteilt auf mehrere 3er-Aufnahmen, abwechselnd mit den Mitspielern) du insgesamt für einen Versuch hast, bevor er als gescheitert gilt."
+        "hint": "How many of your own darts (split across multiple 3-dart visits, alternating with the other players) you get in total for one attempt before it counts as failed."
       }
     ]
   },
   {
     "id": "bobs27_easy",
     "name": "Bob's 27 Easy",
-    "description": "Verkürztes Doppel-Training: jedes zweite Doppel, dann Bull.",
+    "description": "Shortened doubles training: every second double, then Bull.",
     "category": "DOUBLES",
     "icon": "🎯",
     "engineFamily": "target_progression",
@@ -491,7 +491,7 @@ export const STATIC_GAMES = [
   {
     "id": "catch40_easy",
     "name": "Catch 40 Easy",
-    "description": "Catch-Training: 41 bis 81, bis zu 6 Darts pro Zahl.",
+    "description": "Catch training: 41 to 81, up to 6 darts per number.",
     "category": "CHECKOUT",
     "icon": "🎯",
     "engineFamily": "catch",
@@ -516,7 +516,7 @@ export const STATIC_GAMES = [
         "options": [
           {
             "value": "full",
-            "label": "Kompletter Durchlauf"
+            "label": "Full Run"
           },
           {
             "value": "custom",
@@ -527,7 +527,7 @@ export const STATIC_GAMES = [
       },
       {
         "key": "customTargets",
-        "label": "Anzahl Targets (Custom)",
+        "label": "Number of Targets (Custom)",
         "type": "number",
         "default": 20,
         "min": 1,
@@ -548,7 +548,7 @@ export const STATIC_GAMES = [
   {
     "id": "catch40",
     "name": "Catch 40",
-    "description": "Catch-Training: 61 bis 100, bis zu 6 Darts pro Zahl.",
+    "description": "Catch training: 61 to 100, up to 6 darts per number.",
     "category": "CHECKOUT",
     "icon": "🎯",
     "engineFamily": "catch",
@@ -573,7 +573,7 @@ export const STATIC_GAMES = [
         "options": [
           {
             "value": "full",
-            "label": "Kompletter Durchlauf"
+            "label": "Full Run"
           },
           {
             "value": "custom",
@@ -584,7 +584,7 @@ export const STATIC_GAMES = [
       },
       {
         "key": "customTargets",
-        "label": "Anzahl Targets (Custom)",
+        "label": "Number of Targets (Custom)",
         "type": "number",
         "default": 20,
         "min": 1,
@@ -605,7 +605,7 @@ export const STATIC_GAMES = [
   {
     "id": "60plusminus",
     "name": "60 +/-",
-    "description": "Start bei 60: +10 bei Checkout, −1 bei Fehlversuch.",
+    "description": "Start at 60: +10 on checkout, -1 on a failed attempt.",
     "category": "CHECKOUT",
     "icon": "📈",
     "engineFamily": "checkout_range",
@@ -675,7 +675,7 @@ export const STATIC_GAMES = [
       },
       {
         "key": "customTargets",
-        "label": "Anzahl Runden (Custom)",
+        "label": "Number of Rounds (Custom)",
         "type": "number",
         "default": 20,
         "min": 1,
@@ -690,7 +690,7 @@ export const STATIC_GAMES = [
   {
     "id": "around_the_world",
     "name": "Around the World",
-    "description": "Eigene Zahlenliste je Spieler (1-20, optional Bull) - wer zuerst fertig ist, gewinnt.",
+    "description": "Each player has their own number list (1-20, optional Bull) - first to finish wins.",
     "category": "ACCURACY",
     "icon": "🌍",
     "engineFamily": "accuracy_progression",
@@ -734,33 +734,33 @@ export const STATIC_GAMES = [
         "options": [
           {
             "value": 1,
-            "label": "1 Treffer"
+            "label": "1 Hit"
           },
           {
             "value": 2,
-            "label": "2 Treffer"
+            "label": "2 Hits"
           },
           {
             "value": 3,
-            "label": "3 Treffer"
+            "label": "3 Hits"
           }
         ],
         "default": 1
       },
       {
         "key": "targetChangeMode",
-        "label": "Zielwechsel",
+        "label": "Target Change",
         "type": "select",
         "options": [
           {
             "value": "per_visit",
-            "label": "Aufnahme",
-            "hint": "Es werden immer alle 3 Darts einer Aufnahme auf dieselbe Zahl geworfen. Danach wechselt die Zahl - egal ob die nötige Trefferzahl erreicht wurde oder nicht."
+            "label": "Visit",
+            "hint": "All 3 darts of a visit are always thrown at the same number. The number then changes - whether or not the required hit count was reached."
           },
           {
             "value": "per_dart",
             "label": "Dart",
-            "hint": "Es wird so lange auf dieselbe Zahl geworfen - auch über mehrere Aufnahmen hinweg -, bis die nötige Trefferzahl erreicht ist. Erst dann wechselt die Zahl, notfalls mitten in einer Aufnahme."
+            "hint": "You keep throwing at the same number - even across multiple visits - until the required hit count is reached. Only then does the number change, if necessary mid-visit."
           }
         ],
         "default": "per_visit",
@@ -780,7 +780,7 @@ export const STATIC_GAMES = [
   {
     "id": "jdc",
     "name": "JDC Challenge",
-    "description": "Shanghai 10-15 – Doubles 1-20+Bull – Shanghai 15-20 (etablierte JDC-Regeln).",
+    "description": "Shanghai 10-15 – Doubles 1-20+Bull – Shanghai 15-20 (established JDC rules).",
     "category": "ACCURACY",
     "icon": "🏆",
     "engineFamily": "jdc",
@@ -821,7 +821,7 @@ export const STATIC_GAMES = [
       },
       {
         "key": "customRuns",
-        "label": "Anzahl Runs (Custom)",
+        "label": "Number of Runs (Custom)",
         "type": "number",
         "default": 3,
         "min": 1,
@@ -836,7 +836,7 @@ export const STATIC_GAMES = [
   {
     "id": "grouping_championship",
     "name": "Grouping Championship",
-    "description": "Reines Präzisionstraining: 20 Runden T20, gemessen wird der Abstand zwischen deinen 3 Darts.",
+    "description": "Pure precision training: 20 rounds of T20, measuring the distance between your 3 darts.",
     "category": "ACCURACY",
     "icon": "📏",
     "engineFamily": "grouping",
@@ -844,7 +844,7 @@ export const STATIC_GAMES = [
       1,
       4
     ],
-    "implemented": true,
+    "implemented": false,
     "durationModes": [
       "rounds"
     ],

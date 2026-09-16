@@ -1,7 +1,7 @@
 import { useEffect, useId, useRef, useState } from "react";
 import "./DartboardPicker.css";
 
-export type Segment = { number: number; multiplier: number };
+export type Segment = { number: number; multiplier: number; bed?: string };
 
 type Props = {
   onSelect: (segment: Segment) => void;
@@ -51,6 +51,7 @@ export function DartboardPicker({ onSelect }: Props) {
   const activeSegmentRef = useRef<SVGElement | null>(null);
   const pointerIdRef = useRef<number | null>(null);
   const [confirmLabel, setConfirmLabel] = useState<string | null>(null);
+  const [confirmBed, setConfirmBed] = useState<string | undefined>(undefined);
 
   useEffect(() => {
     const svgMain = svgRef.current;
@@ -60,12 +61,28 @@ export function DartboardPicker({ onSelect }: Props) {
     const confirmBox = confirmRef.current;
     if (!svgMain || !magSvg || !stage || !magnifier || !confirmBox) return;
 
-    function addSector(parent: SVGGElement, rIn: number, rOut: number, a0: number, a1: number, fill: string, label: string) {
+    // "bed" entspricht dem Feld-Detail des Boards ("SingleInner",
+    // "SingleOuter", "Double", "Triple" - verifiziert 16.09.2026, siehe
+    // engine/scoring.ts). Nur so kann eine manuelle Korrektur zwischen
+    // grosser und kleiner Single unterscheiden, was z.B. Random Segment
+    // Training braucht. Das sichtbare Label bleibt unveraendert ("S7"),
+    // damit sich fuer alle anderen Spiele nichts aendert.
+    function addSector(
+      parent: SVGGElement,
+      rIn: number,
+      rOut: number,
+      a0: number,
+      a1: number,
+      fill: string,
+      label: string,
+      bed?: string
+    ) {
       const p = document.createElementNS(NS, "path");
       p.setAttribute("d", sectorPath(rIn, rOut, a0, a1));
       p.style.fill = fill;
       p.setAttribute("class", "board-segment");
       p.dataset.label = label;
+      if (bed) p.dataset.bed = bed;
       parent.appendChild(p);
     }
 
@@ -91,10 +108,10 @@ export function DartboardPicker({ onSelect }: Props) {
       const singleFill = even ? "var(--c-surface)" : "var(--c-text)";
       const ringFill = even ? "var(--c-danger)" : "var(--c-success)";
 
-      addSector(root, R.outerBull, R.tripleIn, a0, a1, singleFill, `S${num}`);
-      addSector(root, R.tripleIn, R.tripleOut, a0, a1, ringFill, `T${num}`);
-      addSector(root, R.tripleOut, R.doubleIn, a0, a1, singleFill, `S${num}`);
-      addSector(root, R.doubleIn, R.doubleOut, a0, a1, ringFill, `D${num}`);
+      addSector(root, R.outerBull, R.tripleIn, a0, a1, singleFill, `S${num}`, "SingleInner");
+      addSector(root, R.tripleIn, R.tripleOut, a0, a1, ringFill, `T${num}`, "Triple");
+      addSector(root, R.tripleOut, R.doubleIn, a0, a1, singleFill, `S${num}`, "SingleOuter");
+      addSector(root, R.doubleIn, R.doubleOut, a0, a1, ringFill, `D${num}`, "Double");
 
       const [lx, ly] = polar(R.label, i * 18);
       const t = document.createElementNS(NS, "text");
@@ -174,6 +191,7 @@ export function DartboardPicker({ onSelect }: Props) {
       confirmBox!.style.top = y + "px";
       confirmBox!.style.display = "block";
       setConfirmLabel(seg.dataset.label ?? null);
+      setConfirmBed(seg.dataset.bed);
     }
 
     function onMove(e: PointerEvent) {
@@ -212,10 +230,14 @@ export function DartboardPicker({ onSelect }: Props) {
       activeSegmentRef.current = null;
     }
     setConfirmLabel(null);
+    setConfirmBed(undefined);
   }
 
   function handleYes() {
-    if (confirmLabel) onSelect(labelToSegment(confirmLabel));
+    if (confirmLabel) {
+      const segment = labelToSegment(confirmLabel);
+      onSelect(confirmBed ? { ...segment, bed: confirmBed } : segment);
+    }
     hideConfirm();
   }
 

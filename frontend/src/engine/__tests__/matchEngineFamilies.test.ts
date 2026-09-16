@@ -10,6 +10,7 @@
 import { describe, expect, it } from "vitest";
 import { GameDefinition } from "../../api";
 import * as groupingFamily from "../families/grouping";
+import * as randomSegmentFamily from "../families/randomSegment";
 import { MatchEngine, MatchPlayerRef } from "../matchEngine";
 import { Segment } from "../scoring";
 
@@ -446,5 +447,138 @@ describe("grouping (Grouping Championship)", () => {
     expect(engine.toDict().activePlayerId).toBe("p2");
     throwAndConfirm(engine, ["S1", "S1", "S1"]); // Bob's letzte (20.) Runde
     expect(engine.toDict().finished).toBe(true); // erst jetzt, wo BEIDE fertig sind
+  });
+});
+
+describe("random_segment (Random Segment Training)", () => {
+  const GAME: GameDefinition = {
+    id: "random_segment",
+    name: "Random Segment Training",
+    description: "",
+    category: "ACCURACY",
+    icon: "🎲",
+    engineFamily: "random_segment",
+    playerRange: [1, 4],
+    implemented: true,
+    durationModes: ["targets"],
+    settingsSchema: [],
+  };
+
+  // Die Zielsequenz ist zufaellig - fuer deterministische Tests wird sie
+  // direkt im MATCH_STARTED-Event vorgegeben (genau so, wie die Engine
+  // sie sonst selbst erzeugt und beim Resume wieder einliest).
+  function engineWithTargets(
+    targets: { group: string; number: number; multiplier: number }[],
+    settings: Record<string, unknown> = {},
+    players: MatchPlayerRef[] = [{ id: "solo", name: "Solo" }]
+  ): MatchEngine {
+    return new MatchEngine("rs", GAME, players, { dartsPerTarget: 3, ...settings }, [
+      { type: "MATCH_STARTED", payload: { segmentTargets: targets } },
+    ] as never);
+  }
+
+  const T20 = { group: "triple", number: 20, multiplier: 3 };
+  const D16 = { group: "double", number: 16, multiplier: 2 };
+  const LARGE7 = { group: "large_single", number: 7, multiplier: 1 };
+  const SMALL7 = { group: "small_single", number: 7, multiplier: 1 };
+
+  function segThrow(engine: MatchEngine, label: string, bed?: string): void {
+    const s = seg(label);
+    engine.handleThrow(label, { segment: bed ? { ...s, bed } : s });
+  }
+
+  it("counts a hit only on the exact segment - S20 does not hit target T20", () => {
+    const engine = engineWithTargets([T20, D16]);
+    expect(engine.toDict().target).toBe("T20");
+    segThrow(engine, "S20"); // Nummer stimmt, Feld nicht -> kein Treffer
+    expect(engine.toDict().target).toBe("T20"); // Ziel bleibt
+    segThrow(engine, "T20"); // Treffer
+    expect(engine.toDict().target).toBe("D16"); // sofort naechstes Ziel, mitten in der Aufnahme
+  });
+
+  it("forfeits the remaining budget on a hit and moves on immediately", () => {
+    const engine = engineWithTargets([T20, D16, LARGE7]);
+    segThrow(engine, "T20"); // Treffer mit Dart 1 von 3
+    const state = engine.toDict();
+    expect(state.target).toBe("D16");
+    expect(state.segmentInfo?.remainingDarts).toBe(3); // volles Budget fuers neue Ziel
+  });
+
+  it("carries the target budget across the visit boundary (budget belongs to the target, not the visit)", () => {
+    const engine = engineWithTargets([T20, D16]);
+    throwAndConfirm(engine, ["S1", "S1", "S1"]); // 3 Fehlwuerfe -> Budget von T20 aufgebraucht
+    expect(engine.toDict().target).toBe("D16"); // Ziel verfehlt, naechstes Ziel
+
+    const engine2 = engineWithTargets([T20, D16]);
+    throwAndConfirm(engine2, ["S1", "S1"]); // nur 2 Darts, dann Takeout
+    let state2 = engine2.toDict();
+    expect(state2.target).toBe("T20"); // Ziel laeuft weiter
+    expect(state2.segmentInfo?.remainingDarts).toBe(1); // 1 Dart Restbudget in der NAECHSTEN Aufnahme
+    segThrow(engine2, "S1"); // dritter Dart des Ziels, wieder daneben
+    state2 = engine2.toDict();
+    expect(state2.target).toBe("D16"); // jetzt erst verfehlt
+  });
+
+  it("distinguishes large and small singles via the board's bed field", () => {
+    const engine = engineWithTargets([LARGE7, SMALL7], { dartsPerTarget: 1 });
+    expect(engine.toDict().target).toBe("Large 7");
+    segThrow(engine, "S7", "SingleInner"); // kleine Single -> kein Treffer auf "Large 7"
+    expect(engine.toDict().target).toBe("Small 7"); // Budget 1 verbraucht -> naechstes Ziel
+    segThrow(engine, "S7", "SingleInner"); // jetzt passt es
+    engine.confirmVisit(); // Ergebnisse werden wie ueberall erst beim Bestaetigen festgeschrieben
+
+    const results = engine.toDict().players[0].segmentResults;
+    expect(results?.[0]).toMatchObject({ label: "Large 7", hit: false });
+    expect(results?.[1]).toMatchObject({ label: "Small 7", hit: true });
+  });
+
+  it("treats a manually entered single leniently when the ring is unknown (no bed)", () => {
+    // Manuell ueber das Zahlenraster nachgetragene Darts haben kein bed -
+    // wir wissen den Ring nicht und werten deshalb bewusst grosszuegig,
+    // statt einen echten Treffer faelschlich zum Fehlwurf zu machen.
+    const engine = engineWithTargets([LARGE7], { dartsPerTarget: 1 });
+    engine.addManualThrow(seg("S7")); // ohne bed
+    engine.confirmVisit();
+    expect(engine.toDict().players[0].segmentResults?.[0]).toMatchObject({ label: "Large 7", hit: true });
+  });
+
+  it("recomputes the target progress after a correction (replay)", () => {
+    const engine = engineWithTargets([T20, D16, LARGE7]);
+    segThrow(engine, "T20"); // Treffer
+    segThrow(engine, "D16"); // Treffer
+    let state = engine.toDict();
+    expect(state.target).toBe("Large 7");
+    expect(state.players[0].score).toBe(2); // 2 getroffene Ziele
+
+    // Erster Dart war doch kein T20 -> Korrektur. Damit wird aus dem
+    // Treffer ein Fehlwurf, der zweite Dart (D16) trifft dann nicht mehr
+    // das zweite Ziel, sondern zaehlt als zweiter Fehlversuch auf T20.
+    const firstThrowSeq = state.currentVisitThrows[0].throwSeq;
+    engine.correctThrow(firstThrowSeq, seg("S20"));
+    state = engine.toDict();
+    expect(state.target).toBe("T20"); // immer noch das erste Ziel
+    expect(state.players[0].score).toBe(0); // kein Treffer mehr
+    expect(state.segmentInfo?.remainingDarts).toBe(1); // 2 von 3 Darts verbraucht
+  });
+
+  it("skips finished players and ends the match once everyone is through", () => {
+    const engine = engineWithTargets([T20, D16], { dartsPerTarget: 1 }, PLAYERS);
+    // Jeder Spieler hat 2 Ziele mit je 1 Dart Budget.
+    throwAndConfirm(engine, ["T20", "D16"]); // Alice: beide Ziele, danach fertig
+    expect(engine.toDict().finished).toBe(false); // Bob fehlt noch
+    expect(engine.toDict().activePlayerId).toBe("p2");
+    throwAndConfirm(engine, ["S1", "S1"]); // Bob: beide verfehlt, aber durch
+    const state = engine.toDict();
+    expect(state.finished).toBe(true);
+    expect(state.winnerId).toBe("p1"); // mehr getroffene Ziele
+  });
+
+  it("never draws the same target twice in a row", () => {
+    const pool = randomSegmentFamily.buildTargetPool(["double"]);
+    const targets = randomSegmentFamily.generateTargets(pool, 50);
+    expect(targets).toHaveLength(50);
+    for (let i = 1; i < targets.length; i++) {
+      expect(randomSegmentFamily.targetLabel(targets[i])).not.toBe(randomSegmentFamily.targetLabel(targets[i - 1]));
+    }
   });
 });

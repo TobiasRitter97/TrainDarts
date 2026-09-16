@@ -23,6 +23,7 @@ import * as checkoutRangeFamily from "./families/checkoutRange";
 import * as groupingFamily from "./families/grouping";
 import * as jdcFamily from "./families/jdc";
 import * as randomCheckoutFamily from "./families/randomCheckout";
+import * as randomSegmentFamily from "./families/randomSegment";
 import * as targetProgressionFamily from "./families/targetProgression";
 import * as x01Family from "./families/x01";
 import { CheckoutMode, Segment, segmentValue } from "./scoring";
@@ -42,7 +43,7 @@ type VisitConfirmedEvent = { type: "VISIT_CONFIRMED"; payload: { at?: number } }
 type CorrectThrowEvent = { type: "CORRECT_THROW"; payload: { targetThrowSeq: number; segment: Segment } };
 type MatchStartedEvent = {
   type: "MATCH_STARTED";
-  payload: { randomTargets?: number[]; catchTargets?: number[] };
+  payload: { randomTargets?: number[]; catchTargets?: number[]; segmentTargets?: randomSegmentFamily.SegmentTarget[] };
 };
 type RoundRandomGeneratedEvent = { type: "ROUND_RANDOM_GENERATED"; payload: { value: number } };
 export type MatchEvent = ThrowEvent | VisitConfirmedEvent | CorrectThrowEvent | MatchStartedEvent | RoundRandomGeneratedEvent;
@@ -59,6 +60,11 @@ const FORCES_VISIT_END: Record<string, Set<string>> = {
   accuracy_progression: new Set(["target_done"]),
   jdc: new Set(["target_done"]),
   grouping: new Set(["round_done"]),
+  // Beendet die Aufnahme sofort, sobald die Zielliste eines Spielers
+  // durch ist - die restlichen Darts dieser Aufnahme haetten kein Ziel
+  // mehr. Ein TREFFER beendet die Aufnahme dagegen NICHT: das naechste
+  // Ziel laeuft bewusst mitten in der Aufnahme weiter.
+  random_segment: new Set(["player_done"]),
 };
 
 const COUNTDOWN_FIELD: Record<string, string> = {
@@ -69,6 +75,7 @@ const COUNTDOWN_FIELD: Record<string, string> = {
   catch: "attemptRemaining",
   jdc: "runScore",
   grouping: "totalScore",
+  random_segment: "hitTargets",
 };
 
 const X01_MATCH_MODE_LEGS: Record<string, number> = { "1_leg": 1, bo3: 2, bo5: 3, bo7: 4 };
@@ -126,6 +133,10 @@ export class MatchEngine {
   randomTargetIndex = 0;
   randomTargets: number[] = [];
   catchTargets: number[] = [];
+  // Gemeinsame Zielsequenz fuer Random Segment Training - einmal pro
+  // Match erzeugt, im MATCH_STARTED-Event festgehalten (Fairness SPEC §8
+  // + identische Sequenz beim Fortsetzen nach Neustart).
+  segmentTargets: randomSegmentFamily.SegmentTarget[] = [];
 
   playerStates: Record<string, PlayerState> = {};
 
@@ -148,6 +159,7 @@ export class MatchEngine {
       const payload: MatchStartedEvent["payload"] = {};
       if (this.familyName === "random_checkout") payload.randomTargets = this.generateRandomTargets();
       if (this.familyName === "catch") payload.catchTargets = this.generateCatchTargets();
+      if (this.familyName === "random_segment") payload.segmentTargets = this.generateSegmentTargets();
       this.append("MATCH_STARTED", payload);
     }
     this.replay();
@@ -256,6 +268,28 @@ export class MatchEngine {
     return values;
   }
 
+  // Zielsequenz fuer Random Segment Training - EINMAL pro Match erzeugt
+  // (im MATCH_STARTED-Event festgehalten), damit alle Spieler dieselbe
+  // Reihenfolge bekommen und ein Resume nach Neustart identisch ist.
+  private generateSegmentTargets(): randomSegmentFamily.SegmentTarget[] {
+    const groups = this.segmentPoolGroups();
+    const count = Number(this.settings.numberOfTargets ?? 20);
+    return randomSegmentFamily.generateTargets(randomSegmentFamily.buildTargetPool(groups), Math.max(1, count));
+  }
+
+  // Der Zielpool ist die Vereinigung der aktivierten Gruppen. Faellt die
+  // Einstellung weg oder ist sie leer, greift derselbe Default wie im
+  // Setup-Screen (staticGames.ts), damit nie eine leere Sequenz entsteht.
+  private segmentPoolGroups(): randomSegmentFamily.SegmentTargetGroup[] {
+    const raw = this.settings.targetPool;
+    const groups = Array.isArray(raw) ? (raw as randomSegmentFamily.SegmentTargetGroup[]) : [];
+    return groups.length > 0 ? groups : ["large_single", "double", "triple"];
+  }
+
+  private segmentDartsPerTarget(): number {
+    return Math.max(1, Number(this.settings.dartsPerTarget ?? 3));
+  }
+
   // ------------------------------------------------------------ Replay
   private replay(): void {
     this.activeIndex = 0;
@@ -278,6 +312,7 @@ export class MatchEngine {
     const startPayload = this.events[0]?.payload as MatchStartedEvent["payload"];
     this.randomTargets = [...(startPayload?.randomTargets ?? [])];
     this.catchTargets = [...(startPayload?.catchTargets ?? [])];
+    this.segmentTargets = [...(startPayload?.segmentTargets ?? [])];
 
     this.playerStates = {};
     for (const p of this.players) {
@@ -319,6 +354,8 @@ export class MatchEngine {
         return jdcFamily.createPlayerState();
       case "grouping":
         return groupingFamily.createPlayerState();
+      case "random_segment":
+        return randomSegmentFamily.createPlayerState();
       default:
         throw new Error(`Unknown engine family "${this.familyName}"`);
     }
@@ -418,6 +455,13 @@ export class MatchEngine {
         return catchFamily.applyThrow(state as catchFamily.CatchPlayerState, visitThrows);
       case "grouping":
         return groupingFamily.applyThrow(state as groupingFamily.GroupingPlayerState, visitThrows, visitCoords ?? []);
+      case "random_segment":
+        return randomSegmentFamily.applyThrow(
+          state as randomSegmentFamily.RandomSegmentPlayerState,
+          visitThrows,
+          this.segmentTargets,
+          this.segmentDartsPerTarget()
+        );
       case "target_progression":
         return targetProgressionFamily.applyThrow(state as targetProgressionFamily.TargetProgressionPlayerState, visitThrows);
       case "accuracy_progression":
@@ -492,6 +536,21 @@ export class MatchEngine {
       this.clearVisit();
       this.maybeFinishJdc(playerId);
       if (!this.finished) this.advancePlayer();
+      return;
+    }
+
+    if (this.familyName === "random_segment") {
+      // Der Zielfortschritt steckt komplett im simulierten Ergebnis
+      // (das Budget kann ueber Aufnahmegrenzen laufen) - hier wird er
+      // nur festgeschrieben. Fertige Spieler werden bei der Rotation
+      // uebersprungen, das Match endet, wenn ALLE durch sind.
+      randomSegmentFamily.resolveVisit(
+        state as randomSegmentFamily.RandomSegmentPlayerState,
+        result as randomSegmentFamily.RandomSegmentThrowResult
+      );
+      this.clearVisit();
+      this.maybeFinishRandomSegment();
+      if (!this.finished) this.advanceToNextUnfinishedSegmentPlayer();
       return;
     }
 
@@ -766,6 +825,37 @@ export class MatchEngine {
     return BOBS27_MODE_RUNS[mode] ?? null;
   }
 
+  // ------------------------------------------------------------ random segment training
+  private maybeFinishRandomSegment(): void {
+    const allDone = this.players.every((p) =>
+      randomSegmentFamily.isFinished(this.playerStates[p.id] as randomSegmentFamily.RandomSegmentPlayerState, this.segmentTargets)
+    );
+    if (!allDone) return;
+    this.finished = true;
+    // Sieger: die meisten getroffenen Ziele (alle hatten dieselbe Liste).
+    this.winnerId = this.players.reduce((best, p) =>
+      (this.playerStates[p.id] as randomSegmentFamily.RandomSegmentPlayerState).hitTargets >
+      (this.playerStates[best.id] as randomSegmentFamily.RandomSegmentPlayerState).hitTargets
+        ? p
+        : best
+    ).id;
+  }
+
+  private advanceToNextUnfinishedSegmentPlayer(): void {
+    this.advancePlayer();
+    let guard = 0;
+    while (
+      randomSegmentFamily.isFinished(
+        this.playerStates[this.players[this.activeIndex].id] as randomSegmentFamily.RandomSegmentPlayerState,
+        this.segmentTargets
+      ) &&
+      guard < this.players.length
+    ) {
+      this.advancePlayer();
+      guard += 1;
+    }
+  }
+
   // ------------------------------------------------------------ grouping championship
   private maybeFinishGrouping(): void {
     const allDone = this.players.every(
@@ -928,7 +1018,28 @@ export class MatchEngine {
     if (this.familyName === "grouping") {
       return `T${groupingFamily.TARGET_SEGMENT_NUMBER}`; // immer dasselbe Ziel, alle 20 Runden
     }
+    if (this.familyName === "random_segment") {
+      const live = this.segmentLiveState();
+      if (!live || live.index >= this.segmentTargets.length) return null;
+      return randomSegmentFamily.targetLabel(this.segmentTargets[live.index]);
+    }
     return null;
+  }
+
+  // Live-Stand des aktiven Spielers fuer Random Segment Training: das
+  // Ziel kann sich MITTEN in der Aufnahme aendern (Treffer oder
+  // aufgebrauchtes Budget), deshalb wird der committete State plus die
+  // bisherigen Darts der laufenden Aufnahme neu durchgerechnet - ohne
+  // den State zu veraendern (siehe randomSegment.applyThrow).
+  private segmentLiveState(): { index: number; dartsUsed: number } | null {
+    if (this.familyName !== "random_segment") return null;
+    const activeId = this.players[this.activeIndex].id;
+    const state = this.playerStates[activeId] as randomSegmentFamily.RandomSegmentPlayerState;
+    if (this.currentVisitThrows.length === 0) {
+      return { index: state.targetIndex, dartsUsed: state.dartsUsedOnTarget };
+    }
+    const result = this.applyThrow(state, this.currentVisitThrows) as randomSegmentFamily.RandomSegmentThrowResult;
+    return { index: result.endingIndex, dartsUsed: result.endingDartsUsed };
   }
 
   private jdcPhaseLabel(): string | null {
@@ -968,12 +1079,35 @@ export class MatchEngine {
       const state = this.playerStates[activeId] as groupingFamily.GroupingPlayerState;
       return { current: state.roundIndex + 1, total: groupingFamily.TOTAL_ROUNDS, label: "ROUND" };
     }
+    if (this.familyName === "random_segment") {
+      const live = this.segmentLiveState();
+      if (!live) return null;
+      return {
+        current: Math.min(live.index + 1, this.segmentTargets.length),
+        total: this.segmentTargets.length,
+        label: "TARGET",
+      };
+    }
     if (this.familyName !== "random_checkout") return null;
     const endless = Boolean(this.settings.endless);
     return {
       current: this.randomTargetIndex + 1,
       total: endless ? null : this.randomTargets.length,
       label: "CHECKOUT",
+    };
+  }
+
+  // Zusatzanzeigen fuer Random Segment Training: verbleibende Darts
+  // fuer das AKTUELLE Ziel (Budget gehoert zum Ziel, nicht zur
+  // Aufnahme) und eine kleine Vorschau auf das naechste Ziel.
+  private segmentInfoDisplay(): MatchState["segmentInfo"] {
+    if (this.familyName !== "random_segment") return null;
+    const live = this.segmentLiveState();
+    if (!live || live.index >= this.segmentTargets.length) return null;
+    const next = this.segmentTargets[live.index + 1];
+    return {
+      remainingDarts: Math.max(0, this.segmentDartsPerTarget() - live.dartsUsed),
+      nextTarget: next ? randomSegmentFamily.targetLabel(next) : null,
     };
   }
 
@@ -996,6 +1130,7 @@ export class MatchEngine {
       phase: this.jdcPhaseLabel(),
       checkoutSuggestion: this.checkoutSuggestion(),
       attemptInfo: this.attemptInfoDisplay(),
+      segmentInfo: this.segmentInfoDisplay(),
       round: this.roundNumber,
       legNumber: this.familyName === "x01" ? this.legNumber : null,
       setNumber: this.familyName === "x01" && this.setsEnabled() ? this.setNumber : null,
@@ -1038,6 +1173,11 @@ export class MatchEngine {
       phaseScores: state.phaseScores ?? null,
       groupingRounds: state.rounds ?? null,
       bestGroupingRoundIndex: state.bestRoundIndex ?? null,
+      // Random Segment Training: ein Eintrag pro abgeschlossenem Ziel
+      // (fuer Trefferquote, Gruppen-Aufschluesselung und die Liste der
+      // verfehlten Ziele im Ergebnis-Screen).
+      segmentResults: this.familyName === "random_segment" ? (state.results ?? null) : null,
+      segmentTotalTargets: this.familyName === "random_segment" ? this.segmentTargets.length : null,
     };
   }
 }

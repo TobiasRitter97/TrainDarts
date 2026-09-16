@@ -171,6 +171,40 @@
   margin-top: var(--sp-4);
 }
 
+.segment-info {
+  margin-top: var(--sp-4);
+}
+
+.segment-info-row {
+  display: flex;
+  gap: var(--sp-6);
+}
+
+.segment-info-item {
+  display: flex;
+  flex-direction: column;
+}
+
+.segment-info-value {
+  font-size: var(--fs-lg);
+  font-weight: var(--fw-display);
+  color: var(--c-brand);
+  line-height: 1.1;
+}
+
+.segment-info-label {
+  font-size: var(--fs-xs);
+  color: var(--c-text-muted);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.segment-info-next {
+  margin-top: var(--sp-3);
+  font-size: var(--fs-sm);
+  color: var(--c-text-muted);
+}
+
 .open-numbers {
   margin-top: var(--sp-4);
 }

@@ -23,6 +23,24 @@ function rankValue(p: MatchPlayer, setsEnabled: boolean): number {
   return p.legsWon ?? p.totalScore ?? p.successfulCheckouts ?? p.score ?? 0;
 }
 
+// Die eine Kennzahl, die in der Rangliste hinter dem Namen steht - je
+// nach Spiel unterschiedlich. Frueher eine verschachtelte Kette aus
+// JSX-Bedingungen; als Funktion ist die Reihenfolge (spezifisch vor
+// allgemein) deutlich leichter zu lesen und zu erweitern.
+function resultValueText(p: MatchPlayer, setsEnabled: boolean): string {
+  if (setsEnabled) return `${p.setsWon} Sets (${p.legsWon} Legs)`;
+  if (p.segmentResults !== null) {
+    const hits = p.segmentResults.filter((r) => r.hit).length;
+    return `${hits}/${p.segmentTotalTargets ?? p.segmentResults.length} Targets`;
+  }
+  if (p.highestLevel !== null) return `Level ${p.highestLevel} (${p.successfulCheckouts}/${p.attempts})`;
+  if (p.successfulTargets !== null) return `${p.successfulTargets} Targets (${p.totalHits} hits)`;
+  if (p.legsWon !== null) return `${p.legsWon} Legs`;
+  if (p.totalScore !== null) return `${p.totalScore} points`;
+  if (p.successfulCheckouts !== null) return `${p.successfulCheckouts}/${p.attempts} Checkouts`;
+  return "";
+}
+
 export function ResultScreen({ match, onRematch, onExit }: Props) {
   const setsEnabled = Boolean(match.settings?.setsEnabled);
   const ranked = [...match.players].sort((a, b) => rankValue(b, setsEnabled) - rankValue(a, setsEnabled));
@@ -37,16 +55,7 @@ export function ResultScreen({ match, onRematch, onExit }: Props) {
           <li key={p.id} className={`result-row ${p.id === match.winnerId ? "winner" : ""}`}>
             <span className="result-rank">{i + 1}.</span>
             <span className="result-name">{p.name}</span>
-            <span className="result-value">
-              {setsEnabled && `${p.setsWon} Sets (${p.legsWon} Legs)`}
-              {!setsEnabled && p.highestLevel !== null && `Level ${p.highestLevel} (${p.successfulCheckouts}/${p.attempts})`}
-              {!setsEnabled && p.highestLevel === null && p.successfulTargets !== null &&
-                `${p.successfulTargets} Targets (${p.totalHits} hits)`}
-              {!setsEnabled && p.highestLevel === null && p.successfulTargets === null && p.legsWon !== null && `${p.legsWon} Legs`}
-              {!setsEnabled && p.highestLevel === null && p.successfulTargets === null && p.legsWon === null && p.totalScore !== null && `${p.totalScore} points`}
-              {!setsEnabled && p.highestLevel === null && p.successfulTargets === null && p.legsWon === null && p.totalScore === null && p.successfulCheckouts !== null &&
-                `${p.successfulCheckouts}/${p.attempts} Checkouts`}
-            </span>
+            <span className="result-value">{resultValueText(p, setsEnabled)}</span>
           </li>
         ))}
       </ol>
@@ -81,6 +90,7 @@ export function ResultScreen({ match, onRematch, onExit }: Props) {
                 {p.groupingRounds[p.bestGroupingRoundIndex].mm?.toFixed(1)} mm)
               </div>
             ) : null}
+            {p.segmentResults !== null ? <SegmentSummary player={p} /> : null}
           </div>
         ))}
       </div>
@@ -94,5 +104,59 @@ export function ResultScreen({ match, onRematch, onExit }: Props) {
         </button>
       </div>
     </div>
+  );
+}
+
+const SEGMENT_GROUP_LABELS: Record<string, string> = {
+  large_single: "Large Singles",
+  small_single: "Small Singles",
+  double: "Doubles",
+  triple: "Triples",
+  bull: "Bull",
+};
+
+// Endauswertung fuer Random Segment Training (Tobias-Anforderung
+// 16.09.2026): Gesamtquote, Ø Darts pro getroffenem Ziel, Quote je
+// Gruppe und die Liste der verfehlten Ziele. Alles aus segmentResults
+// abgeleitet - die Engine liefert einen Eintrag pro abgeschlossenem Ziel.
+function SegmentSummary({ player }: { player: MatchPlayer }) {
+  const results = player.segmentResults ?? [];
+  if (results.length === 0) return null;
+
+  const hits = results.filter((r) => r.hit);
+  const total = player.segmentTotalTargets ?? results.length;
+  const hitRate = Math.round((hits.length / total) * 100);
+  const dartsPerHit = hits.length > 0 ? (hits.reduce((sum, r) => sum + r.dartsUsed, 0) / hits.length).toFixed(1) : "—";
+
+  const groups = Array.from(new Set(results.map((r) => r.group)));
+  const missed = results.filter((r) => !r.hit);
+
+  return (
+    <>
+      <div className="result-stat-row">
+        Hit Rate: <b>{hitRate}%</b> ({hits.length}/{total})
+      </div>
+      <div className="result-stat-row">
+        Ø Darts per hit target: <b>{dartsPerHit}</b>
+      </div>
+      {groups.map((group) => {
+        const inGroup = results.filter((r) => r.group === group);
+        const groupHits = inGroup.filter((r) => r.hit).length;
+        return (
+          <div key={group} className="result-stat-row">
+            {SEGMENT_GROUP_LABELS[group] ?? group}:{" "}
+            <b>
+              {Math.round((groupHits / inGroup.length) * 100)}%
+            </b>{" "}
+            ({groupHits}/{inGroup.length})
+          </div>
+        );
+      })}
+      {missed.length > 0 && (
+        <div className="result-stat-row result-missed-targets">
+          Missed: <b>{missed.map((r) => r.label).join(", ")}</b>
+        </div>
+      )}
+    </>
   );
 }

@@ -54,6 +54,30 @@ export function GameSettingsForm({ schema, values, onChange }: Props) {
             </div>
           )}
 
+          {field.type === "multiselect" && (
+            <div className="option-row">
+              {field.options?.map((opt) => {
+                const selected = Array.isArray(values[field.key]) ? (values[field.key] as (string | number)[]) : [];
+                const active = selected.includes(opt.value);
+                return (
+                  <button
+                    key={opt.value}
+                    type="button"
+                    className={`option-btn ${active ? "active" : ""}`}
+                    onClick={() => {
+                      // Mindestens eine Option muss aktiv bleiben - das
+                      // Abwaehlen der letzten wird bewusst ignoriert.
+                      if (active && selected.length === 1) return;
+                      onChange(field.key, active ? selected.filter((v) => v !== opt.value) : [...selected, opt.value]);
+                    }}
+                  >
+                    {opt.label}
+                  </button>
+                );
+              })}
+            </div>
+          )}
+
           {field.type === "number" && (
             <div className="option-row">
               {field.presets?.map((preset) => (

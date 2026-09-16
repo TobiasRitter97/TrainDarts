@@ -3,7 +3,16 @@
 // 0 spielen"-Logik - x01 und Random Checkout sind im Kern ein Countdown
 // mit Bust-Regel, nur der Startwert unterscheidet sich.
 
-export type Segment = { number: number; multiplier: number };
+// "bed" ist das vom Board mitgelieferte Feld-Detail. Verifiziert am
+// 16.09.2026 aus dem offiziellen Board-Manager-Bundle (dieselbe Methode
+// wie bei REST-API/Koordinaten, siehe CLAUDE.md) - moegliche Werte:
+// "Single", "SingleInner", "SingleOuter", "Double", "Triple", "Outside".
+// Nur damit lassen sich GROSSE Singles (SingleOuter, zwischen Triple-
+// und Doppelring) von KLEINEN Singles (SingleInner, zwischen Bull und
+// Triplering) unterscheiden - beide haben multiplier 1. Optional, weil
+// manuell erfasste Darts (+ DART / Korrektur ueber das Zahlenraster)
+// kein bed haben koennen.
+export type Segment = { number: number; multiplier: number; bed?: string };
 export type CheckoutMode = "double_out" | "master_out" | "straight_out";
 export type CountdownOutcome = "bust" | "checkout" | "continue";
 export type CountdownResult = { outcome: CountdownOutcome; score: number; dartsUsed: number };

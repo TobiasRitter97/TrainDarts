@@ -88,6 +88,20 @@ Anwendung stattdessen die echte Board-Manager-Oberfläche
 getestet (nicht angefragt, vermutlich einschneidender als Start/Stop/
 Reset) und wird bis auf Weiteres nicht verwendet.
 
+### Verifizierte Werte von segment.bed
+
+Verifiziert am 16.09.2026 aus dem Board-Manager-Bundle (dort als
+TypeScript-Enum enthalten). Mögliche Werte von `segment.bed`:
+`"Single"`, `"SingleInner"`, `"SingleOuter"`, `"Double"`, `"Triple"`,
+`"Outside"`. Nur damit lassen sich GROSSE Singles (`SingleOuter`,
+Ring zwischen Triple- und Doppelring) von KLEINEN Singles
+(`SingleInner`, Ring zwischen Bull und Triplering) unterscheiden —
+beide haben `multiplier: 1`. Genutzt von "Random Segment Training"
+(`frontend/src/engine/families/randomSegment.ts`). Manuell erfasste
+Darts (+ DART / Korrektur über das Zahlenraster) haben kein `bed`;
+der DartboardPicker liefert es dagegen mit, weil er innere und äußere
+Single ohnehin als getrennte Flächen zeichnet.
+
 ### Verifizierte Koordinaten-Skala (coords.x/y)
 
 Verifiziert am 16.09.2026, wieder durch Analyse des offiziellen

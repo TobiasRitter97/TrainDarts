@@ -20,6 +20,13 @@ import "./GameScreen.css";
 type CorrectionTarget = { mode: "add" } | { mode: "correct"; throwSeq: number };
 type Tab = "visit-log" | "game-stats";
 
+// Nur diese Familien koennen ueberhaupt einen Checkout-Weg vorschlagen
+// (siehe matchEngine.checkoutSuggestion). Bei allen anderen wird die
+// Zeile gar nicht erst gerendert, statt dauerhaft einen leeren
+// Platzhalter zu zeigen - ein Layout-Sprung ist dort ausgeschlossen,
+// weil nie ein Vorschlag auftauchen kann.
+const CHECKOUT_FAMILIES = new Set(["x01", "random_checkout", "checkout_range", "catch"]);
+
 export type GameSessionActions = {
   onUndo: () => void;
   onAddThrow: (segment: Segment) => void;
@@ -51,6 +58,7 @@ function pendingLabel(outcome: string | null): string {
   if (outcome === "bust") return "BUST — CONFIRM";
   if (outcome === "checkout") return "CHECKOUT! — CONFIRM";
   if (outcome === "round_done") return "ROUND DONE — CONFIRM";
+  if (outcome === "player_done") return "ALL TARGETS DONE — CONFIRM";
   return "VISIT DONE — CONFIRM";
 }
 
@@ -151,7 +159,29 @@ export function GameScreenView({ match, game, actions, boardStatus, onOpenSettin
               <ScoreDisplay label="Your Remaining" value={activePlayer.score} size="md" />
             )}
 
-            <CheckoutRouteDisplay route={match.checkoutSuggestion} />
+            {match.segmentInfo && (
+              <div className="segment-info">
+                <div className="segment-info-row">
+                  <span className="segment-info-item">
+                    <span className="segment-info-value">{match.segmentInfo.remainingDarts}</span>
+                    <span className="segment-info-label">
+                      {match.segmentInfo.remainingDarts === 1 ? "dart" : "darts"} left for this target
+                    </span>
+                  </span>
+                  <span className="segment-info-item">
+                    <span className="segment-info-value">{segmentHitRate(activePlayer)}</span>
+                    <span className="segment-info-label">hit rate</span>
+                  </span>
+                </div>
+                {match.segmentInfo.nextTarget && (
+                  <div className="segment-info-next">
+                    Next: <b>{match.segmentInfo.nextTarget}</b>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {CHECKOUT_FAMILIES.has(match.engineFamily) && <CheckoutRouteDisplay route={match.checkoutSuggestion} />}
 
             {activePlayer?.groupingRounds && activePlayer.groupingRounds.length > 0 && (
               <div className="grouping-info">
@@ -251,6 +281,15 @@ export function GameScreenView({ match, game, actions, boardStatus, onOpenSettin
       )}
     </div>
   );
+}
+
+// Laufende Trefferquote bei Random Segment Training - aus den bereits
+// abgeschlossenen Zielen (segmentResults), nicht aus der Gesamtzahl:
+// waehrend des Spiels soll die Quote das bisher Gespielte abbilden.
+function segmentHitRate(player: MatchState["players"][number] | undefined): string {
+  const results = player?.segmentResults ?? [];
+  if (results.length === 0) return "—";
+  return `${Math.round((results.filter((r) => r.hit).length / results.length) * 100)}%`;
 }
 
 // "Game Stats"-Tab: zeigt die vorhandenen Kennzahlen des aktiven

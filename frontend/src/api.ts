@@ -17,7 +17,11 @@ export type Profile = {
 export type SettingField = {
   key: string;
   label: string;
-  type: "toggle" | "select" | "number";
+  // "multiselect": mehrere Optionen gleichzeitig aktivierbar, Wert ist
+  // ein Array von Option-Werten. Mindestens eine Option bleibt immer
+  // aktiv (Tobias-Anforderung 16.09.2026, Ziel-Pool bei Random Segment
+  // Training) - das Abwaehlen der letzten aktiven Option wird ignoriert.
+  type: "toggle" | "select" | "number" | "multiselect";
   default: unknown;
   // "hint" pro Option ueberschreibt fuer diese Option den allgemeinen
   // Feld-Hint - Tobias-Feedback 11.09.2026: bei Optionen mit spuerbar
@@ -99,6 +103,14 @@ export type MatchPlayer = {
   // echte Board-Koordinaten vorlagen) + Index der bisher besten Runde.
   groupingRounds: { mm: number | null; score: number; hits: { triple: number; single: number; miss: number }; timestamp: number }[] | null;
   bestGroupingRoundIndex: number | null;
+  // Nur bei Random Segment Training gesetzt (Tobias-Anforderung
+  // 16.09.2026): ein Eintrag pro ABGESCHLOSSENEM Ziel, Basis fuer
+  // Trefferquote, Gruppen-Aufschluesselung und die Liste der verfehlten
+  // Ziele im Ergebnis-Screen.
+  segmentResults:
+    | { label: string; group: "large_single" | "small_single" | "double" | "triple" | "bull"; hit: boolean; dartsUsed: number }[]
+    | null;
+  segmentTotalTargets: number | null;
 };
 
 // "coords" nur gesetzt, wenn das Board echte Koordinaten fuer diesen
@@ -126,11 +138,15 @@ export type MatchState = {
   // total=null bei Endless) und Grouping Championship ("RUNDE X von 20")
   // gesetzt - "label" steuert die Beschriftung im Game Screen.
   attemptInfo: { current: number; total: number | null; label: string } | null;
+  // Nur bei Random Segment Training: verbleibende Darts fuer das
+  // AKTUELLE Ziel (das Budget gehoert zum Ziel, nicht zur Aufnahme) und
+  // Vorschau auf das naechste Ziel.
+  segmentInfo: { remainingDarts: number; nextTarget: string | null } | null;
   round: number;
   legNumber: number | null;
   setNumber: number | null;
   pendingConfirmation: boolean;
-  pendingOutcome: "bust" | "checkout" | "target_done" | "round_done" | "continue" | null;
+  pendingOutcome: "bust" | "checkout" | "target_done" | "round_done" | "player_done" | "continue" | null;
   history: MatchVisit[];
   canUndo: boolean;
   finished: boolean;

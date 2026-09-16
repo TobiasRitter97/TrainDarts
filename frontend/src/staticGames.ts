@@ -849,5 +849,99 @@ export const STATIC_GAMES = [
       "rounds"
     ],
     "settingsSchema": []
+  },
+  {
+    "id": "random_segment",
+    "name": "Random Segment Training",
+    "description": "Hit the randomly drawn segment. Every player gets the same sequence.",
+    "category": "ACCURACY",
+    "icon": "🎲",
+    "engineFamily": "random_segment",
+    "playerRange": [
+      1,
+      4
+    ],
+    "implemented": true,
+    "durationModes": [
+      "targets"
+    ],
+    "settingsSchema": [
+      {
+        "key": "numberOfTargets",
+        "label": "Number of Targets",
+        "type": "select",
+        "options": [
+          {
+            "value": 10,
+            "label": "10"
+          },
+          {
+            "value": 20,
+            "label": "20"
+          },
+          {
+            "value": 30,
+            "label": "30"
+          },
+          {
+            "value": 50,
+            "label": "50"
+          }
+        ],
+        "default": 20,
+        "hint": "How many targets are drawn for this match. Every player plays the same sequence."
+      },
+      {
+        "key": "dartsPerTarget",
+        "label": "Darts per Target",
+        "type": "select",
+        "options": [
+          {
+            "value": 1,
+            "label": "1 dart",
+            "hint": "One dart per target - hit or miss, then the next target is drawn."
+          },
+          {
+            "value": 3,
+            "label": "3 darts",
+            "hint": "Up to three darts per target. A hit ends the target immediately, remaining darts are forfeited. The budget belongs to the target, so it can carry over into your next visit."
+          }
+        ],
+        "default": 3
+      },
+      {
+        "key": "targetPool",
+        "label": "Target Pool",
+        "type": "multiselect",
+        "options": [
+          {
+            "value": "large_single",
+            "label": "Large Singles"
+          },
+          {
+            "value": "small_single",
+            "label": "Small Singles"
+          },
+          {
+            "value": "double",
+            "label": "Doubles"
+          },
+          {
+            "value": "triple",
+            "label": "Triples"
+          },
+          {
+            "value": "bull",
+            "label": "Bull"
+          }
+        ],
+        "default": [
+          "large_single",
+          "double",
+          "triple"
+        ],
+        "hint": "Which segments can be drawn. Large Singles are the outer ring between triple and double, Small Singles the inner ring between bull and triple. At least one group stays active."
+      }
+    ]
   }
 ] as unknown as GameDefinition[];

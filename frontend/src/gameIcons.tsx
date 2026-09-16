@@ -13,6 +13,7 @@ import {
   Hash,
   LucideIcon,
   Ruler,
+  Shuffle,
   Target,
   Trophy,
   Users,
@@ -31,6 +32,7 @@ const GAME_ICON_BY_ID: Record<string, LucideIcon> = {
   around_the_world: Globe,
   jdc: Trophy,
   grouping_championship: Ruler,
+  random_segment: Shuffle,
 };
 
 export function gameIcon(game: GameDefinition): LucideIcon {

@@ -1013,6 +1013,8 @@ export class MatchEngine {
     return {
       id: player.id,
       name: player.name,
+      color: player.color ?? null,
+      initials: player.initials ?? null,
       score: this.liveScore(player.id),
       legsWon: state.legsWon ?? null,
       setsWon: state.setsWon ?? null,

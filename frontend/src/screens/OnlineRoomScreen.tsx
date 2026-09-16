@@ -13,6 +13,7 @@ type Props = {
   pin: string;
   myProfile: Profile;
   onExit: () => void;
+  onOpenSettings: () => void;
 };
 
 const MIN_PLAYERS = 2;
@@ -23,7 +24,7 @@ const MIN_PLAYERS = 2;
 // Raum auf "playing" wechselt, uebernimmt derselbe Screen nahtlos die
 // laufende Partie (OnlineGameScreen) - kein zusaetzlicher
 // Navigations-Schritt noetig.
-export function OnlineRoomScreen({ pin, myProfile, onExit }: Props) {
+export function OnlineRoomScreen({ pin, myProfile, onExit, onOpenSettings }: Props) {
   const [room, setRoom] = useState<Room | null>(null);
   const [myUid, setMyUid] = useState<string | null>(null);
   const [starting, setStarting] = useState(false);
@@ -41,7 +42,7 @@ export function OnlineRoomScreen({ pin, myProfile, onExit }: Props) {
   const selectedGame = room.gameId ? STATIC_GAMES.find((g) => g.id === room.gameId) ?? null : null;
 
   if (room.status === "playing" && selectedGame) {
-    return <OnlineGameScreen pin={pin} game={selectedGame} myUid={myUid} onExit={onExit} />;
+    return <OnlineGameScreen pin={pin} game={selectedGame} myUid={myUid} onExit={onExit} onOpenSettings={onOpenSettings} />;
   }
 
   function selectGame(gameId: string) {

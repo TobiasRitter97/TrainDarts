@@ -1,0 +1,24 @@
+.score-display {
+  text-align: left;
+}
+
+.score-display-label {
+  font-size: var(--fs-sm);
+  color: var(--c-text-muted);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.score-display.lg .score-display-value {
+  font-size: var(--fs-display);
+  font-weight: var(--fw-display);
+  line-height: 1;
+  margin-top: var(--sp-1);
+}
+
+.score-display.md .score-display-value {
+  font-size: var(--fs-xl);
+  font-weight: var(--fw-display);
+  line-height: 1;
+  margin-top: var(--sp-1);
+}

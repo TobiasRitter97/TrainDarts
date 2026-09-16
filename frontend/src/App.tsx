@@ -127,17 +127,15 @@ export default function App() {
 
   return (
     <div className="app-shell">
-      {view.screen !== "local-game" && view.screen !== "online-room" && (
-        <AppHeader
-          activeScreen={headerScreen}
-          onNavigate={handleNavigate}
-          onOpenSettings={() => setShowPiSettings(true)}
-          pendingResume={pendingResume ? { gameName: pendingResume.gameName } : null}
-          onResume={handleResume}
-          search={view.screen === "hub" ? { value: searchQuery, onChange: setSearchQuery } : null}
-          favorites={view.screen === "hub" ? { active: favoritesOnly, onToggle: () => setFavoritesOnly((v) => !v) } : null}
-        />
-      )}
+      <AppHeader
+        activeScreen={headerScreen}
+        onNavigate={handleNavigate}
+        onOpenSettings={() => setShowPiSettings(true)}
+        pendingResume={view.screen === "hub" && pendingResume ? { gameName: pendingResume.gameName } : null}
+        onResume={handleResume}
+        search={view.screen === "hub" ? { value: searchQuery, onChange: setSearchQuery } : null}
+        favorites={view.screen === "hub" ? { active: favoritesOnly, onToggle: () => setFavoritesOnly((v) => !v) } : null}
+      />
       <main className="app-main">
         {view.screen === "hub" && (
           <GameHubScreen
@@ -163,6 +161,7 @@ export default function App() {
             settings={view.session.settings}
             resume={view.resume}
             onExit={() => setView({ screen: "hub" })}
+            onOpenSettings={() => setShowPiSettings(true)}
           />
         )}
         {view.screen === "profiles" && <ProfileScreen onBack={() => setView({ screen: "hub" })} />}
@@ -174,7 +173,12 @@ export default function App() {
           />
         )}
         {view.screen === "online-room" && (
-          <OnlineRoomScreen pin={view.pin} myProfile={view.myProfile} onExit={() => setView({ screen: "hub" })} />
+          <OnlineRoomScreen
+            pin={view.pin}
+            myProfile={view.myProfile}
+            onExit={() => setView({ screen: "hub" })}
+            onOpenSettings={() => setShowPiSettings(true)}
+          />
         )}
       </main>
 

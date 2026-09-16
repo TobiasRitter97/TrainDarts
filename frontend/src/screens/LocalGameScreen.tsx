@@ -8,6 +8,7 @@ type Props = {
   settings: Record<string, unknown>;
   resume?: ResumeInfo;
   onExit: () => void;
+  onOpenSettings: () => void;
 };
 
 // Duenner Wrapper um GameScreenView: Match-State kommt aus einer lokal
@@ -15,13 +16,15 @@ type Props = {
 // Board verbindet (Phase A/C) und ihren Fortschritt in Firestore
 // persistiert (Phase E, ~/.claude/plans/agile-brewing-wadler.md) - kein
 // eigenes Backend mehr. Wird fuer alle 10 Spiele verwendet.
-export function LocalGameScreen({ game, players, settings, resume, onExit }: Props) {
+export function LocalGameScreen({ game, players, settings, resume, onExit, onOpenSettings }: Props) {
   const local = useLocalMatch(game, players, settings, resume);
 
   return (
     <GameScreenView
       match={local.state}
       game={game}
+      boardStatus={local.boardStatus}
+      onOpenSettings={onOpenSettings}
       persistsProgress
       onExit={onExit}
       actions={{

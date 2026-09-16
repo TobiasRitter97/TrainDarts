@@ -1,0 +1,63 @@
+.throw-sequence-bar {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr) auto;
+  gap: var(--sp-3);
+  padding: var(--sp-5);
+  background: var(--c-surface);
+  border: 1px solid var(--c-border);
+  border-radius: var(--radius-lg);
+}
+
+.throw-slot {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sp-2);
+  min-height: 88px;
+  background: var(--c-surface-raised);
+  border: 1px solid var(--c-border);
+  border-radius: var(--radius-md);
+  font-family: inherit;
+  cursor: pointer;
+  padding: 0 var(--sp-4);
+}
+
+.throw-slot:disabled {
+  cursor: default;
+}
+
+.throw-slot-total {
+  cursor: default;
+  min-width: 96px;
+  border-color: var(--c-brand);
+}
+
+.throw-slot-label {
+  font-size: var(--fs-xs);
+  color: var(--c-text-faint);
+  letter-spacing: 0.1em;
+}
+
+.throw-slot-value {
+  font-size: var(--fs-lg);
+  font-weight: var(--fw-display);
+}
+
+.throw-slot-value.filled {
+  color: var(--c-brand);
+}
+
+.throw-slot-value.empty {
+  color: var(--c-text-faint);
+}
+
+.throw-slot-value.addable {
+  color: var(--c-accent);
+}
+
+@media (max-width: 720px) {
+  .throw-sequence-bar {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}

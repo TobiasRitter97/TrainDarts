@@ -7,13 +7,14 @@ type Props = {
   game: GameDefinition;
   myUid: string;
   onExit: () => void;
+  onOpenSettings: () => void;
 };
 
 // Duenner Wrapper um GameScreenView fuer eine laufende Online-Partie
 // (Phase F, ~/.claude/plans/agile-brewing-wadler.md) - Match-State kommt
 // aus useOnlineMatch (geteilter Event-Log ueber Realtime Database,
 // jedes Geraet mit seinem eigenen Board).
-export function OnlineGameScreen({ pin, game, myUid, onExit }: Props) {
+export function OnlineGameScreen({ pin, game, myUid, onExit, onOpenSettings }: Props) {
   const online = useOnlineMatch(pin, game, myUid);
 
   if (!online.state) {
@@ -24,6 +25,8 @@ export function OnlineGameScreen({ pin, game, myUid, onExit }: Props) {
     <GameScreenView
       match={online.state}
       game={game}
+      boardStatus={online.boardStatus}
+      onOpenSettings={onOpenSettings}
       persistsProgress
       canAct={online.isMyTurn}
       onExit={onExit}

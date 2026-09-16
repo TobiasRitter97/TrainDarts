@@ -1,17 +1,37 @@
 .game-screen {
-  max-width: 1100px;
+  max-width: 1400px;
   margin: 0 auto;
   display: flex;
   flex-direction: column;
-  gap: var(--sp-6);
+  gap: var(--sp-5);
 }
 
-.game-screen-header {
+/* ---------- Top bar ---------- */
+.game-screen-topbar {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding-bottom: var(--sp-5);
+  padding-bottom: var(--sp-4);
   border-bottom: 1px solid var(--c-border);
+}
+
+.back-to-hub-link {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+  min-height: 44px;
+  padding: 0 var(--sp-3);
+  font-family: inherit;
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-strong);
+  color: var(--c-text-muted);
+  background: none;
+  border: none;
+  cursor: pointer;
+}
+
+.back-to-hub-link:hover {
+  color: var(--c-text);
 }
 
 .game-screen-title {
@@ -62,26 +82,43 @@
   font-size: var(--fs-lg);
 }
 
-/* ---------- Active Player + Target ---------- */
-.active-player-panel {
-  text-align: center;
-  padding: var(--sp-6) 0;
-  border-top: 1px solid var(--c-border);
-  border-bottom: 1px solid var(--c-border);
-  transition: border-color 200ms ease-out, background 200ms ease-out;
+/* ---------- Two-column body ---------- */
+.game-screen-body {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(320px, 1fr);
+  gap: var(--sp-5);
+  align-items: start;
 }
 
-.active-player-panel.pending {
-  border-color: var(--c-accent);
-  background: linear-gradient(180deg, rgba(217, 164, 65, 0.1), transparent);
+@media (max-width: 980px) {
+  .game-screen-body {
+    grid-template-columns: 1fr;
+  }
 }
 
-.active-player-panel.pending .active-player-label {
-  color: var(--c-accent-strong);
+.game-screen-left {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-5);
+}
+
+.game-screen-right {
+  position: sticky;
+  top: var(--sp-5);
+}
+
+/* ---------- Info panel (links) ---------- */
+.active-player-status {
+  font-size: var(--fs-sm);
+  color: var(--c-text-muted);
+  letter-spacing: 0.1em;
   font-weight: var(--fw-strong);
 }
 
-.active-player-label,
+.active-player-status.pending {
+  color: var(--c-accent-strong);
+}
+
 .target-label {
   font-size: var(--fs-sm);
   color: var(--c-text-muted);
@@ -93,28 +130,14 @@
   color: var(--c-accent);
   letter-spacing: 0.1em;
   font-weight: var(--fw-strong);
-  margin-bottom: var(--sp-2);
-}
-
-.active-player-name {
-  font-size: var(--fs-xl);
-  font-weight: var(--fw-display);
-  color: var(--c-accent-strong);
-  margin: var(--sp-1) 0 var(--sp-5);
-}
-
-.target-value {
-  font-size: var(--fs-display);
-  font-weight: var(--fw-display);
-  line-height: 1;
-  margin-top: var(--sp-1);
+  margin-top: var(--sp-3);
 }
 
 .jdc-phase-label {
   font-size: var(--fs-sm);
   color: var(--c-accent-strong);
   letter-spacing: 0.08em;
-  margin-bottom: var(--sp-2);
+  margin-top: var(--sp-2);
 }
 
 .waiting-for-turn-label {
@@ -124,32 +147,49 @@
   margin-top: var(--sp-1);
 }
 
-.history-chip:disabled,
-.dart-slot:disabled .dart-chip {
-  opacity: 0.5;
+.game-info-player-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-3);
+  margin-top: var(--sp-3);
+}
+
+.game-info-darts-count {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--c-text-muted);
+  font-size: var(--fs-sm);
+}
+
+.game-info-panel > .score-display {
+  margin-top: var(--sp-4);
+}
+
+.game-info-panel > .checkout-route {
+  margin-top: var(--sp-4);
 }
 
 .open-numbers {
-  margin-top: var(--sp-5);
+  margin-top: var(--sp-4);
 }
 
 .grouping-info {
-  margin-top: var(--sp-5);
-  width: 100%;
+  margin-top: var(--sp-4);
   max-width: 320px;
 }
 
 .open-numbers-list {
   display: flex;
   flex-wrap: wrap;
-  justify-content: center;
   gap: var(--sp-2);
   margin-top: var(--sp-2);
 }
 
 .open-number-chip {
   padding: var(--sp-1) var(--sp-3);
-  border-radius: var(--radius-pill, 999px);
+  border-radius: var(--radius-full);
   border: 1px solid var(--c-border);
   font-size: var(--fs-sm);
   color: var(--c-text-muted);
@@ -161,106 +201,51 @@
   font-weight: var(--fw-strong);
 }
 
-/* ---------- Current Throw ---------- */
-.current-throw-panel {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: var(--sp-4);
+.game-info-panel > .game-progress {
+  margin-top: var(--sp-5);
+  padding-top: var(--sp-4);
+  border-top: 1px solid var(--c-border);
+  text-align: left;
 }
 
-.dart-slot {
-  text-align: center;
-  background: none;
-  border: none;
-  padding: 0;
-  font-family: inherit;
-  cursor: pointer;
-}
-
-.dart-slot:disabled {
-  cursor: default;
-}
-
-.dart-slot-label {
-  font-size: var(--fs-xs);
-  color: var(--c-text-faint);
-  letter-spacing: 0.1em;
-  margin-bottom: var(--sp-2);
-}
-
-.dart-chip {
-  min-height: 72px;
-  border-radius: var(--radius-md);
-  border: 1px solid var(--c-border);
-  background: var(--c-surface);
+/* ---------- Tabs panel ---------- */
+.game-tabs-row {
   display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: var(--fs-lg);
-  font-weight: var(--fw-display);
-}
-
-.dart-chip.filled {
-  border-color: var(--c-accent);
-  color: var(--c-accent-strong);
-}
-
-.dart-chip.empty {
-  color: var(--c-text-faint);
-  border-style: dashed;
-}
-
-.dart-chip.addable {
-  color: var(--c-accent);
-  border-color: var(--c-accent);
-  border-style: dashed;
-}
-
-/* ---------- History (Korrektur vergangener Aufnahmen) ---------- */
-.visit-history {
-  text-align: center;
-}
-
-.visit-history-label {
-  font-size: var(--fs-xs);
-  color: var(--c-text-faint);
-  letter-spacing: 0.05em;
-  margin-bottom: var(--sp-3);
-}
-
-.visit-history-rows {
-  display: flex;
-  flex-direction: column;
   gap: var(--sp-2);
+  margin-bottom: var(--sp-4);
+  border-bottom: 1px solid var(--c-border);
 }
 
-.visit-history-row {
-  display: flex;
+.game-tab {
+  display: inline-flex;
   align-items: center;
-  justify-content: center;
   gap: var(--sp-2);
-  flex-wrap: wrap;
-}
-
-.visit-history-player {
-  font-size: var(--fs-sm);
-  color: var(--c-text-muted);
-  min-width: 80px;
-  text-align: right;
-}
-
-.history-chip {
-  font-family: inherit;
-  min-width: 44px;
-  min-height: 36px;
+  min-height: 44px;
   padding: 0 var(--sp-2);
-  border-radius: var(--radius-sm);
-  border: 1px solid var(--c-border);
-  background: var(--c-surface);
-  color: var(--c-text-muted);
+  font-family: inherit;
   font-size: var(--fs-sm);
   font-weight: var(--fw-strong);
+  color: var(--c-text-muted);
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
   cursor: pointer;
+  margin-bottom: -1px;
+}
+
+.game-tab:hover {
+  color: var(--c-text);
+}
+
+.game-tab.active {
+  color: var(--c-brand);
+  border-bottom-color: var(--c-brand);
+}
+
+.game-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  gap: var(--sp-3);
 }
 
 /* ---------- Progress ---------- */

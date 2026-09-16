@@ -70,6 +70,10 @@ export function defaultSettingsValues(schema: SettingField[]): Record<string, un
 export type MatchPlayer = {
   id: string;
   name: string;
+  // Fuers PlayerBadge im Redesign 16.09.2026 - kommt 1:1 vom
+  // MatchPlayerRef, mit dem der Spieler dem Match hinzugefuegt wurde.
+  color: string | null;
+  initials: string | null;
   score: number | null;
   legsWon: number | null;
   setsWon: number | null;

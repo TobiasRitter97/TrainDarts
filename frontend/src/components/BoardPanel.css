@@ -1,0 +1,110 @@
+.board-panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+  height: 100%;
+}
+
+.board-panel-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--sp-2);
+}
+
+.board-panel-stage {
+  position: relative;
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: radial-gradient(circle at 50% 40%, var(--c-surface-raised), var(--c-bg));
+  border: 1px solid var(--c-border);
+  border-radius: var(--radius-lg);
+  padding: var(--sp-6);
+  min-height: 320px;
+}
+
+.board-panel-svg {
+  width: 100%;
+  max-width: 420px;
+  filter: drop-shadow(0 0 28px color-mix(in srgb, var(--c-text-faint) 25%, transparent));
+  transition: filter var(--anim-slow) var(--anim-ease-out);
+}
+
+.board-panel-stage.live .board-panel-svg {
+  filter: drop-shadow(0 0 32px color-mix(in srgb, var(--c-brand) 55%, transparent));
+}
+
+.board-bg {
+  fill: var(--c-surface);
+  stroke: var(--c-border-strong);
+  stroke-width: 2;
+}
+
+.board-number-label {
+  fill: var(--c-text);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.board-panel-live-badge {
+  position: absolute;
+  top: var(--sp-4);
+  left: var(--sp-4);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px var(--sp-3);
+  border-radius: var(--radius-full);
+  background: var(--c-surface-raised);
+  border: 1px solid var(--c-border);
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-strong);
+  letter-spacing: 0.06em;
+  color: var(--c-text-muted);
+}
+
+.board-panel-live-badge.live {
+  color: var(--c-brand);
+  border-color: var(--c-brand);
+}
+
+.board-panel-live-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: var(--radius-full);
+  background: var(--c-text-faint);
+}
+
+.board-panel-live-badge.live .board-panel-live-dot {
+  background: var(--c-brand);
+  box-shadow: 0 0 6px var(--c-brand);
+}
+
+.board-panel-status {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+  align-self: flex-end;
+  min-height: 44px;
+  padding: 0 var(--sp-4);
+  font-family: inherit;
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-strong);
+  color: var(--c-text-muted);
+  background: var(--c-surface);
+  border: 1px solid var(--c-border);
+  border-radius: var(--radius-full);
+  cursor: pointer;
+}
+
+.board-panel-status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: var(--radius-full);
+  background: var(--c-danger);
+}
+
+.board-panel-status-dot.live {
+  background: var(--c-brand);
+}

@@ -1,5 +1,6 @@
 import { Camera, Settings, Undo2 } from "lucide-react";
 import { BoardStatus } from "../board/autodartsAdapter";
+import { Segment } from "../engine/scoring";
 import { MM_PER_COORD_UNIT } from "../engine/families/grouping";
 import { ActionIconButton } from "./ActionIconButton";
 import "./BoardPanel.css";
@@ -10,6 +11,12 @@ type Props = {
   canAct: boolean;
   onUndo: () => void;
   onOpenSettings: () => void;
+  // Ist ein Dart zur Korrektur ausgewaehlt, wird die Scheibe anklickbar
+  // und ein Klick/Tipp auf ein Feld setzt direkt dessen Wert (Tobias-
+  // Anforderung 16.09.2026: Wurf per Maus/Finger auf dem angezeigten
+  // Board aendern). "armedLabel" beschriftet den Hinweis, z.B. "DART 2".
+  armedLabel?: string | null;
+  onSelectSegment?: (segment: Segment) => void;
   // Einschlagpunkte der aktuellen Aufnahme (Tobias-Feedback 16.09.2026) -
   // nur Darts, die das Board tatsaechlich mit Koordinaten gemeldet hat
   // (manuell erfasste Darts haben keine). Normalisiert, 1.0 = 170mm -
@@ -56,8 +63,24 @@ function sectorPath(rIn: number, rOut: number, a0: number, a1: number): string {
 // DartboardPicker.tsx - dort haengt die Geometrie eng mit der
 // interaktiven Zeigen/Bestaetigen-Logik (Pointer-Events, Lupe) zusammen,
 // die hier nicht gebraucht wird.
-export function BoardPanel({ boardStatus, canUndo, canAct, onUndo, onOpenSettings, liveThrows }: Props) {
+export function BoardPanel({
+  boardStatus,
+  canUndo,
+  canAct,
+  onUndo,
+  onOpenSettings,
+  liveThrows,
+  armedLabel = null,
+  onSelectSegment,
+}: Props) {
   const live = boardStatus === "connected";
+  const armed = Boolean(armedLabel && onSelectSegment);
+
+  // Nur im scharfgeschalteten Zustand reagieren Klicks - sonst waere ein
+  // versehentlicher Tipp auf die grosse Scheibe sofort ein Dart.
+  function pick(segment: Segment) {
+    if (armed) onSelectSegment?.(segment);
+  }
 
   return (
     <div className="board-panel">
@@ -73,8 +96,15 @@ export function BoardPanel({ boardStatus, canUndo, canAct, onUndo, onOpenSetting
           {live ? "LIVE" : boardStatus === "reconnecting" ? "CONNECTING" : "OFFLINE"}
         </span>
 
-        <svg className="board-panel-svg" viewBox="0 0 400 400">
-          <circle cx={CX} cy={CY} r={R.edge} className="board-bg" />
+        <svg className={`board-panel-svg ${armed ? "armed" : ""}`} viewBox="0 0 400 400">
+          {/* Alles ausserhalb des Doppelrings zaehlt als Fehlwurf. */}
+          <circle
+            cx={CX}
+            cy={CY}
+            r={R.edge}
+            className="board-bg board-hit-area"
+            onClick={() => pick({ number: 0, multiplier: 0, bed: "Outside" })}
+          />
           {NUM_ORDER.map((num, i) => {
             const a0 = -9 + i * 18;
             const a1 = 9 + i * 18;
@@ -84,23 +114,59 @@ export function BoardPanel({ boardStatus, canUndo, canAct, onUndo, onOpenSetting
             const [lx, ly] = polar(R.label, i * 18);
             return (
               <g key={num}>
-                <path d={sectorPath(R.outerBull, R.tripleIn, a0, a1)} fill={singleFill} />
-                <path d={sectorPath(R.tripleIn, R.tripleOut, a0, a1)} fill={ringFill} />
-                <path d={sectorPath(R.tripleOut, R.doubleIn, a0, a1)} fill={singleFill} />
-                <path d={sectorPath(R.doubleIn, R.doubleOut, a0, a1)} fill={ringFill} />
+                <path
+                  d={sectorPath(R.outerBull, R.tripleIn, a0, a1)}
+                  fill={singleFill}
+                  className="board-hit-area"
+                  onClick={() => pick({ number: num, multiplier: 1, bed: "SingleInner" })}
+                />
+                <path
+                  d={sectorPath(R.tripleIn, R.tripleOut, a0, a1)}
+                  fill={ringFill}
+                  className="board-hit-area"
+                  onClick={() => pick({ number: num, multiplier: 3, bed: "Triple" })}
+                />
+                <path
+                  d={sectorPath(R.tripleOut, R.doubleIn, a0, a1)}
+                  fill={singleFill}
+                  className="board-hit-area"
+                  onClick={() => pick({ number: num, multiplier: 1, bed: "SingleOuter" })}
+                />
+                <path
+                  d={sectorPath(R.doubleIn, R.doubleOut, a0, a1)}
+                  fill={ringFill}
+                  className="board-hit-area"
+                  onClick={() => pick({ number: num, multiplier: 2, bed: "Double" })}
+                />
                 <text x={lx} y={ly} textAnchor="middle" dominantBaseline="middle" className="board-number-label">
                   {num}
                 </text>
               </g>
             );
           })}
-          <circle cx={CX} cy={CY} r={R.outerBull} fill="var(--c-success)" />
-          <circle cx={CX} cy={CY} r={R.bull} fill="var(--c-danger)" />
+          <circle
+            cx={CX}
+            cy={CY}
+            r={R.outerBull}
+            fill="var(--c-success)"
+            className="board-hit-area"
+            onClick={() => pick({ number: 25, multiplier: 1 })}
+          />
+          <circle
+            cx={CX}
+            cy={CY}
+            r={R.bull}
+            fill="var(--c-danger)"
+            className="board-hit-area"
+            onClick={() => pick({ number: 25, multiplier: 2 })}
+          />
           {liveThrows.map((coord, i) => {
             const [x, y] = dartPosition(coord);
             return <circle key={i} cx={x} cy={y} r={6} className="board-dart-dot" />;
           })}
         </svg>
+
+        {armed && <div className="board-panel-armed-hint">Tap a field to set {armedLabel}</div>}
       </div>
 
       <button type="button" className="board-panel-status" onClick={onOpenSettings}>

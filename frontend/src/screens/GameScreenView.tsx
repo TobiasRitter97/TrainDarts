@@ -33,12 +33,6 @@ export type GameSessionActions = {
   onCorrectThrow: (throwSeq: number, segment: Segment) => void;
   onConfirm: () => void;
   onRematch: () => void;
-  // Schaltet das Korrigieren ueber das echte Board scharf: solange ein
-  // Handler gesetzt ist, wird der naechste erkannte Wurf nicht als neuer
-  // Dart gezaehlt, sondern als Korrekturwert verwendet (Tobias-
-  // Anforderung 16.09.2026 - geht schneller als das Antippen auf dem
-  // Touchscreen).
-  onArmBoardCapture: (handler: ((segment: Segment) => void) | null) => void;
 };
 
 type Props = {
@@ -82,29 +76,10 @@ export function GameScreenView({ match, game, actions, boardStatus, onOpenSettin
   const [correction, setCorrection] = useState<CorrectionTarget | null>(null);
   const [tab, setTab] = useState<Tab>("visit-log");
 
-  // Solange das Korrektur-Fenster offen ist, darf der Wert auch einfach
-  // auf das echte Board geworfen werden. Der Effekt schaltet das beim
-  // Oeffnen scharf und beim Schliessen wieder ab - correctionRef haelt
-  // dabei das jeweils aktuelle Ziel, damit der (nur einmal registrierte)
-  // Handler nicht mit einem veralteten Wert arbeitet.
-  const correctionRef = useRef<CorrectionTarget | null>(null);
-  correctionRef.current = correction;
-
-  useEffect(() => {
-    if (!correction || !canAct) {
-      actions.onArmBoardCapture(null);
-      return;
-    }
-    actions.onArmBoardCapture((segment) => {
-      const target = correctionRef.current;
-      if (!target) return;
-      if (target.mode === "add") actions.onAddThrow(segment);
-      else actions.onCorrectThrow(target.throwSeq, segment);
-      setCorrection(null);
-    });
-    return () => actions.onArmBoardCapture(null);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [correction, canAct]);
+  // Zusatzfenster mit Zahlenraster/MISS/BOUNCER - wird nur noch auf
+  // Wunsch geoeffnet ("More options"), der schnelle Weg ist das direkte
+  // Antippen der grossen Scheibe rechts (Tobias-Anforderung 16.09.2026).
+  const [showPicker, setShowPicker] = useState(false);
 
   if (match.finished) {
     return <ResultScreen match={match} onRematch={actions.onRematch} onExit={onExit} />;
@@ -125,10 +100,21 @@ export function GameScreenView({ match, game, actions, boardStatus, onOpenSettin
       actions.onCorrectThrow(correction.throwSeq, segment);
     }
     setCorrection(null);
+    setShowPicker(false);
   }
 
   const darts = [match.currentVisitThrows[0] ?? null, match.currentVisitThrows[1] ?? null, match.currentVisitThrows[2] ?? null];
   const activePlayer = match.players.find((p) => p.id === match.activePlayerId);
+
+  // Beschriftung des scharfgeschalteten Zustands, z.B. "DART 2". Bei
+  // einer Korrektur aus dem Visit Log (frueherer Aufnahme) steckt der
+  // Dart nicht in der aktuellen Aufnahme - dann bleibt es allgemein.
+  function armedLabelFor(target: CorrectionTarget): string {
+    if (target.mode === "add") return "the new dart";
+    const indexInVisit = darts.findIndex((d) => d?.throwSeq === target.throwSeq);
+    return indexInVisit >= 0 ? `DART ${indexInVisit + 1}` : "this dart";
+  }
+  const armedLabel = correction ? armedLabelFor(correction) : null;
 
   return (
     <div className="game-screen">
@@ -153,10 +139,31 @@ export function GameScreenView({ match, game, actions, boardStatus, onOpenSettin
         canAct={canAct}
         onSlotClick={(_i, dart) => {
           if (!canAct) return;
-          if (dart) setCorrection({ mode: "correct", throwSeq: dart.throwSeq });
-          else setCorrection({ mode: "add" });
+          setCorrection(dart ? { mode: "correct", throwSeq: dart.throwSeq } : { mode: "add" });
+          setShowPicker(false);
         }}
       />
+
+      {correction && (
+        <div className="correction-armed-bar">
+          <span className="correction-armed-text">
+            Tap the dartboard to set <b>{armedLabel}</b>
+          </span>
+          <button type="button" className="correction-armed-btn" onClick={() => setShowPicker(true)}>
+            More options
+          </button>
+          <button
+            type="button"
+            className="correction-armed-btn"
+            onClick={() => {
+              setCorrection(null);
+              setShowPicker(false);
+            }}
+          >
+            Cancel
+          </button>
+        </div>
+      )}
 
       <div className="game-screen-body">
         <div className="game-screen-left">
@@ -290,6 +297,8 @@ export function GameScreenView({ match, game, actions, boardStatus, onOpenSettin
             onUndo={actions.onUndo}
             onOpenSettings={onOpenSettings}
             liveThrows={match.currentVisitThrows.flatMap((t) => (t.coords ? [t.coords] : []))}
+            armedLabel={armedLabel}
+            onSelectSegment={handleCorrectionSelect}
           />
         </div>
       </div>
@@ -306,12 +315,11 @@ export function GameScreenView({ match, game, actions, boardStatus, onOpenSettin
         onExit={handleExit}
       />
 
-      {correction && (
+      {correction && showPicker && (
         <DartCorrectionModal
           title={correction.mode === "add" ? "Add dart" : "Correct dart"}
-          boardLive={boardStatus === "connected"}
           onSelect={handleCorrectionSelect}
-          onClose={() => setCorrection(null)}
+          onClose={() => setShowPicker(false)}
         />
       )}
     </div>

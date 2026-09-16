@@ -73,24 +73,3 @@
   gap: var(--sp-2);
   margin-top: var(--sp-3);
 }
-
-/* Hinweis, dass der Wert auch einfach aufs echte Board geworfen werden
-   kann (Tobias-Anforderung 16.09.2026) - nur sichtbar, wenn eine
-   Board-Verbindung steht. */
-.dart-correction-board-hint {
-  display: flex;
-  align-items: center;
-  gap: var(--sp-2);
-  margin: 0 0 var(--sp-3);
-  font-size: var(--fs-sm);
-  color: var(--c-brand);
-}
-
-.dart-correction-board-dot {
-  width: 8px;
-  height: 8px;
-  border-radius: var(--radius-full);
-  background: var(--c-brand);
-  box-shadow: 0 0 6px var(--c-brand);
-  flex-shrink: 0;
-}

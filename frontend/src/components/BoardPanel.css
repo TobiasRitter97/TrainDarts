@@ -115,3 +115,41 @@
 .board-panel-status-dot.live {
   background: var(--c-brand);
 }
+
+/* Scharfgeschaltete Scheibe: ein Klick/Tipp auf ein Feld setzt den Wert
+   des gerade ausgewaehlten Darts (Tobias-Anforderung 16.09.2026). Ohne
+   Auswahl reagiert die Scheibe bewusst NICHT, damit ein versehentlicher
+   Tipp nicht sofort einen Dart aendert. */
+.board-panel-svg .board-hit-area {
+  pointer-events: none;
+}
+
+.board-panel-svg.armed .board-hit-area {
+  pointer-events: auto;
+  cursor: pointer;
+}
+
+.board-panel-svg.armed .board-hit-area:hover {
+  stroke: var(--c-brand);
+  stroke-width: 2;
+}
+
+.board-panel-stage:has(.board-panel-svg.armed) {
+  border-color: var(--c-brand);
+}
+
+.board-panel-armed-hint {
+  position: absolute;
+  bottom: var(--sp-4);
+  left: 50%;
+  transform: translateX(-50%);
+  padding: var(--sp-2) var(--sp-4);
+  border-radius: var(--radius-full);
+  background: var(--c-surface-raised);
+  border: 1px solid var(--c-brand);
+  color: var(--c-brand);
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-strong);
+  white-space: nowrap;
+  pointer-events: none;
+}

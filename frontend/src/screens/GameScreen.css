@@ -331,3 +331,41 @@
   border-color: var(--c-accent);
   color: #1a1500;
 }
+
+/* Hinweiszeile, solange ein Dart zur Korrektur ausgewaehlt ist
+   (Tobias-Anforderung 16.09.2026: Wurf per Klick/Tipp auf der
+   angezeigten Scheibe aendern). */
+.correction-armed-bar {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  flex-wrap: wrap;
+  padding: var(--sp-3) var(--sp-4);
+  background: color-mix(in srgb, var(--c-brand) 12%, var(--c-surface));
+  border: 1px solid var(--c-brand);
+  border-radius: var(--radius-md);
+}
+
+.correction-armed-text {
+  flex: 1;
+  font-size: var(--fs-md);
+  color: var(--c-text);
+}
+
+.correction-armed-btn {
+  font-family: inherit;
+  min-height: 44px;
+  padding: 0 var(--sp-4);
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-strong);
+  color: var(--c-text);
+  background: var(--c-surface);
+  border: 1px solid var(--c-border-strong);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+}
+
+.correction-armed-btn:hover {
+  border-color: var(--c-brand);
+  color: var(--c-brand);
+}

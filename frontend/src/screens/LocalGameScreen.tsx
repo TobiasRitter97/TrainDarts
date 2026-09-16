@@ -33,7 +33,6 @@ export function LocalGameScreen({ game, players, settings, resume, onExit, onOpe
         onCorrectThrow: local.correctThrow,
         onConfirm: local.confirmVisit,
         onRematch: local.rematch,
-        onArmBoardCapture: local.armBoardCapture,
       }}
     />
   );

@@ -1,0 +1,224 @@
+.app-header {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-5);
+  padding: var(--sp-3) var(--sp-6);
+  border-bottom: 1px solid var(--c-border);
+  background: var(--c-surface);
+  flex-wrap: wrap;
+}
+
+.app-header-brand {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  flex-shrink: 0;
+}
+
+.app-brand-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius-md);
+  color: var(--c-brand);
+  background: color-mix(in srgb, var(--c-brand) 18%, var(--c-surface));
+}
+
+.app-brand-name {
+  font-size: var(--fs-md);
+  font-weight: var(--fw-display);
+  letter-spacing: 0.01em;
+}
+
+.app-brand-accent {
+  color: var(--c-brand);
+}
+
+.app-header-nav {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  flex-wrap: wrap;
+}
+
+.app-nav-link {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+  min-height: 44px;
+  padding: 0 var(--sp-4);
+  font-family: inherit;
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-strong);
+  color: var(--c-text-muted);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.app-nav-link:hover {
+  color: var(--c-text);
+}
+
+.app-nav-link.active {
+  color: var(--c-brand);
+  background: color-mix(in srgb, var(--c-brand) 14%, transparent);
+  border-color: color-mix(in srgb, var(--c-brand) 40%, transparent);
+}
+
+.app-nav-more {
+  position: relative;
+}
+
+.app-nav-more-menu {
+  position: absolute;
+  top: calc(100% + var(--sp-2));
+  left: 0;
+  z-index: 20;
+  display: flex;
+  flex-direction: column;
+  min-width: 180px;
+  padding: var(--sp-2);
+  background: var(--c-surface-raised);
+  border: 1px solid var(--c-border-strong);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-lg);
+}
+
+.app-nav-more-menu button {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  min-height: 44px;
+  padding: 0 var(--sp-3);
+  font-family: inherit;
+  font-size: var(--fs-sm);
+  color: var(--c-text);
+  background: transparent;
+  border: none;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  text-align: left;
+}
+
+.app-nav-more-menu button:hover {
+  background: var(--c-surface);
+}
+
+.app-header-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  margin-left: auto;
+  flex-wrap: wrap;
+}
+
+.app-resume-btn {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 0 var(--sp-4);
+  font-family: inherit;
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-strong);
+  color: var(--c-bg);
+  background: var(--c-brand);
+  border: none;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  box-shadow: var(--shadow-glow-brand);
+}
+
+.app-search {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  min-height: 44px;
+  padding: 0 var(--sp-3);
+  color: var(--c-text-faint);
+  background: var(--c-surface-raised);
+  border: 1px solid var(--c-border);
+  border-radius: var(--radius-md);
+}
+
+.app-search input {
+  border: none;
+  background: none;
+  color: var(--c-text);
+  font-family: inherit;
+  font-size: var(--fs-sm);
+  width: 160px;
+  min-height: 40px;
+}
+
+.app-search input:focus {
+  outline: none;
+}
+
+.app-favorites-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--c-border);
+  background: var(--c-surface-raised);
+  color: var(--c-text-muted);
+  cursor: pointer;
+}
+
+.app-favorites-btn:hover {
+  color: var(--c-accent);
+}
+
+.app-favorites-btn.active {
+  color: var(--c-bg);
+  background: var(--c-accent);
+  border-color: var(--c-accent);
+}
+
+.app-profile-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+  min-height: 44px;
+  padding: 4px var(--sp-3) 4px 4px;
+  font-family: inherit;
+  color: var(--c-text);
+  background: var(--c-surface-raised);
+  border: 1px solid var(--c-border);
+  border-radius: var(--radius-full);
+  cursor: pointer;
+}
+
+.app-profile-avatar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-full);
+  color: #0b120f;
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-strong);
+}
+
+.app-profile-name {
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-strong);
+  max-width: 120px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@media (max-width: 1180px) {
+  .app-search input {
+    width: 120px;
+  }
+}

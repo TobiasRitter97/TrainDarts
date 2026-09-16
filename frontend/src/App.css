@@ -4,26 +4,6 @@
   flex-direction: column;
 }
 
-.app-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: var(--sp-4) var(--sp-6);
-  border-bottom: 1px solid var(--c-border);
-}
-
-.app-title {
-  font-size: var(--fs-md);
-  font-weight: var(--fw-strong);
-  letter-spacing: 0.06em;
-}
-
-.app-header-actions {
-  display: flex;
-  align-items: center;
-  gap: var(--sp-3);
-}
-
 .app-main {
   flex: 1;
   padding: var(--sp-6);

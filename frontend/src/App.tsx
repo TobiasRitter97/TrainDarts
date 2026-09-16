@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Profile } from "./api";
-import { BoardControlBar } from "./components/BoardControlBar";
+import { AppHeader, AppScreen } from "./components/AppHeader";
 import { GameHubScreen } from "./screens/GameHubScreen";
 import { GameSetupScreen, LocalStartInfo } from "./screens/GameSetupScreen";
 import { LocalGameScreen } from "./screens/LocalGameScreen";
@@ -12,6 +12,7 @@ import { OnlineRoomScreen } from "./screens/OnlineRoomScreen";
 import { getStoredPiIp } from "./piConnection";
 import * as matchesDb from "./data/matches";
 import * as profilesDb from "./data/profiles";
+import { recordGamePlayed } from "./data/localPrefs";
 import { ResumeInfo } from "./engine/useLocalMatch";
 import { STATIC_GAMES } from "./staticGames";
 import "./App.css";
@@ -57,6 +58,8 @@ export default function App() {
   const hasPromptedRef = useRef(false);
   const suggestPiSettings = useShouldSuggestPiSettings();
   const [showPiSettings, setShowPiSettings] = useState(suggestPiSettings);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [favoritesOnly, setFavoritesOnly] = useState(false);
 
   useEffect(() => {
     if (view.screen !== "hub") return;
@@ -110,48 +113,47 @@ export default function App() {
     setPendingResume(null);
   }
 
+  // AppHeader kennt nur die vier Screens, die auch als Navigationsziel
+  // erreichbar sind - alle anderen (setup, local-game, online-room)
+  // zeigen einfach keinen aktiven Nav-Link an.
+  const headerScreen: AppScreen =
+    view.screen === "hub" || view.screen === "online-lobby" || view.screen === "profiles" || view.screen === "board-debug"
+      ? view.screen
+      : "other";
+
+  function handleNavigate(screen: "hub" | "online-lobby" | "profiles" | "board-debug") {
+    setView({ screen });
+  }
+
   return (
     <div className="app-shell">
       {view.screen !== "local-game" && view.screen !== "online-room" && (
-        <header className="app-header">
-          <div className="app-title">DARTS TRAINING PLATFORM</div>
-          <div className="app-header-actions">
-            {pendingResume && (
-              <button className="btn-primary" onClick={handleResume}>
-                ▶ Back to active game
-              </button>
-            )}
-            {view.screen !== "online-lobby" && (
-              <button className="btn-outline" onClick={() => setView({ screen: "online-lobby" })}>
-                🌐 ONLINE
-              </button>
-            )}
-            {view.screen !== "profiles" && (
-              <button className="btn-outline" onClick={() => setView({ screen: "profiles" })}>
-                PROFILES
-              </button>
-            )}
-            {view.screen !== "board-debug" && (
-              <button className="btn-outline" onClick={() => setView({ screen: "board-debug" })}>
-                🔧 BOARD TEST
-              </button>
-            )}
-            <button className="btn-outline" onClick={() => setShowPiSettings(true)}>
-              ⚙ SETTINGS
-            </button>
-            <BoardControlBar />
-          </div>
-        </header>
+        <AppHeader
+          activeScreen={headerScreen}
+          onNavigate={handleNavigate}
+          onOpenSettings={() => setShowPiSettings(true)}
+          pendingResume={pendingResume ? { gameName: pendingResume.gameName } : null}
+          onResume={handleResume}
+          search={view.screen === "hub" ? { value: searchQuery, onChange: setSearchQuery } : null}
+          favorites={view.screen === "hub" ? { active: favoritesOnly, onToggle: () => setFavoritesOnly((v) => !v) } : null}
+        />
       )}
       <main className="app-main">
         {view.screen === "hub" && (
-          <GameHubScreen onSelectGame={(gameId) => setView({ screen: "setup", gameId })} />
+          <GameHubScreen
+            onSelectGame={(gameId) => setView({ screen: "setup", gameId })}
+            searchQuery={searchQuery}
+            favoritesOnly={favoritesOnly}
+          />
         )}
         {view.screen === "setup" && (
           <GameSetupScreen
             gameId={view.gameId}
             onBack={() => setView({ screen: "hub" })}
-            onStart={(local) => setView({ screen: "local-game", session: local })}
+            onStart={(local) => {
+              recordGamePlayed(local.game.id);
+              setView({ screen: "local-game", session: local });
+            }}
           />
         )}
         {view.screen === "local-game" && (

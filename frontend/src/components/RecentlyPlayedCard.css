@@ -1,0 +1,66 @@
+.recently-played-card {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-4);
+  width: 100%;
+  text-align: left;
+  font-family: inherit;
+  min-height: var(--touch-min);
+  padding: var(--sp-4);
+  background: var(--c-surface);
+  border: 1px solid var(--c-border);
+  border-radius: var(--radius-lg);
+  color: var(--c-text);
+  cursor: pointer;
+  transition: border-color var(--anim-fast) var(--anim-ease-out), box-shadow var(--anim-fast) var(--anim-ease-out);
+}
+
+.recently-played-card:hover {
+  border-color: var(--category-color, var(--c-border-strong));
+  box-shadow: var(--shadow-sm);
+}
+
+.recently-played-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  flex-shrink: 0;
+  border-radius: var(--radius-full);
+  color: var(--category-color, var(--c-text));
+  background: color-mix(in srgb, var(--category-color, var(--c-accent)) 18%, var(--c-surface));
+}
+
+.recently-played-info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.recently-played-name {
+  font-weight: var(--fw-strong);
+  font-size: var(--fs-md);
+}
+
+.recently-played-desc {
+  color: var(--c-text-muted);
+  font-size: var(--fs-xs);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.recently-played-play {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  flex-shrink: 0;
+  border-radius: var(--radius-full);
+  border: 1px solid var(--category-color, var(--c-border-strong));
+  color: var(--category-color, var(--c-text-muted));
+}

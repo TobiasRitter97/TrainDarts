@@ -7,17 +7,26 @@
  */
 
 :root {
-  /* ---------- Farben: Basis (dunkel, angelehnt an Filz/Sisal am Board) ---------- */
-  --c-bg: #12160f;              /* Seitenhintergrund, fast schwarz */
-  --c-surface: #1c211c;          /* Cards, Panels */
-  --c-surface-raised: #262d26;   /* Modals, erhöhte Elemente */
-  --c-border: #3a433c;           /* dezente Trennlinien ("Spinnendraht") */
-  --c-border-strong: #4d584e;    /* Trennlinien mit mehr Kontrast */
+  /* ---------- Farben: Basis (Premium-Redesign 16.09.2026, dunkles
+     Anthrazit-Gruen statt reinem Braun/Filz-Ton - siehe Tobias'
+     Referenzbilder) ---------- */
+  --c-bg: #0b120f;               /* Seitenhintergrund, fast schwarz */
+  --c-surface: #131b17;          /* Cards, Panels */
+  --c-surface-raised: #18211c;   /* Modals, erhoehte Elemente ("surface-2") */
+  --c-border: #2d3a34;           /* dezente Trennlinien */
+  --c-border-strong: #3f4d45;    /* Trennlinien mit mehr Kontrast */
 
   /* ---------- Farben: Text ---------- */
-  --c-text: #ede4ce;             /* Haupttext ("Sisal") */
-  --c-text-muted: #9aa39a;       /* Sekundärtext, Labels */
+  --c-text: #f3eedc;             /* Haupttext, warmes Off-White */
+  --c-text-muted: #9aa39c;       /* Sekundärtext, Labels */
   --c-text-faint: #6b756c;       /* Meta-Info, deaktiviert */
+
+  /* ---------- Farben: Marken-Akzent (Redesign 16.09.2026) - fuer
+     Branding/CTAs/Fokus in der neuen Hub-/Header-Optik. Getrennt vom
+     bestehenden --c-accent (Gold), das schon ueberall als "aktiver
+     Spieler"-Hervorhebung etabliert ist und das bleibt. ---------- */
+  --c-brand: #22e0b0;             /* Tuerkis/Gruen - Primaerakzent, Logo, aktive Nav, Glow */
+  --c-brand-strong: #3aeec0;
 
   /* ---------- Farben: Akzent & Semantik ---------- */
   --c-accent: #d9a441;           /* Gold — Active Player, Fokus, Highlights */
@@ -26,17 +35,20 @@
   --c-success-strong: #2eab63;
   --c-danger: #c8322b;           /* Miss, Fehler, getrennt */
   --c-danger-strong: #e0453d;
-  --c-info: #4fa5d8;             /* Triple-Hervorhebung, Info */
+  --c-info: #53b5e8;             /* Triple-Hervorhebung, Info, Doubles-Kategorie */
+  --c-accuracy: #ff6a57;         /* Accuracy-Kategorie (Rot/Orange) */
 
   /* ---------- Kategorie-Akzente (Game Hub, SPEC §9) ---------- */
   --c-category-checkout: var(--c-accent);
   --c-category-doubles: var(--c-info);
-  --c-category-accuracy: var(--c-success-strong);
+  --c-category-accuracy: var(--c-accuracy);
 
   /* ---------- Schatten (Tiefe fuer Cards/Panels auf dunklem Grund) ---------- */
   --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.35);
   --shadow-md: 0 6px 16px rgba(0, 0, 0, 0.4);
   --shadow-lg: 0 12px 32px rgba(0, 0, 0, 0.45);
+  --shadow-glow-brand: 0 0 0 1px color-mix(in srgb, var(--c-brand) 45%, transparent), 0 0 24px color-mix(in srgb, var(--c-brand) 35%, transparent);
+  --shadow-glow-accent: 0 0 0 1px color-mix(in srgb, var(--c-accent) 45%, transparent), 0 0 20px color-mix(in srgb, var(--c-accent) 30%, transparent);
 
   /* ---------- Statusfarben Board-Verbindung (SPEC §37) ---------- */
   --c-status-connected: var(--c-success);

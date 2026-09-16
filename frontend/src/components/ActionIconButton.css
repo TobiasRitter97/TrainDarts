@@ -1,0 +1,47 @@
+.action-icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--touch-min);
+  height: var(--touch-min);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--c-border);
+  background: var(--c-surface);
+  color: var(--c-text-muted);
+  cursor: pointer;
+  transition: border-color var(--anim-fast) var(--anim-ease-out),
+    color var(--anim-fast) var(--anim-ease-out),
+    background var(--anim-fast) var(--anim-ease-out);
+}
+
+.action-icon-btn:hover:not(:disabled) {
+  color: var(--c-text);
+  border-color: var(--c-border-strong);
+}
+
+.action-icon-btn:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.action-icon-btn.active {
+  color: var(--c-bg);
+  background: var(--c-accent);
+  border-color: var(--c-accent);
+}
+
+.action-icon-btn.brand:hover:not(:disabled) {
+  color: var(--c-brand);
+  border-color: var(--c-brand);
+}
+
+.action-icon-btn.brand.active {
+  color: var(--c-bg);
+  background: var(--c-brand);
+  border-color: var(--c-brand);
+}
+
+.action-icon-btn.accent:hover:not(:disabled) {
+  color: var(--c-accent);
+  border-color: var(--c-accent);
+}

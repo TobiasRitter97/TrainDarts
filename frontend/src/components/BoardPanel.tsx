@@ -11,11 +11,14 @@ type Props = {
   canAct: boolean;
   onUndo: () => void;
   onOpenSettings: () => void;
-  // Ist ein Dart zur Korrektur ausgewaehlt, wird die Scheibe anklickbar
-  // und ein Klick/Tipp auf ein Feld setzt direkt dessen Wert (Tobias-
-  // Anforderung 16.09.2026: Wurf per Maus/Finger auf dem angezeigten
-  // Board aendern). "armedLabel" beschriftet den Hinweis, z.B. "DART 2".
+  // Die Scheibe ist direkt anklickbar (Tobias-Anforderung 16.09.2026):
+  // ohne ausgewaehlten Dart landet ein Tipp im naechsten freien Feld der
+  // Aufnahme, mit ausgewaehltem Dart setzt er dessen Wert. "armedLabel"
+  // ist nur fuer den Korrektur-Hinweis da ("DART 2"); "interactive"
+  // schaltet die Scheibe stumm, wenn ein Tipp gerade nichts bewirken
+  // wuerde (Aufnahme voll, fremder Zug).
   armedLabel?: string | null;
+  interactive?: boolean;
   onSelectSegment?: (segment: Segment) => void;
   // Einschlagpunkte der aktuellen Aufnahme (Tobias-Feedback 16.09.2026) -
   // nur Darts, die das Board tatsaechlich mit Koordinaten gemeldet hat
@@ -71,15 +74,15 @@ export function BoardPanel({
   onOpenSettings,
   liveThrows,
   armedLabel = null,
+  interactive = false,
   onSelectSegment,
 }: Props) {
   const live = boardStatus === "connected";
-  const armed = Boolean(armedLabel && onSelectSegment);
+  const armed = Boolean(armedLabel);
+  const clickable = interactive && Boolean(onSelectSegment);
 
-  // Nur im scharfgeschalteten Zustand reagieren Klicks - sonst waere ein
-  // versehentlicher Tipp auf die grosse Scheibe sofort ein Dart.
   function pick(segment: Segment) {
-    if (armed) onSelectSegment?.(segment);
+    if (clickable) onSelectSegment?.(segment);
   }
 
   return (
@@ -96,7 +99,7 @@ export function BoardPanel({
           {live ? "LIVE" : boardStatus === "reconnecting" ? "CONNECTING" : "OFFLINE"}
         </span>
 
-        <svg className={`board-panel-svg ${armed ? "armed" : ""}`} viewBox="0 0 400 400">
+        <svg className={`board-panel-svg ${clickable ? "clickable" : ""} ${armed ? "armed" : ""}`} viewBox="0 0 400 400">
           {/* Alles ausserhalb des Doppelrings zaehlt als Fehlwurf. */}
           <circle
             cx={CX}

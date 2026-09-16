@@ -116,20 +116,20 @@
   background: var(--c-brand);
 }
 
-/* Scharfgeschaltete Scheibe: ein Klick/Tipp auf ein Feld setzt den Wert
-   des gerade ausgewaehlten Darts (Tobias-Anforderung 16.09.2026). Ohne
-   Auswahl reagiert die Scheibe bewusst NICHT, damit ein versehentlicher
-   Tipp nicht sofort einen Dart aendert. */
+/* Anklickbare Scheibe (Tobias-Anforderung 16.09.2026): ein Tipp auf ein
+   Feld traegt den Dart direkt ein bzw. korrigiert den ausgewaehlten
+   Dart. "clickable" schaltet die Klickflaechen frei, "armed" zeigt
+   zusaetzlich die Korrektur-Hervorhebung. */
 .board-panel-svg .board-hit-area {
   pointer-events: none;
 }
 
-.board-panel-svg.armed .board-hit-area {
+.board-panel-svg.clickable .board-hit-area {
   pointer-events: auto;
   cursor: pointer;
 }
 
-.board-panel-svg.armed .board-hit-area:hover {
+.board-panel-svg.clickable .board-hit-area:hover {
   stroke: var(--c-brand);
   stroke-width: 2;
 }

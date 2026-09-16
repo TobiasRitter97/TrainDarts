@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 import { ArrowLeft, Crosshair, ListChecks, Percent, Target, Trophy } from "lucide-react";
 import { GameDefinition, MatchState, Segment } from "../api";
 import { BoardStatus } from "../board/autodartsAdapter";
@@ -92,12 +92,20 @@ export function GameScreenView({ match, game, actions, boardStatus, onOpenSettin
     if (confirm(message)) onExit();
   }
 
-  function handleCorrectionSelect(segment: Segment) {
-    if (!correction || !canAct) return;
-    if (correction.mode === "add") {
+  const hasFreeSlot = !match.pendingConfirmation && match.currentVisitThrows.length < 3;
+
+  // Ein Tipp auf die Scheibe (oder eine Auswahl im Zusatzfenster):
+  // ist ein Dart zur Korrektur ausgewaehlt, wird dessen Wert gesetzt -
+  // sonst wandert der Wurf direkt in das naechste freie Feld der
+  // Aufnahme, ohne Umweg ueber "+ DART" (Tobias-Anforderung 16.09.2026).
+  function applySegment(segment: Segment) {
+    if (!canAct) return;
+    if (correction && correction.mode === "correct") {
+      actions.onCorrectThrow(correction.throwSeq, segment);
+    } else if (hasFreeSlot) {
       actions.onAddThrow(segment);
     } else {
-      actions.onCorrectThrow(correction.throwSeq, segment);
+      return; // Aufnahme voll und kein Dart ausgewaehlt - Tipp bleibt folgenlos
     }
     setCorrection(null);
     setShowPicker(false);
@@ -106,15 +114,17 @@ export function GameScreenView({ match, game, actions, boardStatus, onOpenSettin
   const darts = [match.currentVisitThrows[0] ?? null, match.currentVisitThrows[1] ?? null, match.currentVisitThrows[2] ?? null];
   const activePlayer = match.players.find((p) => p.id === match.activePlayerId);
 
-  // Beschriftung des scharfgeschalteten Zustands, z.B. "DART 2". Bei
-  // einer Korrektur aus dem Visit Log (frueherer Aufnahme) steckt der
-  // Dart nicht in der aktuellen Aufnahme - dann bleibt es allgemein.
-  function armedLabelFor(target: CorrectionTarget): string {
-    if (target.mode === "add") return "the new dart";
-    const indexInVisit = darts.findIndex((d) => d?.throwSeq === target.throwSeq);
-    return indexInVisit >= 0 ? `DART ${indexInVisit + 1}` : "this dart";
-  }
-  const armedLabel = correction ? armedLabelFor(correction) : null;
+  // Beschriftung des ausgewaehlten Darts, z.B. "DART 2". Nur beim
+  // KORRIGIEREN relevant - neue Darts landen ohne Auswahl direkt im
+  // naechsten freien Feld. Stammt der Dart aus einer frueheren Aufnahme
+  // (Korrektur ueber das Visit Log), bleibt die Beschriftung allgemein.
+  const armedLabel =
+    correction && correction.mode === "correct"
+      ? (() => {
+          const indexInVisit = darts.findIndex((d) => d?.throwSeq === correction.throwSeq);
+          return indexInVisit >= 0 ? `DART ${indexInVisit + 1}` : "this dart";
+        })()
+      : null;
 
   return (
     <div className="game-screen">
@@ -139,12 +149,21 @@ export function GameScreenView({ match, game, actions, boardStatus, onOpenSettin
         canAct={canAct}
         onSlotClick={(_i, dart) => {
           if (!canAct) return;
-          setCorrection(dart ? { mode: "correct", throwSeq: dart.throwSeq } : { mode: "add" });
-          setShowPicker(false);
+          if (dart) {
+            // Vorhandenen Dart antippen = ihn zum Korrigieren auswaehlen.
+            setCorrection({ mode: "correct", throwSeq: dart.throwSeq });
+            setShowPicker(false);
+          } else {
+            // Leeres Feld: Zusatzfenster mit Zahlenraster/MISS/BOUNCER -
+            // der schnelle Weg fuer einen neuen Dart ist ohnehin der
+            // direkte Tipp auf die Scheibe.
+            setCorrection({ mode: "add" });
+            setShowPicker(true);
+          }
         }}
       />
 
-      {correction && (
+      {armedLabel && (
         <div className="correction-armed-bar">
           <span className="correction-armed-text">
             Tap the dartboard to set <b>{armedLabel}</b>
@@ -298,7 +317,8 @@ export function GameScreenView({ match, game, actions, boardStatus, onOpenSettin
             onOpenSettings={onOpenSettings}
             liveThrows={match.currentVisitThrows.flatMap((t) => (t.coords ? [t.coords] : []))}
             armedLabel={armedLabel}
-            onSelectSegment={handleCorrectionSelect}
+            interactive={canAct && (Boolean(armedLabel) || hasFreeSlot)}
+            onSelectSegment={applySegment}
           />
         </div>
       </div>
@@ -310,7 +330,11 @@ export function GameScreenView({ match, game, actions, boardStatus, onOpenSettin
         visitComplete={match.pendingConfirmation}
         canAct={canAct}
         onUndo={actions.onUndo}
-        onAddDart={() => canAct && setCorrection({ mode: "add" })}
+        onAddDart={() => {
+          if (!canAct) return;
+          setCorrection({ mode: "add" });
+          setShowPicker(true);
+        }}
         onConfirm={actions.onConfirm}
         onExit={handleExit}
       />
@@ -318,7 +342,7 @@ export function GameScreenView({ match, game, actions, boardStatus, onOpenSettin
       {correction && showPicker && (
         <DartCorrectionModal
           title={correction.mode === "add" ? "Add dart" : "Correct dart"}
-          onSelect={handleCorrectionSelect}
+          onSelect={applySegment}
           onClose={() => setShowPicker(false)}
         />
       )}

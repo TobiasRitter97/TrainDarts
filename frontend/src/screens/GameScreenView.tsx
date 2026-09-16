@@ -158,7 +158,7 @@ export function GameScreenView({ match, game, actions, boardStatus, onOpenSettin
                 <div className="target-label">
                   LAST ROUND
                   {activePlayer.groupingRounds[activePlayer.groupingRounds.length - 1].mm !== null
-                    ? ` — ${activePlayer.groupingRounds[activePlayer.groupingRounds.length - 1].mm!.toFixed(1)} mm (provisional, uncalibrated)`
+                    ? ` — ${activePlayer.groupingRounds[activePlayer.groupingRounds.length - 1].mm!.toFixed(1)} mm`
                     : " — no valid coordinates"}
                 </div>
                 <GroupingTrendChart rounds={activePlayer.groupingRounds} bestIndex={activePlayer.bestGroupingRoundIndex} />

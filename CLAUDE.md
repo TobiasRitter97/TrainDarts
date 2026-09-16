@@ -88,6 +88,22 @@ Anwendung stattdessen die echte Board-Manager-Oberfläche
 getestet (nicht angefragt, vermutlich einschneidender als Start/Stop/
 Reset) und wird bis auf Weiteres nicht verwendet.
 
+### Verifizierte Koordinaten-Skala (coords.x/y)
+
+Verifiziert am 16.09.2026, wieder durch Analyse des offiziellen
+Board-Manager-Web-UI-Bundles (nicht durch Raten oder Testwürfe):
+`coords.x`/`coords.y` aus dem Wurf-Event sind normalisiert — **1.0
+entspricht 170mm vom Bullseye-Zentrum** (Radius bis zum äußeren Rand
+des Doppelrings). Im Bundle definiert das Board dieselbe Normierung
+(`NORM = 170`) für alle Ring-Radien in Millimetern (z.B. `BULL_INNER =
+7/NORM`, `DOUBLE_OUTER = 170/NORM`) UND für die Bildschirmposition
+eines Wurfs beim Zeichnen (`cx: coords.x * RADIUS`, `cy: -coords.y *
+RADIUS`, mit `RADIUS` aus derselben Normierung abgeleitet) — Wurf-
+Koordinaten und Ring-Geometrie teilen sich also exakt dieselbe Skala.
+Verwendet in `frontend/src/engine/families/grouping.ts`
+(`MM_PER_COORD_UNIT = 170`). Eine Umrechnung `mm = coords.x * 170`
+(bzw. `coords.y * 170`) ist damit verbindlich, keine Annahme mehr.
+
 ## Beschlossene Architektur (Details in docs/ANALYSE.md)
 
 - Backend Python 3 / aiohttp auf dem Pi: AutodartsAdapter, GameEngine,

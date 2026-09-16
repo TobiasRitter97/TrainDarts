@@ -37,10 +37,12 @@ function sectorPath(rIn: number, rOut: number, a0: number, a1: number): string {
 // Bewusst eine EIGENSTAENDIGE, rein deklarative SVG-Zeichnung statt einer
 // Wiederverwendung von DartboardPicker.tsx - dort haengt die Geometrie
 // eng mit der interaktiven Zeigen/Bestaetigen-Logik (Pointer-Events,
-// Lupe) zusammen, die hier nicht gebraucht wird. Zeigt KEINE echten
-// Live-Wurf-Positionen (siehe CLAUDE.md/Grouping-Championship-Notizen:
-// die Board-Koordinaten sind bislang nicht in Einheit/Skala verifiziert) -
-// nur den Verbindungsstatus des echten Boards (boardStatus).
+// Lupe) zusammen, die hier nicht gebraucht wird. Zeigt (noch) KEINE
+// echten Live-Wurf-Positionen - die Einheit/Skala der Board-coords ist
+// zwar seit 16.09.2026 verifiziert (siehe engine/families/grouping.ts),
+// eine Live-Anzeige der Einschlagpunkte war aber nicht Teil dieser
+// Iteration. Aktuell nur der Verbindungsstatus des echten Boards
+// (boardStatus).
 export function BoardPanel({ boardStatus, canUndo, canAct, onUndo, onOpenSettings }: Props) {
   const live = boardStatus === "connected";
 
@@ -86,9 +88,11 @@ export function BoardPanel({ boardStatus, canUndo, canAct, onUndo, onOpenSetting
 
       <button type="button" className="board-panel-status" onClick={onOpenSettings}>
         <span className={`board-panel-status-dot ${live ? "live" : ""}`} />
-        {/* "Calibrated" waere ueberclaimt - wir kennen nur den WS-
-            Verbindungsstatus, keine echte Kalibrierung (siehe
-            CLAUDE.md: Board-Koordinaten sind unverifiziert). */}
+        {/* "Calibrated" waere ueberclaimt: wir kennen zwar seit
+            16.09.2026 die Einheit/Skala der Board-coords (siehe
+            engine/families/grouping.ts), aber NICHT den tatsaechlichen
+            Kalibrierungs-Status der Kameras selbst - wir haben nur den
+            WS-Verbindungsstatus. */}
         {live ? "Board Connected" : "Board Offline"}
       </button>
     </div>

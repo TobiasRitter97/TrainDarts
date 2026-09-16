@@ -3,22 +3,24 @@
 // auf T20 - gemessen wird nicht der Score, sondern wie eng die 3 Darts
 // beieinander landen ("Grouping").
 //
-// WICHTIG - unverifizierte Annahme (siehe CLAUDE.md, Abschnitt
-// "Verifizierte Autodarts-Anbindung"): `coords.x/y` wird vom Board
-// zwar strukturell mitgeschickt, aber WEDER im verifizierten
-// Referenzcode (docs/reference/darts_web.py) NOCH sonst im Projekt
-// wurde je gemessen, in welcher Einheit/Skalierung diese Werte
-// tatsaechlich vorliegen. MM_PER_COORD_UNIT ist deshalb ein
-// Platzhalter (Annahme: coords sind bereits Millimeter relativ zur
-// Bullseye-Mitte, Skala = 1) - nach dem ersten Test am echten Board
-// MUSS dieser Wert anhand bekannter Wurfpositionen kalibriert werden
-// (z.B. Rand des Doppelrings = 170mm vom Zentrum, siehe Standardmass
-// eines Dartboards).
+// VERIFIZIERT (16.09.2026, siehe CLAUDE.md "Verifizierte Autodarts-
+// Anbindung"): `coords.x/y` sind normalisiert - 1.0 entspricht 170mm
+// vom Bullseye-Zentrum (Radius bis zum aeusseren Rand des Doppelrings,
+// Standardmass eines Dartboards). Verifiziert NICHT durch Raten,
+// sondern durch Analyse des offiziellen Board-Manager-Web-UI-Bundles
+// (`http://<board-host>:3180/assets/index-*.js`, wie schon bei der
+// REST-API in CLAUDE.md): die dort zum Zeichnen der Wurf-Punkte
+// verwendete Funktion berechnet die Bildschirmposition eines Wurfs
+// als `coords.x * RADIUS` bzw. `coords.y * RADIUS`, wobei RADIUS aus
+// denselben Ring-Konstanten abgeleitet ist wie alle Segment-Radien
+// (z.B. `DOUBLE_OUTER = 170 / NORM` mit `NORM = 170`) - das eigene
+// Kalibrierungs-Rendering des Boards nutzt also fuer Wurf-Koordinaten
+// UND Ring-Geometrie exakt dieselbe Normierung auf 170mm.
 import { Segment } from "../scoring";
 
 export const TOTAL_ROUNDS = 20;
 export const TARGET_SEGMENT_NUMBER = 20; // immer T20
-export const MM_PER_COORD_UNIT = 1; // TODO Kalibrierung am echten Board, siehe Kommentar oben
+export const MM_PER_COORD_UNIT = 170;
 
 export type Coords = { x: number; y: number };
 

@@ -378,10 +378,14 @@ describe("grouping (Grouping Championship)", () => {
   it("scores Triple=100/Single=20/Miss=0 on T20 and computes the grouping distance from coords", () => {
     const engine = new MatchEngine("g1", GAME, [{ id: "solo", name: "Solo" }], {});
     expect(engine.toDict().target).toBe("T20");
+    // Rohe coords sind normalisiert (1.0 = 170mm, siehe grouping.ts) -
+    // hier durch MM_PER_COORD_UNIT geteilt, damit die Testdaten direkt
+    // die gewuenschten mm-Abstaende (3/4/5) ergeben.
+    const u = groupingFamily.MM_PER_COORD_UNIT;
     throwWithCoords(engine, [
       { label: "T20", coords: { x: 0, y: 0 } },
-      { label: "T20", coords: { x: 3, y: 0 } }, // 3mm vom ersten Dart
-      { label: "S1", coords: { x: 0, y: 4 } }, // daneben (kein T20/S20) -> 0 Punkte
+      { label: "T20", coords: { x: 3 / u, y: 0 } }, // 3mm vom ersten Dart
+      { label: "S1", coords: { x: 0, y: 4 / u } }, // daneben (kein T20/S20) -> 0 Punkte
     ]);
     engine.confirmVisit();
     const state = engine.toDict();

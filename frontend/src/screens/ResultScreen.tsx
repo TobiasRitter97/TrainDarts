@@ -78,7 +78,7 @@ export function ResultScreen({ match, onRematch, onExit }: Props) {
             {p.groupingRounds !== null && p.bestGroupingRoundIndex !== null ? (
               <div className="result-stat-row">
                 Best Grouping: Round <b>{p.bestGroupingRoundIndex + 1}</b> (
-                {p.groupingRounds[p.bestGroupingRoundIndex].mm?.toFixed(1)} mm, provisional, uncalibrated)
+                {p.groupingRounds[p.bestGroupingRoundIndex].mm?.toFixed(1)} mm)
               </div>
             ) : null}
           </div>

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ArrowLeft, Crosshair, ListChecks, Percent, Target, Trophy } from "lucide-react";
 import { GameDefinition, MatchState, Segment } from "../api";
 import { BoardStatus } from "../board/autodartsAdapter";
@@ -33,6 +33,12 @@ export type GameSessionActions = {
   onCorrectThrow: (throwSeq: number, segment: Segment) => void;
   onConfirm: () => void;
   onRematch: () => void;
+  // Schaltet das Korrigieren ueber das echte Board scharf: solange ein
+  // Handler gesetzt ist, wird der naechste erkannte Wurf nicht als neuer
+  // Dart gezaehlt, sondern als Korrekturwert verwendet (Tobias-
+  // Anforderung 16.09.2026 - geht schneller als das Antippen auf dem
+  // Touchscreen).
+  onArmBoardCapture: (handler: ((segment: Segment) => void) | null) => void;
 };
 
 type Props = {
@@ -75,6 +81,30 @@ function pendingLabel(outcome: string | null): string {
 export function GameScreenView({ match, game, actions, boardStatus, onOpenSettings, persistsProgress, canAct = true, onExit }: Props) {
   const [correction, setCorrection] = useState<CorrectionTarget | null>(null);
   const [tab, setTab] = useState<Tab>("visit-log");
+
+  // Solange das Korrektur-Fenster offen ist, darf der Wert auch einfach
+  // auf das echte Board geworfen werden. Der Effekt schaltet das beim
+  // Oeffnen scharf und beim Schliessen wieder ab - correctionRef haelt
+  // dabei das jeweils aktuelle Ziel, damit der (nur einmal registrierte)
+  // Handler nicht mit einem veralteten Wert arbeitet.
+  const correctionRef = useRef<CorrectionTarget | null>(null);
+  correctionRef.current = correction;
+
+  useEffect(() => {
+    if (!correction || !canAct) {
+      actions.onArmBoardCapture(null);
+      return;
+    }
+    actions.onArmBoardCapture((segment) => {
+      const target = correctionRef.current;
+      if (!target) return;
+      if (target.mode === "add") actions.onAddThrow(segment);
+      else actions.onCorrectThrow(target.throwSeq, segment);
+      setCorrection(null);
+    });
+    return () => actions.onArmBoardCapture(null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [correction, canAct]);
 
   if (match.finished) {
     return <ResultScreen match={match} onRematch={actions.onRematch} onExit={onExit} />;
@@ -163,9 +193,13 @@ export function GameScreenView({ match, game, actions, boardStatus, onOpenSettin
               <div className="segment-info">
                 <div className="segment-info-row">
                   <span className="segment-info-item">
-                    <span className="segment-info-value">{match.segmentInfo.remainingDarts}</span>
+                    <span className="segment-info-value">
+                      {match.segmentInfo.remainingDarts ?? match.segmentInfo.dartsOnTarget}
+                    </span>
                     <span className="segment-info-label">
-                      {match.segmentInfo.remainingDarts === 1 ? "dart" : "darts"} left for this target
+                      {match.segmentInfo.remainingDarts !== null
+                        ? `${match.segmentInfo.remainingDarts === 1 ? "dart" : "darts"} left for this target`
+                        : `${match.segmentInfo.dartsOnTarget === 1 ? "dart" : "darts"} on this target`}
                     </span>
                   </span>
                   <span className="segment-info-item">
@@ -275,6 +309,7 @@ export function GameScreenView({ match, game, actions, boardStatus, onOpenSettin
       {correction && (
         <DartCorrectionModal
           title={correction.mode === "add" ? "Add dart" : "Correct dart"}
+          boardLive={boardStatus === "connected"}
           onSelect={handleCorrectionSelect}
           onClose={() => setCorrection(null)}
         />

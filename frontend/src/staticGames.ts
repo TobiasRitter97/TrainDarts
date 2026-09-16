@@ -905,6 +905,11 @@ export const STATIC_GAMES = [
             "value": 3,
             "label": "3 darts",
             "hint": "Up to three darts per target. A hit ends the target immediately, remaining darts are forfeited. The budget belongs to the target, so it can carry over into your next visit."
+          },
+          {
+            "value": 0,
+            "label": "Until hit",
+            "hint": "No limit - the target stays open until you hit it, across as many visits as it takes. Visits still rotate normally after 3 darts."
           }
         ],
         "default": 3

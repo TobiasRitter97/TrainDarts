@@ -47,6 +47,12 @@ export type RandomSegmentPlayerState = {
   totalDarts: number;
 };
 
+// "Darts pro Ziel = 0" bedeutet: unbegrenzt - das Ziel bleibt offen, bis
+// es getroffen wurde (Tobias-Anforderung 16.09.2026). Die Aufnahme endet
+// trotzdem ganz normal nach 3 Darts + Takeout, nur der Zielwechsel
+// haengt dann ausschliesslich am Treffer.
+export const UNLIMITED_DARTS = 0;
+
 export const GROUP_LABELS: Record<SegmentTargetGroup, string> = {
   large_single: "Large Single",
   small_single: "Small Single",
@@ -157,6 +163,9 @@ export function applyThrow(
   let used = playerState.dartsUsedOnTarget;
   const newResults: SegmentResult[] = [];
   let dartsThrown = 0;
+  // Bei UNLIMITED_DARTS gibt es kein Budget - das Ziel bleibt offen, bis
+  // es getroffen wurde (ueber beliebig viele Aufnahmen hinweg).
+  const limited = dartsPerTarget !== UNLIMITED_DARTS;
 
   for (const segment of visitThrows) {
     if (index >= targets.length) break; // Liste fertig - weitere Darts zaehlen nicht mehr
@@ -168,7 +177,7 @@ export function applyThrow(
       newResults.push({ label: targetLabel(target), group: target.group, hit: true, dartsUsed: used });
       index += 1;
       used = 0;
-    } else if (used >= dartsPerTarget) {
+    } else if (limited && used >= dartsPerTarget) {
       // Budget aufgebraucht: Ziel gilt als verfehlt.
       newResults.push({ label: targetLabel(target), group: target.group, hit: false, dartsUsed: used });
       index += 1;

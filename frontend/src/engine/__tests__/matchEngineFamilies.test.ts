@@ -573,6 +573,27 @@ describe("random_segment (Random Segment Training)", () => {
     expect(state.winnerId).toBe("p1"); // mehr getroffene Ziele
   });
 
+  it("keeps the target open until it is hit when the budget is unlimited", () => {
+    // "Darts per Target = Until hit" (0): kein Budget, das Ziel bleibt
+    // ueber beliebig viele Aufnahmen offen, bis es getroffen wurde.
+    const engine = engineWithTargets([T20, D16], { dartsPerTarget: 0 });
+    throwAndConfirm(engine, ["S1", "S1", "S1"]); // ganze Aufnahme daneben
+    let state = engine.toDict();
+    expect(state.target).toBe("T20"); // Ziel bleibt (bei Budget 3 waere es weiter)
+    expect(state.segmentInfo?.remainingDarts).toBeNull(); // kein "verbleibend"
+    expect(state.segmentInfo?.dartsOnTarget).toBe(3); // stattdessen: verbrauchte Darts
+
+    throwAndConfirm(engine, ["S1", "S1", "S1"]); // zweite Aufnahme, wieder daneben
+    state = engine.toDict();
+    expect(state.target).toBe("T20");
+    expect(state.segmentInfo?.dartsOnTarget).toBe(6);
+
+    segThrow(engine, "T20"); // endlich getroffen
+    state = engine.toDict();
+    expect(state.target).toBe("D16");
+    expect(state.players[0].score).toBe(1);
+  });
+
   it("never draws the same target twice in a row", () => {
     const pool = randomSegmentFamily.buildTargetPool(["double"]);
     const targets = randomSegmentFamily.generateTargets(pool, 50);

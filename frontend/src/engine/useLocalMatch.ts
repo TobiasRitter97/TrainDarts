@@ -27,6 +27,13 @@ export function useLocalMatch(
   const engineRef = useRef<MatchEngine | null>(null);
   const [, setTick] = useState(0);
   const [boardStatus, setBoardStatus] = useState<BoardStatus>("disconnected");
+  // Solange gesetzt, wird der NAECHSTE erkannte Wurf nicht als neuer Dart
+  // gezaehlt, sondern an diesen Handler gegeben (Tobias-Anforderung
+  // 16.09.2026: einen Dart schneller direkt ueber das echte Board
+  // korrigieren, statt auf dem Touchscreen zu tippen). Bewusst ein Ref
+  // und kein State: der Wert wird nur im Board-Callback gelesen, ein
+  // Re-Render waere unnoetig.
+  const boardCaptureRef = useRef<((segment: Segment) => void) | null>(null);
 
   if (!engineRef.current) {
     const matchId = resume?.matchId ?? crypto.randomUUID();
@@ -71,6 +78,15 @@ export function useLocalMatch(
     const adapter = new AutodartsAdapter(getBoardHost(), 3180, {
       onStatusChange: setBoardStatus,
       onThrow: (label, raw) => {
+        const capture = boardCaptureRef.current;
+        if (capture) {
+          // Genau EIN Wurf wird abgefangen - danach zaehlt wieder alles
+          // normal, auch wenn der Nutzer das Korrektur-Fenster offen laesst.
+          boardCaptureRef.current = null;
+          capture(raw.segment ?? { number: 0, multiplier: 0 });
+          refresh();
+          return;
+        }
         engineRef.current?.handleThrow(label, raw);
         refresh();
       },
@@ -109,6 +125,11 @@ export function useLocalMatch(
     rematch: () => {
       engineRef.current = new MatchEngine(crypto.randomUUID(), game, toPlayerRefs(players), settings);
       refresh();
+    },
+    // Scharfschalten/Entschaerfen der Board-Korrektur (siehe
+    // boardCaptureRef). null = wieder normaler Wurf-Betrieb.
+    armBoardCapture: (handler: ((segment: Segment) => void) | null) => {
+      boardCaptureRef.current = handler;
     },
   };
 }

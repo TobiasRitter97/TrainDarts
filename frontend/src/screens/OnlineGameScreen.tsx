@@ -40,6 +40,7 @@ export function OnlineGameScreen({ pin, game, myUid, onExit, onOpenSettings }: P
         // v1 fuehrt REMATCH deshalb einfach zurueck zum Game Hub, von
         // wo aus ein neuer Online-Raum erstellt werden kann.
         onRematch: onExit,
+        onArmBoardCapture: online.armBoardCapture,
       }}
     />
   );

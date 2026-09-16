@@ -286,8 +286,15 @@ export class MatchEngine {
     return groups.length > 0 ? groups : ["large_single", "double", "triple"];
   }
 
+  // 0 = unbegrenzt ("Ziel bleibt offen, bis es getroffen wurde", siehe
+  // randomSegment.UNLIMITED_DARTS). Ungueltige/fehlende Werte fallen auf
+  // den Default 3 zurueck, damit nie versehentlich "unbegrenzt" entsteht.
   private segmentDartsPerTarget(): number {
-    return Math.max(1, Number(this.settings.dartsPerTarget ?? 3));
+    const raw = this.settings.dartsPerTarget;
+    if (raw === undefined || raw === null) return 3;
+    const value = Number(raw);
+    if (!Number.isFinite(value) || value < 0) return 3;
+    return value;
   }
 
   // ------------------------------------------------------------ Replay
@@ -1105,8 +1112,12 @@ export class MatchEngine {
     const live = this.segmentLiveState();
     if (!live || live.index >= this.segmentTargets.length) return null;
     const next = this.segmentTargets[live.index + 1];
+    const budget = this.segmentDartsPerTarget();
     return {
-      remainingDarts: Math.max(0, this.segmentDartsPerTarget() - live.dartsUsed),
+      // Bei unbegrenztem Budget gibt es kein "verbleibend" - dann zeigt
+      // die Oberflaeche stattdessen die bereits verbrauchten Darts.
+      remainingDarts: budget === randomSegmentFamily.UNLIMITED_DARTS ? null : Math.max(0, budget - live.dartsUsed),
+      dartsOnTarget: live.dartsUsed,
       nextTarget: next ? randomSegmentFamily.targetLabel(next) : null,
     };
   }

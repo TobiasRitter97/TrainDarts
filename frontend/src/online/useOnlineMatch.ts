@@ -21,6 +21,10 @@ export function useOnlineMatch(pin: string, game: GameDefinition, myUid: string)
   const [boardStatus, setBoardStatus] = useState<BoardStatus>("disconnected");
   const isMyTurnRef = useRef(false);
   const hasSavedFinishedRef = useRef(false);
+  // Wie bei useLocalMatch: solange gesetzt, wird der naechste erkannte
+  // Wurf als Korrektur verwendet statt als neuer Dart (Tobias-
+  // Anforderung 16.09.2026).
+  const boardCaptureRef = useRef<((segment: Segment) => void) | null>(null);
 
   useEffect(() => roomDb.subscribeToRoom(pin, setRoom), [pin]);
 
@@ -47,6 +51,14 @@ export function useOnlineMatch(pin: string, game: GameDefinition, myUid: string)
     const adapter = new AutodartsAdapter(getBoardHost(), 3180, {
       onStatusChange: setBoardStatus,
       onThrow: (_label, raw) => {
+        const capture = boardCaptureRef.current;
+        if (capture) {
+          // Korrekturen darf jedes Geraet jederzeit ausloesen (siehe
+          // Kommentar oben) - deshalb hier bewusst ohne isMyTurn-Pruefung.
+          boardCaptureRef.current = null;
+          capture(raw.segment ?? { number: 0, multiplier: 0 });
+          return;
+        }
         if (!isMyTurnRef.current) return;
         roomDb.appendThrow(pin, raw.segment ?? { number: 0, multiplier: 0 }, "auto").catch((err) => console.error(err));
       },
@@ -92,5 +104,8 @@ export function useOnlineMatch(pin: string, game: GameDefinition, myUid: string)
     correctThrow: (throwSeq: number, segment: Segment) => roomDb.appendCorrection(pin, throwSeq, segment),
     undo: () => roomDb.undoLastEvent(pin),
     confirmVisit: () => roomDb.appendConfirm(pin),
+    armBoardCapture: (handler: ((segment: Segment) => void) | null) => {
+      boardCaptureRef.current = handler;
+    },
   };
 }

@@ -140,8 +140,10 @@ export type MatchState = {
   attemptInfo: { current: number; total: number | null; label: string } | null;
   // Nur bei Random Segment Training: verbleibende Darts fuer das
   // AKTUELLE Ziel (das Budget gehoert zum Ziel, nicht zur Aufnahme) und
-  // Vorschau auf das naechste Ziel.
-  segmentInfo: { remainingDarts: number; nextTarget: string | null } | null;
+  // Vorschau auf das naechste Ziel. remainingDarts ist null, wenn das
+  // Budget unbegrenzt ist ("Ziel bleibt offen, bis getroffen") - dann
+  // ist dartsOnTarget die sinnvolle Anzeige.
+  segmentInfo: { remainingDarts: number | null; dartsOnTarget: number; nextTarget: string | null } | null;
   round: number;
   legNumber: number | null;
   setNumber: number | null;

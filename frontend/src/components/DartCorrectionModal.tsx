@@ -4,6 +4,11 @@ import "./DartCorrectionModal.css";
 
 type Props = {
   title: string;
+  // Ob gerade eine Board-Verbindung steht - dann kann der Wert auch
+  // einfach geworfen werden (Tobias-Anforderung 16.09.2026), der
+  // naechste erkannte Dart wird als Korrektur uebernommen. Die
+  // eigentliche Logik dafuer sitzt in GameScreenView/useLocalMatch.
+  boardLive?: boolean;
   onSelect: (segment: Segment) => void;
   onClose: () => void;
 };
@@ -14,7 +19,7 @@ const NUMBERS = Array.from({ length: 20 }, (_, i) => i + 1);
 // Dart-Korrektur UND + DART (SPEC §15). DartboardPicker ist der
 // primaere Weg, die Segment/Zahl-Auswahl bleibt als Fallback
 // (docs/ARCHITEKTUR.md Abschnitt 7.1).
-export function DartCorrectionModal({ title, onSelect, onClose }: Props) {
+export function DartCorrectionModal({ title, boardLive = false, onSelect, onClose }: Props) {
   const [fallbackType, setFallbackType] = useState<"S" | "D" | "T" | null>(null);
 
   function selectFallbackNumber(n: number) {
@@ -32,6 +37,13 @@ export function DartCorrectionModal({ title, onSelect, onClose }: Props) {
             ✕
           </button>
         </div>
+
+        {boardLive && (
+          <p className="dart-correction-board-hint">
+            <span className="dart-correction-board-dot" />
+            Or just throw at the board — the next detected dart is used.
+          </p>
+        )}
 
         <DartboardPicker onSelect={onSelect} />
 

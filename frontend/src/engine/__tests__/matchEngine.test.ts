@@ -152,4 +152,13 @@ describe("MatchEngine core (x01)", () => {
     expect(afterLeg1.activePlayerId).toBe("p2"); // starting player rotates to p2
     expect(afterLeg1.players[0].score).toBe(170);
   });
+
+  it("Tobias-Feedback 16.09.2026: passes real board coords through to currentVisitThrows for the live board panel, but not for manual throws", () => {
+    const engine = newEngine();
+    engine.handleThrow("T20", { segment: seg("T20"), coords: { x: 0.1, y: -0.2 } });
+    engine.addManualThrow(seg("S1")); // manuell erfasst - keine coords
+    const state = engine.toDict();
+    expect(state.currentVisitThrows[0].coords).toEqual({ x: 0.1, y: -0.2 });
+    expect(state.currentVisitThrows[1].coords).toBeUndefined();
+  });
 });

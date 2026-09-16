@@ -101,7 +101,12 @@ export type MatchPlayer = {
   bestGroupingRoundIndex: number | null;
 };
 
-export type MatchThrow = { throwSeq: number; label: string };
+// "coords" nur gesetzt, wenn das Board echte Koordinaten fuer diesen
+// Wurf gemeldet hat (nicht bei manueller Eingabe) - normalisiert,
+// 1.0 = 170mm vom Bullseye-Zentrum, siehe CLAUDE.md "Verifizierte
+// Koordinaten-Skala" (16.09.2026). Fuer die Live-Anzeige der
+// Einschlagpunkte im Spielbildschirm (BoardPanel).
+export type MatchThrow = { throwSeq: number; label: string; coords?: { x: number; y: number } };
 
 export type MatchVisit = { playerId: string; throws: MatchThrow[] };
 

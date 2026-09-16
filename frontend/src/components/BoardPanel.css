@@ -47,6 +47,13 @@
   font-weight: 700;
 }
 
+.board-dart-dot {
+  fill: var(--c-brand);
+  stroke: white;
+  stroke-width: 2;
+  filter: drop-shadow(0 0 6px var(--c-brand));
+}
+
 .board-panel-live-badge {
   position: absolute;
   top: var(--sp-4);

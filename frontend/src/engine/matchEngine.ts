@@ -990,6 +990,7 @@ export class MatchEngine {
       currentVisitThrows: this.currentVisitSeqs.map((seq, i) => ({
         throwSeq: seq,
         label: throwLabel(this.currentVisitThrows[i]),
+        coords: this.currentVisitCoords[i],
       })),
       target: this.targetDisplay(),
       phase: this.jdcPhaseLabel(),

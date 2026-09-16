@@ -1,5 +1,6 @@
 import { Camera, Settings, Undo2 } from "lucide-react";
 import { BoardStatus } from "../board/autodartsAdapter";
+import { MM_PER_COORD_UNIT } from "../engine/families/grouping";
 import { ActionIconButton } from "./ActionIconButton";
 import "./BoardPanel.css";
 
@@ -9,16 +10,31 @@ type Props = {
   canAct: boolean;
   onUndo: () => void;
   onOpenSettings: () => void;
+  // Einschlagpunkte der aktuellen Aufnahme (Tobias-Feedback 16.09.2026) -
+  // nur Darts, die das Board tatsaechlich mit Koordinaten gemeldet hat
+  // (manuell erfasste Darts haben keine). Normalisiert, 1.0 = 170mm -
+  // siehe CLAUDE.md "Verifizierte Koordinaten-Skala".
+  liveThrows: { x: number; y: number }[];
 };
 
 const NUM_ORDER = [20, 1, 18, 4, 13, 6, 10, 15, 2, 17, 3, 19, 7, 16, 8, 11, 14, 9, 12, 5];
 const CX = 200;
 const CY = 200;
+// R-Werte sind direkt Millimeter (Standardmass Dartboard) - dieselbe
+// Skala wie die verifizierten coords (1.0 = 170mm), siehe dartPosition().
 const R = { bull: 6.35, outerBull: 16, tripleIn: 99, tripleOut: 107, doubleIn: 162, doubleOut: 170, label: 185, edge: 196 };
 
 function polar(r: number, angleDeg: number): [number, number] {
   const rad = ((angleDeg - 90) * Math.PI) / 180;
   return [CX + r * Math.cos(rad), CY + r * Math.sin(rad)];
+}
+
+// Normalisierte Board-coords -> Position im SVG-Koordinatensystem
+// (das bereits 1 Einheit = 1mm nutzt, siehe R oben). Y wird gespiegelt,
+// weil SVG y nach unten waechst - gleiche Konvention wie im offiziellen
+// Board-Manager-UI (dort: "cy: -coords.y * RADIUS").
+function dartPosition(coord: { x: number; y: number }): [number, number] {
+  return [CX + coord.x * MM_PER_COORD_UNIT, CY - coord.y * MM_PER_COORD_UNIT];
 }
 
 function sectorPath(rIn: number, rOut: number, a0: number, a1: number): string {
@@ -32,18 +48,15 @@ function sectorPath(rIn: number, rOut: number, a0: number, a1: number): string {
   );
 }
 
-// Rein visueller Board-Bereich (Redesign 16.09.2026, Tobias' Referenzbild
-// 2, Prioritaet 3: "falls nicht anders moeglich, Platzhalter-Container").
-// Bewusst eine EIGENSTAENDIGE, rein deklarative SVG-Zeichnung statt einer
-// Wiederverwendung von DartboardPicker.tsx - dort haengt die Geometrie
-// eng mit der interaktiven Zeigen/Bestaetigen-Logik (Pointer-Events,
-// Lupe) zusammen, die hier nicht gebraucht wird. Zeigt (noch) KEINE
-// echten Live-Wurf-Positionen - die Einheit/Skala der Board-coords ist
-// zwar seit 16.09.2026 verifiziert (siehe engine/families/grouping.ts),
-// eine Live-Anzeige der Einschlagpunkte war aber nicht Teil dieser
-// Iteration. Aktuell nur der Verbindungsstatus des echten Boards
-// (boardStatus).
-export function BoardPanel({ boardStatus, canUndo, canAct, onUndo, onOpenSettings }: Props) {
+// Visueller Board-Bereich (Redesign 16.09.2026, Tobias' Referenzbild 2,
+// Prioritaet 3) mit Live-Einschlagpunkten (Tobias-Feedback 16.09.2026,
+// moeglich seit der verifizierten Koordinaten-Skala - siehe CLAUDE.md
+// "Verifizierte Koordinaten-Skala"). Bewusst eine EIGENSTAENDIGE, rein
+// deklarative SVG-Zeichnung statt einer Wiederverwendung von
+// DartboardPicker.tsx - dort haengt die Geometrie eng mit der
+// interaktiven Zeigen/Bestaetigen-Logik (Pointer-Events, Lupe) zusammen,
+// die hier nicht gebraucht wird.
+export function BoardPanel({ boardStatus, canUndo, canAct, onUndo, onOpenSettings, liveThrows }: Props) {
   const live = boardStatus === "connected";
 
   return (
@@ -83,6 +96,10 @@ export function BoardPanel({ boardStatus, canUndo, canAct, onUndo, onOpenSetting
           })}
           <circle cx={CX} cy={CY} r={R.outerBull} fill="var(--c-success)" />
           <circle cx={CX} cy={CY} r={R.bull} fill="var(--c-danger)" />
+          {liveThrows.map((coord, i) => {
+            const [x, y] = dartPosition(coord);
+            return <circle key={i} cx={x} cy={y} r={6} className="board-dart-dot" />;
+          })}
         </svg>
       </div>
 

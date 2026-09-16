@@ -225,6 +225,7 @@ export function GameScreenView({ match, game, actions, boardStatus, onOpenSettin
             canAct={canAct}
             onUndo={actions.onUndo}
             onOpenSettings={onOpenSettings}
+            liveThrows={match.currentVisitThrows.flatMap((t) => (t.coords ? [t.coords] : []))}
           />
         </div>
       </div>

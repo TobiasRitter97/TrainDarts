@@ -1,0 +1,94 @@
+/* Gemeinsamer Rahmen fuer eine Einstellungszeile - identisch fuer
+   SegmentedControl und StepperRow, damit alle Setup-Screens wie eine
+   Oberflaeche wirken. Alle Werte kommen aus design/tokens.css. */
+.setting-block {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+  background: var(--c-surface-raised);
+  border: 1px solid var(--c-border);
+  border-radius: var(--radius-md);
+  padding: var(--sp-4);
+}
+
+.setting-block-label {
+  font-size: var(--fs-md);
+  font-weight: var(--fw-strong);
+  color: var(--c-text);
+}
+
+.setting-hint {
+  margin: 0;
+  font-size: var(--fs-xs);
+  color: var(--c-text-muted);
+  line-height: 1.4;
+}
+
+/* Die Segmente sitzen in einer gemeinsamen, leicht eingesenkten
+   Spur - so liest sich die Gruppe als EIN Bedienelement. */
+.segmented {
+  display: grid;
+  gap: var(--sp-1);
+  padding: var(--sp-1);
+  background: var(--c-bg);
+  border: 1px solid var(--c-border);
+  border-radius: var(--radius-md);
+}
+
+.segmented-grid {
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+}
+
+.segment {
+  min-height: var(--touch-min);
+  padding: var(--sp-2) var(--sp-3);
+  border: 1px solid transparent;
+  border-radius: calc(var(--radius-md) - var(--sp-1));
+  background: transparent;
+  /* Inaktiv: zurueckgenommen, aber klar lesbar - nicht das schwaechste
+     Textgrau, sonst wirken die Optionen deaktiviert. */
+  color: var(--c-text-muted);
+  font-family: inherit;
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-strong);
+  line-height: 1.25;
+  cursor: pointer;
+  transition: background var(--anim-fast) var(--anim-ease-out), color var(--anim-fast) var(--anim-ease-out),
+    border-color var(--anim-fast) var(--anim-ease-out);
+}
+
+.segment:hover:not(.active) {
+  background: var(--c-surface);
+  color: var(--c-text);
+}
+
+.segment:focus-visible {
+  outline: 2px solid var(--c-brand);
+  outline-offset: 2px;
+}
+
+/* Aktiv: der etablierte Gold-Akzent des Projekts (--c-accent, sonst
+   "aktiver Spieler"/Fokus) auf dunkler Schrift - derselbe Kontrast wie
+   bisher bei .option-btn.active, nur jetzt in der Segmentspur. */
+.segment.active {
+  background: var(--c-accent);
+  border-color: var(--c-accent-strong);
+  color: var(--c-bg);
+  box-shadow: var(--shadow-sm);
+}
+
+/* Gewaehlt, aber ohne Akzent - das "Off" der Ja/Nein-Schalter. Hebt
+   sich durch Flaeche und volle Textfarbe trotzdem klar vom inaktiven
+   Nachbarn ab. */
+.segment.active.quiet {
+  background: var(--c-surface);
+  border-color: var(--c-border-strong);
+  color: var(--c-text);
+  box-shadow: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .segment {
+    transition: none;
+  }
+}

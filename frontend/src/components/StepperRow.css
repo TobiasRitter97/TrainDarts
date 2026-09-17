@@ -1,0 +1,88 @@
+/* Rahmen und Label kommen aus SegmentedControl.css (.setting-block,
+   .setting-block-label, .setting-hint) - beide Bausteine teilen sich
+   bewusst dieselbe Huelle. */
+
+.stepper-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-4);
+  flex-wrap: wrap;
+}
+
+.stepper {
+  display: flex;
+  align-items: stretch;
+  gap: var(--sp-1);
+  padding: var(--sp-1);
+  background: var(--c-bg);
+  border: 1px solid var(--c-border);
+  border-radius: var(--radius-md);
+}
+
+.stepper-btn {
+  display: grid;
+  place-items: center;
+  width: var(--touch-min);
+  min-height: var(--touch-min);
+  border: 1px solid var(--c-border-strong);
+  border-radius: calc(var(--radius-md) - var(--sp-1));
+  background: var(--c-surface);
+  color: var(--c-text);
+  cursor: pointer;
+  transition: background var(--anim-fast) var(--anim-ease-out), border-color var(--anim-fast) var(--anim-ease-out),
+    color var(--anim-fast) var(--anim-ease-out);
+}
+
+.stepper-btn:hover:not(:disabled) {
+  border-color: var(--c-accent);
+  color: var(--c-accent);
+}
+
+.stepper-btn:focus-visible {
+  outline: 2px solid var(--c-brand);
+  outline-offset: 2px;
+}
+
+/* Am Bereichsende sichtbar deaktiviert - nicht nur wirkungslos. */
+.stepper-btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+  border-color: var(--c-border);
+  color: var(--c-text-faint);
+}
+
+.stepper-value {
+  width: 96px;
+  min-height: var(--touch-min);
+  border: none;
+  background: transparent;
+  color: var(--c-text);
+  text-align: center;
+  font-family: inherit;
+  font-size: var(--fs-lg);
+  font-weight: var(--fw-display);
+  font-variant-numeric: tabular-nums;
+  /* Die Pfeilchen des Browsers wuerden neben den eigenen Knoepfen
+     doppelt wirken. */
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
+
+.stepper-value::-webkit-outer-spin-button,
+.stepper-value::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.stepper-value:focus-visible {
+  outline: 2px solid var(--c-brand);
+  outline-offset: 2px;
+  border-radius: calc(var(--radius-md) - var(--sp-1));
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .stepper-btn {
+    transition: none;
+  }
+}

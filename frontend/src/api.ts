@@ -31,7 +31,6 @@ export type SettingField = {
   options?: { value: string | number; label: string; hint?: string }[];
   min?: number;
   max?: number;
-  presets?: number[];
   // "equals" akzeptiert auch ein Array, um ein Feld bei MEHREREN
   // Werten eines anderen Feldes anzuzeigen (z.B. Around the World:
   // "Zielwechsel" nur bei requiredHits 2 ODER 3 relevant).

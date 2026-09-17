@@ -86,7 +86,7 @@ export const STATIC_GAMES = [
         "type": "number",
         "default": 3,
         "min": 1,
-        "max": 25,
+        "max": 20,
         "showIf": {
           "key": "matchMode",
           "equals": "custom"
@@ -236,12 +236,6 @@ export const STATIC_GAMES = [
         "default": 20,
         "min": 1,
         "max": 200,
-        "presets": [
-          10,
-          20,
-          30,
-          50
-        ],
         "showIf": {
           "key": "endless",
           "equals": false
@@ -1022,7 +1016,6 @@ export const STATIC_GAMES = [
         "default": 10,
         "min": 1,
         "max": 20,
-        "presets": [5, 10, 15, 20],
         "hint": "How many legs the match lasts. Any number from 1 to 20."
       }
     ]

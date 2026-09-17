@@ -5,6 +5,7 @@ import { GameHubScreen } from "./screens/GameHubScreen";
 import { GameSetupScreen, LocalStartInfo } from "./screens/GameSetupScreen";
 import { LocalGameScreen } from "./screens/LocalGameScreen";
 import { ProfileScreen } from "./screens/ProfileScreen";
+import { StatsScreen } from "./screens/StatsScreen";
 import { PiSettingsModal } from "./screens/PiSettingsModal";
 import { BoardDebugScreen } from "./screens/BoardDebugScreen";
 import { OnlineLobbyScreen } from "./screens/OnlineLobbyScreen";
@@ -22,6 +23,7 @@ type View =
   | { screen: "setup"; gameId: string }
   | { screen: "local-game"; session: LocalStartInfo; resume?: ResumeInfo }
   | { screen: "profiles" }
+  | { screen: "stats" }
   | { screen: "board-debug" }
   | { screen: "online-lobby" }
   | { screen: "online-room"; pin: string; myProfile: Profile };
@@ -117,11 +119,15 @@ export default function App() {
   // erreichbar sind - alle anderen (setup, local-game, online-room)
   // zeigen einfach keinen aktiven Nav-Link an.
   const headerScreen: AppScreen =
-    view.screen === "hub" || view.screen === "online-lobby" || view.screen === "profiles" || view.screen === "board-debug"
+    view.screen === "hub" ||
+    view.screen === "online-lobby" ||
+    view.screen === "profiles" ||
+    view.screen === "stats" ||
+    view.screen === "board-debug"
       ? view.screen
       : "other";
 
-  function handleNavigate(screen: "hub" | "online-lobby" | "profiles" | "board-debug") {
+  function handleNavigate(screen: "hub" | "online-lobby" | "profiles" | "stats" | "board-debug") {
     setView({ screen });
   }
 
@@ -165,6 +171,7 @@ export default function App() {
           />
         )}
         {view.screen === "profiles" && <ProfileScreen onBack={() => setView({ screen: "hub" })} />}
+        {view.screen === "stats" && <StatsScreen onBack={() => setView({ screen: "hub" })} />}
         {view.screen === "board-debug" && <BoardDebugScreen onBack={() => setView({ screen: "hub" })} />}
         {view.screen === "online-lobby" && (
           <OnlineLobbyScreen

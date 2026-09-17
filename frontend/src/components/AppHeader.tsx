@@ -1,18 +1,18 @@
 import { useEffect, useRef, useState } from "react";
-import { ChevronDown, Globe, Home, MoreHorizontal, Search, Settings, Star, Target, Wrench } from "lucide-react";
+import { BarChart3, ChevronDown, Globe, Home, MoreHorizontal, Search, Settings, Star, Target, Wrench } from "lucide-react";
 import { Profile } from "../api";
 import * as profilesDb from "../data/profiles";
 import { BoardControlBar } from "./BoardControlBar";
 import "./AppHeader.css";
 
-export type AppScreen = "hub" | "online-lobby" | "profiles" | "board-debug" | "other";
+export type AppScreen = "hub" | "online-lobby" | "profiles" | "stats" | "board-debug" | "other";
 
 type SearchSlot = { value: string; onChange: (value: string) => void } | null;
 type FavoritesSlot = { active: boolean; onToggle: () => void } | null;
 
 type Props = {
   activeScreen: AppScreen;
-  onNavigate: (screen: "hub" | "online-lobby" | "profiles" | "board-debug") => void;
+  onNavigate: (screen: "hub" | "online-lobby" | "profiles" | "stats" | "board-debug") => void;
   onOpenSettings: () => void;
   pendingResume: { gameName: string } | null;
   onResume: () => void;
@@ -74,6 +74,14 @@ export function AppHeader({ activeScreen, onNavigate, onOpenSettings, pendingRes
         >
           <Globe size={18} strokeWidth={2} />
           Play Online
+        </button>
+        <button
+          type="button"
+          className={`app-nav-link ${activeScreen === "stats" ? "active" : ""}`}
+          onClick={() => onNavigate("stats")}
+        >
+          <BarChart3 size={18} strokeWidth={2} />
+          Statistics
         </button>
         <button
           type="button"

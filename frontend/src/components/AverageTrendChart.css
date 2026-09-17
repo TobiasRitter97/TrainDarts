@@ -1,0 +1,74 @@
+.trend-figure {
+  margin: 0;
+}
+
+.trend-chart {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+
+.trend-grid {
+  stroke: var(--c-border);
+  stroke-width: 1;
+}
+
+.trend-axis {
+  fill: var(--c-text-faint);
+  font-size: 11px;
+  font-family: var(--font-family);
+}
+
+.trend-line {
+  fill: none;
+  stroke: var(--c-brand);
+  stroke-width: 2.5;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}
+
+.trend-area {
+  fill: color-mix(in srgb, var(--c-brand) 14%, transparent);
+  stroke: none;
+}
+
+.trend-dot {
+  fill: var(--c-brand);
+  stroke: var(--c-bg);
+  stroke-width: 2;
+}
+
+.trend-caption {
+  margin-top: var(--sp-2);
+  font-size: var(--fs-xs);
+  color: var(--c-text-faint);
+}
+
+.trend-empty {
+  margin: 0;
+  padding: var(--sp-5) 0;
+  color: var(--c-text-muted);
+  font-size: var(--fs-sm);
+}
+
+/* Ein einzelnes Spiel ergibt noch keine Kurve - statt einer Linie aus
+   einem Punkt wird der Wert selbst gross gezeigt. */
+.trend-single {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-4);
+  padding: var(--sp-4) 0;
+}
+
+.trend-single-value {
+  font-size: var(--fs-lg);
+  font-weight: var(--fw-display);
+  color: var(--c-brand);
+  font-variant-numeric: tabular-nums;
+}
+
+.trend-single-label {
+  font-size: var(--fs-xs);
+  color: var(--c-text-muted);
+  line-height: 1.5;
+}

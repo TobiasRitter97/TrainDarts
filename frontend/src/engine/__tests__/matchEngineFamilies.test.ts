@@ -764,6 +764,20 @@ describe("x01 / Pressure 501", () => {
     expect(state.players[0].pressure?.dartsThisLeg).toBe(0);
   });
 
+  it("undoes across a leg boundary back into the previous leg", () => {
+    const engine = pressureEngine({ level: "custom", customDarts: 9 }); // Abbruch nach 15 Darts
+    for (let i = 0; i < 5; i++) throwAndConfirm(engine, ["S1", "S1", "S1"]);
+    expect(engine.toDict().legNumber).toBe(2);
+
+    engine.undo(); // letzte Bestaetigung zuruecknehmen -> zurueck ins abgeschlossene Leg 1
+    const state = engine.toDict();
+    expect(state.legNumber).toBe(1);
+    expect(state.players[0].pressure?.dartsThisLeg).toBe(12); // die 3 Darts warten wieder auf Bestaetigung
+    expect(state.players[0].pressure?.legDone).toBe(false);
+    expect(state.players[0].pressure?.lastLeg).toBeNull();
+    expect(state.players[0].pressure?.points).toBe(0);
+  });
+
   it("finishes the match after the configured number of legs", () => {
     const engine = pressureEngine({ level: "custom", customDarts: 9, numberOfLegs: 2 });
     // Z=9 -> Abbruch nach 15 Darts = 5 Aufnahmen pro Leg

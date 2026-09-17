@@ -4,6 +4,7 @@
 import { collection, doc, getDoc, getDocs, setDoc, updateDoc } from "firebase/firestore";
 import { Profile } from "../api";
 import { currentUid, db, ensureSignedIn } from "./firebase";
+import * as guest from "./guestStore";
 
 async function profilesCollection() {
   await ensureSignedIn();
@@ -14,7 +15,11 @@ function now(): string {
   return new Date().toISOString();
 }
 
+// Im Gast-Modus kommen Profile aus dem localStorage statt aus
+// Firestore (siehe guestStore.ts). Die Signaturen bleiben gleich,
+// deshalb merken die Aufrufer davon nichts.
 export async function listProfiles(includeGuests = false, includeArchived = false): Promise<Profile[]> {
+  if (guest.isGuest()) return guest.guestListProfiles(includeGuests, includeArchived);
   const snap = await getDocs(await profilesCollection());
   return snap.docs
     .map((d) => d.data() as Profile)
@@ -25,6 +30,7 @@ export async function listProfiles(includeGuests = false, includeArchived = fals
 }
 
 export async function getProfile(profileId: string): Promise<Profile | null> {
+  if (guest.isGuest()) return guest.guestGetProfile(profileId);
   const snap = await getDoc(doc(await profilesCollection(), profileId));
   return snap.exists() ? (snap.data() as Profile) : null;
 }
@@ -35,6 +41,7 @@ export async function createProfile(data: {
   color?: string;
   is_guest?: boolean;
 }): Promise<Profile> {
+  if (guest.isGuest()) return guest.guestCreateProfile(data);
   const profile: Profile = {
     id: crypto.randomUUID(),
     name: data.name,
@@ -53,6 +60,7 @@ export async function updateProfile(
   profileId: string,
   data: { name?: string; initials?: string; color?: string }
 ): Promise<Profile | null> {
+  if (guest.isGuest()) return guest.guestUpdateProfile(profileId, data);
   const fields: Partial<Profile> = {};
   if (data.name !== undefined) fields.name = data.name;
   if (data.initials !== undefined) fields.initials = data.initials;
@@ -65,5 +73,6 @@ export async function updateProfile(
 
 // Soft-Delete: Profil verschwindet aus der Auswahl, alte Matches bleiben gueltig.
 export async function archiveProfile(profileId: string): Promise<void> {
+  if (guest.isGuest()) return guest.guestArchiveProfile(profileId);
   await updateDoc(doc(await profilesCollection(), profileId), { archived_at: now() });
 }

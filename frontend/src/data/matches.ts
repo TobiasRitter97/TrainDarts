@@ -6,6 +6,7 @@
 // Match-Eventlog ist klein genug fuer ein einzelnes Dokument).
 import { collection, doc, getDoc, getDocs, query, setDoc, updateDoc, where } from "firebase/firestore";
 import { currentUid, db, ensureSignedIn } from "./firebase";
+import * as guest from "./guestStore";
 import { MatchEvent } from "../engine/matchEngine";
 import { computeConfigHash } from "./configHash";
 
@@ -51,6 +52,11 @@ export async function saveMatch(
   status: MatchStatus = "in_progress",
   winnerProfileId: string | null = null
 ): Promise<void> {
+  // Gast-Modus: alles bleibt lokal, nichts geht nach Firestore.
+  if (guest.isGuest()) {
+    return guest.guestSaveMatch(matchId, gameId, settings, playerIds, events, status, winnerProfileId);
+  }
+
   const collectionRef = await matchesCollection();
   const ref = doc(collectionRef, matchId);
 
@@ -128,6 +134,7 @@ export function pendingMatchCount(): number {
 // "wieder online"-Ereignis aufgerufen. Was nicht durchgeht, bleibt in
 // der Warteschlange stehen.
 export async function flushPendingMatches(): Promise<number> {
+  if (guest.isGuest()) return 0; // ein Gast laedt nichts hoch
   const list = readPending();
   if (list.length === 0) return 0;
 
@@ -153,6 +160,7 @@ export async function flushPendingMatches(): Promise<number> {
 }
 
 export async function setStatus(matchId: string, status: MatchStatus, winnerProfileId: string | null = null): Promise<void> {
+  if (guest.isGuest()) return guest.guestSetStatus(matchId, status, winnerProfileId);
   await updateDoc(doc(await matchesCollection(), matchId), {
     status,
     finishedAt: status === "finished" || status === "abandoned" ? now() : null,
@@ -161,6 +169,7 @@ export async function setStatus(matchId: string, status: MatchStatus, winnerProf
 }
 
 export async function getMatch(matchId: string): Promise<StoredMatch | null> {
+  if (guest.isGuest()) return guest.guestGetMatch(matchId);
   const snap = await getDoc(doc(await matchesCollection(), matchId));
   return snap.exists() ? (snap.data() as StoredMatch) : null;
 }
@@ -169,12 +178,19 @@ export async function getMatch(matchId: string): Promise<StoredMatch | null> {
 // Zeit (ein neues Match setzt jedes alte unfertige sofort auf
 // "abandoned", siehe useLocalMatch.ts) - kein orderBy/Index noetig.
 export async function findInProgressMatch(): Promise<StoredMatch | null> {
+  if (guest.isGuest()) return guest.guestFindInProgressMatch();
   const snap = await getDocs(query(await matchesCollection(), where("status", "==", "in_progress")));
   if (snap.empty) return null;
   return snap.docs[0].data() as StoredMatch;
 }
 
 export async function loadFinishedMatches(gameId?: string): Promise<StoredMatch[]> {
+  if (guest.isGuest()) {
+    return guest
+      .guestMatches()
+      .filter((m) => m.status === "finished" && (!gameId || m.gameId === gameId))
+      .sort((a, b) => (a.finishedAt ?? "").localeCompare(b.finishedAt ?? ""));
+  }
   const clauses = [where("status", "==", "finished")];
   if (gameId) clauses.push(where("gameId", "==", gameId));
   const snap = await getDocs(query(await matchesCollection(), ...clauses));
@@ -184,6 +200,12 @@ export async function loadFinishedMatches(gameId?: string): Promise<StoredMatch[
 }
 
 export async function loadFinishedMatchesForProfile(profileId: string): Promise<StoredMatch[]> {
+  if (guest.isGuest()) {
+    return guest
+      .guestMatches()
+      .filter((m) => m.status === "finished" && m.playerIds.includes(profileId))
+      .sort((a, b) => (a.finishedAt ?? "").localeCompare(b.finishedAt ?? ""));
+  }
   const snap = await getDocs(
     query(await matchesCollection(), where("status", "==", "finished"), where("playerIds", "array-contains", profileId))
   );

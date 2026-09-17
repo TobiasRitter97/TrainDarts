@@ -1,0 +1,212 @@
+// Gast-Modus (Tobias-Anforderung 17.09.2026): spielen ohne Konto.
+//
+// Ein Gast bekommt bewusst KEINE Firebase-Identitaet - signInAnonymously
+// bleibt draussen, es entstehen keine neuen anonymen Konten. Profile und
+// Matches eines Gastes liegen ausschliesslich im localStorage dieses
+// Browsers.
+//
+// Absicht dieses Moduls: die Gast-Variante hat exakt dieselben
+// Funktionen und Datenformen wie die Firestore-Variante. Dadurch
+// koennen profiles.ts und matches.ts intern umschalten und ALLE
+// bestehenden Aufrufer (App, PlayerPicker, ProfileScreen, StatsScreen,
+// useLocalMatch, gameStats) bleiben unveraendert - der eingeloggte
+// Pfad wird durch den Gast-Modus nicht komplizierter.
+import { Profile } from "../api";
+import { MatchEvent } from "../engine/matchEngine";
+import { computeConfigHash } from "./configHash";
+import type { MatchStatus, StoredMatch } from "./matches";
+
+const MODE_KEY = "darts-guest-mode";
+const PROFILES_KEY = "darts-guest-profiles";
+const MATCHES_KEY = "darts-guest-matches";
+const LAST_NAMES_KEY = "darts-guest-last-names";
+
+export const MAX_GUEST_PLAYERS = 4;
+
+function readJson<T>(key: string, fallback: T): T {
+  try {
+    const raw = localStorage.getItem(key);
+    return raw ? (JSON.parse(raw) as T) : fallback;
+  } catch {
+    return fallback;
+  }
+}
+
+function writeJson(key: string, value: unknown): void {
+  try {
+    localStorage.setItem(key, JSON.stringify(value));
+  } catch {
+    // Privates Fenster oder Speicher voll - der Gast-Modus ist
+    // ausdruecklich fluechtig, ein Fehlschlag ist kein Drama.
+  }
+}
+
+// ---------------------------------------------------------------- Modus
+
+// Im Speicher gehalten, damit ein Wechsel sofort greift (localStorage
+// wird nur zum Ueberdauern eines Neuladens benutzt).
+let guestActive = readJson<boolean>(MODE_KEY, false);
+
+export function isGuest(): boolean {
+  return guestActive;
+}
+
+export function enterGuestMode(): void {
+  guestActive = true;
+  writeJson(MODE_KEY, true);
+}
+
+export function leaveGuestMode(): void {
+  guestActive = false;
+  writeJson(MODE_KEY, false);
+}
+
+// ---------------------------------------------------------------- Namen
+
+export function lastGuestNames(): string[] {
+  return readJson<string[]>(LAST_NAMES_KEY, []);
+}
+
+export function rememberGuestNames(names: string[]): void {
+  writeJson(LAST_NAMES_KEY, names.filter((n) => n.trim().length > 0).slice(0, MAX_GUEST_PLAYERS));
+}
+
+// ---------------------------------------------------------------- Profile
+
+function now(): string {
+  return new Date().toISOString();
+}
+
+export function guestProfiles(): Profile[] {
+  return readJson<Profile[]>(PROFILES_KEY, []);
+}
+
+export function guestListProfiles(includeGuests = false, includeArchived = false): Profile[] {
+  return guestProfiles()
+    .filter((p) => p.merged_into_profile_id === null)
+    .filter((p) => includeArchived || p.archived_at === null)
+    .filter((p) => includeGuests || !p.is_guest)
+    .sort((a, b) => a.created_at.localeCompare(b.created_at));
+}
+
+export function guestGetProfile(profileId: string): Profile | null {
+  return guestProfiles().find((p) => p.id === profileId) ?? null;
+}
+
+export function guestCreateProfile(data: { name: string; initials?: string; color?: string; is_guest?: boolean }): Profile {
+  const profile: Profile = {
+    id: crypto.randomUUID(),
+    name: data.name,
+    initials: data.initials ?? null,
+    color: data.color ?? null,
+    is_guest: data.is_guest ? 1 : 0,
+    merged_into_profile_id: null,
+    archived_at: null,
+    created_at: now(),
+  };
+  writeJson(PROFILES_KEY, [...guestProfiles(), profile]);
+  return profile;
+}
+
+export function guestUpdateProfile(profileId: string, data: { name?: string; initials?: string; color?: string }): Profile | null {
+  const list = guestProfiles();
+  const index = list.findIndex((p) => p.id === profileId);
+  if (index < 0) return null;
+  const updated = { ...list[index] };
+  if (data.name !== undefined) updated.name = data.name;
+  if (data.initials !== undefined) updated.initials = data.initials;
+  if (data.color !== undefined) updated.color = data.color;
+  list[index] = updated;
+  writeJson(PROFILES_KEY, list);
+  return updated;
+}
+
+export function guestArchiveProfile(profileId: string): void {
+  const list = guestProfiles().map((p) => (p.id === profileId ? { ...p, archived_at: now() } : p));
+  writeJson(PROFILES_KEY, list);
+}
+
+// Legt fuer die eingegebenen Namen Profile an. Leere Felder werden zu
+// "Spieler 1", "Spieler 2" usw. - ein Gast soll nicht tippen MUESSEN.
+//
+// Gibt es einen Namen schon, wird das bestehende Profil wiederverwendet:
+// sonst haette jedes erneute Betreten des Gast-Modus dieselben Spieler
+// ein weiteres Mal angelegt.
+export function createGuestPlayers(names: string[]): Profile[] {
+  const cleaned = names.map((n) => n.trim());
+  const used = cleaned.map((name, i) => (name.length > 0 ? name : `Spieler ${i + 1}`));
+  rememberGuestNames(cleaned);
+
+  const existing = guestListProfiles(true, true);
+  return used.map((name) => {
+    const match = existing.find((p) => p.name.toLowerCase() === name.toLowerCase());
+    return match ?? guestCreateProfile({ name });
+  });
+}
+
+// ---------------------------------------------------------------- Matches
+
+export function guestMatches(): StoredMatch[] {
+  return readJson<StoredMatch[]>(MATCHES_KEY, []);
+}
+
+export async function guestSaveMatch(
+  matchId: string,
+  gameId: string,
+  settings: Record<string, unknown>,
+  playerIds: string[],
+  events: MatchEvent[],
+  status: MatchStatus,
+  winnerProfileId: string | null
+): Promise<void> {
+  const list = guestMatches();
+  const existing = list.find((m) => m.id === matchId);
+  const match: StoredMatch = {
+    id: matchId,
+    gameId,
+    settings,
+    configHash: await computeConfigHash(gameId, settings),
+    playerIds,
+    events,
+    status,
+    startedAt: existing?.startedAt ?? now(),
+    finishedAt: status === "finished" ? now() : null,
+    winnerProfileId,
+  };
+  writeJson(MATCHES_KEY, [...list.filter((m) => m.id !== matchId), match]);
+}
+
+export function guestSetStatus(matchId: string, status: MatchStatus, winnerProfileId: string | null): void {
+  const list = guestMatches().map((m) =>
+    m.id === matchId
+      ? { ...m, status, finishedAt: status === "finished" || status === "abandoned" ? now() : null, winnerProfileId }
+      : m
+  );
+  writeJson(MATCHES_KEY, list);
+}
+
+export function guestGetMatch(matchId: string): StoredMatch | null {
+  return guestMatches().find((m) => m.id === matchId) ?? null;
+}
+
+export function guestFindInProgressMatch(): StoredMatch | null {
+  return guestMatches().find((m) => m.status === "in_progress") ?? null;
+}
+
+// ---------------------------------------------------------------- Uebernahme
+
+// Was beim Wechsel Gast -> Konto angeboten wird. Profile und Matches
+// immer gemeinsam: Matches verweisen ueber die Profil-ID auf ihre
+// Spieler, nur die Matches zu uebernehmen ergaebe eine Statistik mit
+// unbekannten Namen.
+export function guestDataSummary(): { profiles: number; matches: number } {
+  return {
+    profiles: guestListProfiles(true, true).length,
+    matches: guestMatches().filter((m) => m.status === "finished").length,
+  };
+}
+
+export function clearGuestData(): void {
+  writeJson(PROFILES_KEY, []);
+  writeJson(MATCHES_KEY, []);
+}

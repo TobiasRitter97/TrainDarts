@@ -165,3 +165,112 @@
   outline: 2px solid var(--c-brand);
   outline-offset: 2px;
 }
+
+/* ---------- Gast-Modus ---------- */
+
+.guest-warning {
+  background: var(--c-bg);
+  border: 1px solid var(--c-accent);
+  border-left-width: 3px;
+  border-radius: var(--radius-sm);
+  padding: var(--sp-3) var(--sp-4);
+}
+
+.guest-warning-title {
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-strong);
+  margin-bottom: var(--sp-2);
+  color: var(--c-accent);
+}
+
+.guest-warning ul {
+  margin: 0;
+  padding-left: 1.1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.guest-warning li {
+  font-size: var(--fs-xs);
+  color: var(--c-text-muted);
+  line-height: 1.4;
+}
+
+.guest-names {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  margin-top: var(--sp-1);
+}
+
+.guest-name-actions {
+  display: flex;
+  gap: var(--sp-2);
+  margin-top: var(--sp-2);
+}
+
+.guest-name-btn {
+  min-height: 40px;
+  padding: 0 var(--sp-3);
+  font-size: var(--fs-sm);
+}
+
+/* ---------- Gast-Hinweise im eingeloggten Layout ---------- */
+
+.guest-gate {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--sp-3);
+  background: var(--c-surface);
+  border: 1px solid var(--c-border);
+  border-left: 3px solid var(--c-accent);
+  border-radius: var(--radius-md);
+  padding: var(--sp-5);
+}
+
+.guest-gate-title {
+  margin: 0;
+  font-size: var(--fs-md);
+  font-weight: var(--fw-strong);
+}
+
+.guest-gate p {
+  margin: 0;
+  max-width: 56ch;
+  font-size: var(--fs-sm);
+  color: var(--c-text-muted);
+  line-height: 1.5;
+}
+
+.app-account-guest {
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-strong);
+  color: var(--c-accent);
+  letter-spacing: 0.06em;
+}
+
+.app-account-login {
+  min-height: 40px;
+  padding: 0 var(--sp-3);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--c-border-strong);
+  background: var(--c-surface);
+  color: var(--c-text);
+  font-family: inherit;
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-strong);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.app-account-login:hover {
+  border-color: var(--c-brand);
+  color: var(--c-brand);
+}
+
+.app-account-login:focus-visible {
+  outline: 2px solid var(--c-brand);
+  outline-offset: 2px;
+}

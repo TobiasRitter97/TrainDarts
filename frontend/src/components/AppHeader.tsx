@@ -13,6 +13,8 @@ type SearchSlot = { value: string; onChange: (value: string) => void } | null;
 type FavoritesSlot = { active: boolean; onToggle: () => void } | null;
 
 type Props = {
+  guest: boolean;
+  onLeaveGuest: () => void;
   activeScreen: AppScreen;
   onNavigate: (screen: "hub" | "online-lobby" | "profiles" | "stats" | "board-debug") => void;
   onOpenSettings: () => void;
@@ -29,7 +31,7 @@ type Props = {
 // dort ueber die "search"/"favorites"-Props aktiviert, sonst ausgeblendet
 // (Tobias' Vorgabe: "Suchfeld kann im Spiel reduziert/ausgeblendet
 // werden").
-export function AppHeader({ activeScreen, onNavigate, onOpenSettings, pendingResume, onResume, search, favorites }: Props) {
+export function AppHeader({ guest, onLeaveGuest, activeScreen, onNavigate, onOpenSettings, pendingResume, onResume, search, favorites }: Props) {
   const [moreOpen, setMoreOpen] = useState(false);
   const [profile, setProfile] = useState<Profile | null>(null);
   const moreRef = useRef<HTMLDivElement>(null);
@@ -168,18 +170,29 @@ export function AppHeader({ activeScreen, onNavigate, onOpenSettings, pendingRes
         {/* Angemeldetes Konto sichtbar, Abmelden direkt daneben
             (Tobias-Anforderung 17.09.2026). */}
         <div className="app-account">
-          <span className="app-account-mail" title={signedInUser()?.email ?? ""}>
-            {signedInUser()?.email}
-          </span>
-          <button
-            type="button"
-            className="app-logout-btn"
-            onClick={() => void logout()}
-            title="Abmelden"
-            aria-label="Abmelden"
-          >
-            <LogOut size={18} strokeWidth={2} />
-          </button>
+          {guest ? (
+            <>
+              <span className="app-account-guest">GAST</span>
+              <button type="button" className="app-account-login" onClick={onLeaveGuest}>
+                Anmelden / Konto anlegen
+              </button>
+            </>
+          ) : (
+            <>
+              <span className="app-account-mail" title={signedInUser()?.email ?? ""}>
+                {signedInUser()?.email}
+              </span>
+              <button
+                type="button"
+                className="app-logout-btn"
+                onClick={() => void logout()}
+                title="Abmelden"
+                aria-label="Abmelden"
+              >
+                <LogOut size={18} strokeWidth={2} />
+              </button>
+            </>
+          )}
         </div>
       </div>
     </header>

@@ -2,19 +2,25 @@ import { FormEvent, useEffect, useState } from "react";
 import { Target } from "lucide-react";
 import { collection, getDocs } from "firebase/firestore";
 import { authErrorText, db, legacyAnonymousUser, loginWithEmail, registerWithEmail } from "../data/firebase";
+import {
+  createGuestPlayers,
+  enterGuestMode,
+  lastGuestNames,
+  MAX_GUEST_PLAYERS,
+} from "../data/guestStore";
 import { SegmentedControl } from "../components/SegmentedControl";
 import "./AuthScreen.css";
 
 // Damit der Hinweis auf die alte anonyme Sitzung genau EINMAL kommt.
 const LEGACY_ACK_KEY = "darts-legacy-session-acknowledged";
 
-type Mode = "login" | "register";
+type Mode = "login" | "register" | "guest";
 
-// Anmeldung per E-Mail und Passwort (Tobias-Anforderung 17.09.2026).
-// Davor haftete alles an einer anonymen Browser-Identitaet - Cache
-// loeschen bedeutete leere Profile. Jetzt haengen Profile und Matches
-// am Konto.
-export function AuthScreen() {
+type Props = { onGuestStart: () => void };
+
+// Anmeldung per E-Mail und Passwort, alternativ ein rein lokaler
+// Gast-Modus ohne Konto (Tobias-Anforderung 17.09.2026).
+export function AuthScreen({ onGuestStart }: Props) {
   const [mode, setMode] = useState<Mode>("register");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -113,9 +119,13 @@ export function AuthScreen() {
     <div className="auth-screen">
       <div className="auth-card">
         <Brand />
-        <h1 className="auth-title">{mode === "register" ? "Konto anlegen" : "Anmelden"}</h1>
+        <h1 className="auth-title">
+          {mode === "register" ? "Konto anlegen" : mode === "login" ? "Anmelden" : "Ohne Anmeldung spielen"}
+        </h1>
         <p className="auth-lede">
-          Profile, Spiele und Statistiken hängen an deinem Konto — auf jedem Gerät dieselben Daten.
+          {mode === "guest"
+            ? "Sofort loslegen — ohne Konto, dafür ohne Statistik."
+            : "Profile, Spiele und Statistiken hängen an deinem Konto — auf jedem Gerät dieselben Daten."}
         </p>
 
         <SegmentedControl
@@ -123,6 +133,7 @@ export function AuthScreen() {
           options={[
             { value: "register", label: "Neues Konto" },
             { value: "login", label: "Anmelden" },
+            { value: "guest", label: "Ohne Anmeldung" },
           ]}
           value={mode}
           onChange={(value) => {
@@ -131,43 +142,121 @@ export function AuthScreen() {
           }}
         />
 
-        <form className="auth-form" onSubmit={handleSubmit}>
-          <label className="auth-field">
-            <span className="auth-field-label">E-Mail-Adresse</span>
-            <input
-              type="email"
-              className="auth-input"
-              autoComplete="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-            />
-          </label>
+        {mode === "guest" ? (
+          <GuestPanel onStart={onGuestStart} />
+        ) : (
+          <form className="auth-form" onSubmit={handleSubmit}>
+            <label className="auth-field">
+              <span className="auth-field-label">E-Mail-Adresse</span>
+              <input
+                type="email"
+                className="auth-input"
+                autoComplete="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+              />
+            </label>
 
-          <label className="auth-field">
-            <span className="auth-field-label">Passwort</span>
-            <input
-              type="password"
-              className="auth-input"
-              autoComplete={mode === "register" ? "new-password" : "current-password"}
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-            />
-            {mode === "register" && <span className="auth-field-hint">Mindestens 6 Zeichen.</span>}
-          </label>
+            <label className="auth-field">
+              <span className="auth-field-label">Passwort</span>
+              <input
+                type="password"
+                className="auth-input"
+                autoComplete={mode === "register" ? "new-password" : "current-password"}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+              />
+              {mode === "register" && <span className="auth-field-hint">Mindestens 6 Zeichen.</span>}
+            </label>
 
-          {error && (
-            <p className="auth-error" role="alert">
-              {error}
-            </p>
-          )}
+            {error && (
+              <p className="auth-error" role="alert">
+                {error}
+              </p>
+            )}
 
-          <button type="submit" className="btn-primary auth-submit" disabled={busy}>
-            {busy ? "Einen Moment…" : mode === "register" ? "Konto anlegen" : "Anmelden"}
-          </button>
-        </form>
+            <button type="submit" className="btn-primary auth-submit" disabled={busy}>
+              {busy ? "Einen Moment…" : mode === "register" ? "Konto anlegen" : "Anmelden"}
+            </button>
+          </form>
+        )}
       </div>
+    </div>
+  );
+}
+
+// Hinweis + Namenseingabe vor dem Betreten des Gast-Modus. Der Hinweis
+// erscheint bei JEDEM Betreten, nicht nur einmal - er ist die einzige
+// Stelle, an der klar wird, dass nichts gespeichert wird.
+function GuestPanel({ onStart }: { onStart: () => void }) {
+  const remembered = lastGuestNames();
+  const [names, setNames] = useState<string[]>(() =>
+    remembered.length > 0 ? remembered : [""]
+  );
+
+  function setName(index: number, value: string) {
+    setNames((prev) => prev.map((n, i) => (i === index ? value : n)));
+  }
+
+  function start() {
+    createGuestPlayers(names);
+    enterGuestMode();
+    onStart();
+  }
+
+  return (
+    <div className="auth-form">
+      <div className="guest-warning">
+        <div className="guest-warning-title">Ohne Konto gilt:</div>
+        <ul>
+          <li>Spiele werden nicht gespeichert</li>
+          <li>Keine Statistiken, keine Historie</li>
+          <li>Nach dem Leeren des Browsers ist alles weg</li>
+          <li>Ein Konto lässt sich jederzeit nachträglich anlegen</li>
+        </ul>
+      </div>
+
+      <div className="auth-field">
+        <span className="auth-field-label">Spielernamen</span>
+        <span className="auth-field-hint">
+          Optional — wer nichts einträgt, spielt als „Spieler 1", „Spieler 2" und so weiter.
+          {remembered.length > 0 && " Zuletzt genutzte Namen sind schon eingetragen."}
+        </span>
+        <div className="guest-names">
+          {names.map((name, i) => (
+            <input
+              key={i}
+              type="text"
+              className="auth-input"
+              placeholder={`Spieler ${i + 1}`}
+              value={name}
+              onChange={(e) => setName(i, e.target.value)}
+            />
+          ))}
+        </div>
+        <div className="guest-name-actions">
+          {names.length < MAX_GUEST_PLAYERS && (
+            <button type="button" className="btn-secondary guest-name-btn" onClick={() => setNames((p) => [...p, ""])}>
+              + Spieler
+            </button>
+          )}
+          {names.length > 1 && (
+            <button
+              type="button"
+              className="btn-secondary guest-name-btn"
+              onClick={() => setNames((p) => p.slice(0, -1))}
+            >
+              − Spieler
+            </button>
+          )}
+        </div>
+      </div>
+
+      <button type="button" className="btn-primary auth-submit" onClick={start}>
+        Verstanden — ohne Konto spielen
+      </button>
     </div>
   );
 }

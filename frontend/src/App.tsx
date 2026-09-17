@@ -5,6 +5,8 @@ import { GameHubScreen } from "./screens/GameHubScreen";
 import { GameSetupScreen, LocalStartInfo } from "./screens/GameSetupScreen";
 import { LocalGameScreen } from "./screens/LocalGameScreen";
 import { AuthScreen } from "./screens/AuthScreen";
+import { FirstProfileScreen } from "./screens/FirstProfileScreen";
+import { GuestTakeoverScreen } from "./screens/GuestTakeoverScreen";
 import { ProfileScreen } from "./screens/ProfileScreen";
 import { StatsScreen } from "./screens/StatsScreen";
 import { PiSettingsModal } from "./screens/PiSettingsModal";
@@ -17,6 +19,7 @@ import * as profilesDb from "./data/profiles";
 import { recordGamePlayed } from "./data/localPrefs";
 import { ResumeInfo } from "./engine/useLocalMatch";
 import { authReady, firebaseConfigError, observeAuth, signedInUser } from "./data/firebase";
+import { guestDataSummary, isGuest, leaveGuestMode } from "./data/guestStore";
 import { STATIC_GAMES } from "./staticGames";
 import "./App.css";
 
@@ -55,17 +58,77 @@ function useShouldSuggestPiSettings(): boolean {
 // WICHTIG: geprueft wird nur die LOKALE Sitzung, es wird nichts online
 // nachgefragt. Ein Internetausfall meldet also niemand ab - am Board
 // kann weitergespielt werden (Tobias-Vorgabe 17.09.2026).
+// Konten, fuer die der einmalige "Profil anlegen"-Schritt schon
+// erledigt bzw. uebersprungen wurde.
+const FIRST_PROFILE_KEY = "darts-first-profile-done";
+
+function firstProfileDone(uid: string): boolean {
+  try {
+    return (JSON.parse(localStorage.getItem(FIRST_PROFILE_KEY) ?? "[]") as string[]).includes(uid);
+  } catch {
+    return true; // im Zweifel nicht nerven
+  }
+}
+
+// Konten, denen die Uebernahmefrage schon gestellt wurde - egal wie
+// sie beantwortet wurde. Sie soll nicht bei jedem Login wiederkommen.
+const TAKEOVER_ASKED_KEY = "darts-guest-takeover-asked";
+
+function takeoverAsked(uid: string): boolean {
+  try {
+    return (JSON.parse(localStorage.getItem(TAKEOVER_ASKED_KEY) ?? "[]") as string[]).includes(uid);
+  } catch {
+    return true;
+  }
+}
+
+function markTakeoverAsked(uid: string): void {
+  try {
+    const list = JSON.parse(localStorage.getItem(TAKEOVER_ASKED_KEY) ?? "[]") as string[];
+    if (!list.includes(uid)) localStorage.setItem(TAKEOVER_ASKED_KEY, JSON.stringify([...list, uid]));
+  } catch {
+    // Privates Fenster - dann kommt die Frage eben noch einmal.
+  }
+}
+
+function markFirstProfileDone(uid: string): void {
+  try {
+    const list = JSON.parse(localStorage.getItem(FIRST_PROFILE_KEY) ?? "[]") as string[];
+    if (!list.includes(uid)) localStorage.setItem(FIRST_PROFILE_KEY, JSON.stringify([...list, uid]));
+  } catch {
+    // Privates Fenster - dann kommt der Schritt eben noch einmal.
+  }
+}
+
 export default function App() {
-  const [authState, setAuthState] = useState<"checking" | "out" | "in">("checking");
+  const [authState, setAuthState] = useState<"checking" | "out" | "guest" | "in">("checking");
+  // Nach dem Anmelden noch offene Zwischenschritte.
+  const [takeover, setTakeover] = useState<{ profiles: number; matches: number } | null>(null);
+  const [needsFirstProfile, setNeedsFirstProfile] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
-    authReady().then(() => {
-      if (!cancelled) setAuthState(signedInUser() ? "in" : "out");
-    });
-    const unsubscribe = observeAuth(() => {
-      if (!cancelled) setAuthState(signedInUser() ? "in" : "out");
-    });
+    function sync() {
+      if (cancelled) return;
+      const user = signedInUser();
+      if (user) {
+        if (isGuest()) leaveGuestMode();
+        // Liegen lokale Gast-Daten vor? Bewusst UNABHAENGIG vom
+        // Gast-Flag geprueft: wer ueber "Anmelden / Konto anlegen" aus
+        // dem Gast-Modus kommt, hat den Modus vorher schon verlassen -
+        // die Daten liegen aber noch da und die Frage ist faellig.
+        const summary = guestDataSummary();
+        if ((summary.profiles > 0 || summary.matches > 0) && !takeoverAsked(user.uid)) {
+          setTakeover(summary);
+        }
+        setNeedsFirstProfile(!firstProfileDone(user.uid));
+        setAuthState("in");
+        return;
+      }
+      setAuthState(isGuest() ? "guest" : "out");
+    }
+    authReady().then(sync);
+    const unsubscribe = observeAuth(sync);
     return () => {
       cancelled = true;
       unsubscribe();
@@ -91,11 +154,42 @@ export default function App() {
     );
   }
   if (authState === "checking") return <div className="app-boot">Einen Moment…</div>;
-  if (authState === "out") return <AuthScreen />;
-  return <SignedInApp />;
+  if (authState === "out") return <AuthScreen onGuestStart={() => setAuthState("guest")} />;
+
+  if (authState === "in") {
+    if (takeover) {
+      return (
+        <GuestTakeoverScreen
+          summary={takeover}
+          onDone={() => {
+            const user = signedInUser();
+            if (user) markTakeoverAsked(user.uid);
+            setTakeover(null);
+          }}
+        />
+      );
+    }
+    if (needsFirstProfile) {
+      const user = signedInUser();
+      return (
+        <FirstProfileScreen
+          email={user?.email ?? ""}
+          onDone={() => {
+            if (user) markFirstProfileDone(user.uid);
+            setNeedsFirstProfile(false);
+          }}
+        />
+      );
+    }
+  }
+
+  return <SignedInApp guest={authState === "guest"} onLeaveGuest={() => {
+    leaveGuestMode();
+    setAuthState("out");
+  }} />;
 }
 
-function SignedInApp() {
+function SignedInApp({ guest, onLeaveGuest }: { guest: boolean; onLeaveGuest: () => void }) {
   const [view, setView] = useState<View>({ screen: "hub" });
   const [pendingResume, setPendingResume] = useState<PendingResumeInfo | null>(null);
   // Der Dialog ("Fortsetzen?"/"Verwerfen") poppt nur EINMAL automatisch
@@ -182,6 +276,8 @@ function SignedInApp() {
   return (
     <div className="app-shell">
       <AppHeader
+        guest={guest}
+        onLeaveGuest={onLeaveGuest}
         activeScreen={headerScreen}
         onNavigate={handleNavigate}
         onOpenSettings={() => setShowPiSettings(true)}
@@ -219,9 +315,25 @@ function SignedInApp() {
           />
         )}
         {view.screen === "profiles" && <ProfileScreen onBack={() => setView({ screen: "hub" })} />}
-        {view.screen === "stats" && <StatsScreen onBack={() => setView({ screen: "hub" })} />}
+        {view.screen === "stats" &&
+          (guest ? (
+            <GuestGate
+              title="Statistiken gibt es nur mit Konto"
+              text="Als Gast wird nichts gespeichert — es gibt also auch nichts auszuwerten. Mit einem Konto landen deine Spiele dauerhaft in der Historie, auf jedem Gerät."
+              onLeaveGuest={onLeaveGuest}
+            />
+          ) : (
+            <StatsScreen onBack={() => setView({ screen: "hub" })} />
+          ))}
         {view.screen === "board-debug" && <BoardDebugScreen onBack={() => setView({ screen: "hub" })} />}
-        {view.screen === "online-lobby" && (
+        {view.screen === "online-lobby" && guest && (
+          <GuestGate
+            title="Online spielen geht nur mit Konto"
+            text="Ein Online-Raum braucht eine Kennung, an der die Mitspieler dich erkennen — die gibt es nur mit einem Konto. Am eigenen Board kannst du als Gast aber zu viert spielen."
+            onLeaveGuest={onLeaveGuest}
+          />
+        )}
+        {view.screen === "online-lobby" && !guest && (
           <OnlineLobbyScreen
             onBack={() => setView({ screen: "hub" })}
             onEnterRoom={(pin, myProfile) => setView({ screen: "online-room", pin, myProfile })}
@@ -257,6 +369,20 @@ function SignedInApp() {
       )}
 
       {showPiSettings && <PiSettingsModal onClose={() => setShowPiSettings(false)} />}
+    </div>
+  );
+}
+
+// Einheitlicher Hinweis fuer die Bereiche, die ohne Konto nicht
+// funktionieren - statt einer leeren Seite.
+function GuestGate({ title, text, onLeaveGuest }: { title: string; text: string; onLeaveGuest: () => void }) {
+  return (
+    <div className="guest-gate">
+      <p className="guest-gate-title">{title}</p>
+      <p>{text}</p>
+      <button type="button" className="btn-primary" onClick={onLeaveGuest}>
+        Konto anlegen
+      </button>
     </div>
   );
 }

@@ -153,7 +153,7 @@ export default function App() {
       </div>
     );
   }
-  if (authState === "checking") return <div className="app-boot">Einen Moment…</div>;
+  if (authState === "checking") return <div className="app-boot">One moment…</div>;
   if (authState === "out") return <AuthScreen onGuestStart={() => setAuthState("guest")} />;
 
   if (authState === "in") {
@@ -318,8 +318,8 @@ function SignedInApp({ guest, onLeaveGuest }: { guest: boolean; onLeaveGuest: ()
         {view.screen === "stats" &&
           (guest ? (
             <GuestGate
-              title="Statistiken gibt es nur mit Konto"
-              text="Als Gast wird nichts gespeichert — es gibt also auch nichts auszuwerten. Mit einem Konto landen deine Spiele dauerhaft in der Historie, auf jedem Gerät."
+              title="Statistics need an account"
+              text="Nothing is saved in guest mode, so there is nothing to evaluate. With an account your games go into your history for good — on every device."
               onLeaveGuest={onLeaveGuest}
             />
           ) : (
@@ -328,8 +328,8 @@ function SignedInApp({ guest, onLeaveGuest }: { guest: boolean; onLeaveGuest: ()
         {view.screen === "board-debug" && <BoardDebugScreen onBack={() => setView({ screen: "hub" })} />}
         {view.screen === "online-lobby" && guest && (
           <GuestGate
-            title="Online spielen geht nur mit Konto"
-            text="Ein Online-Raum braucht eine Kennung, an der die Mitspieler dich erkennen — die gibt es nur mit einem Konto. Am eigenen Board kannst du als Gast aber zu viert spielen."
+            title="Playing online needs an account"
+            text="An online room needs an identifier your opponents can recognise you by, and that only comes with an account. On your own board you can still play up to four as a guest."
             onLeaveGuest={onLeaveGuest}
           />
         )}
@@ -381,7 +381,7 @@ function GuestGate({ title, text, onLeaveGuest }: { title: string; text: string;
       <p className="guest-gate-title">{title}</p>
       <p>{text}</p>
       <button type="button" className="btn-primary" onClick={onLeaveGuest}>
-        Konto anlegen
+        Create account
       </button>
     </div>
   );

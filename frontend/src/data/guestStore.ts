@@ -127,14 +127,14 @@ export function guestArchiveProfile(profileId: string): void {
 }
 
 // Legt fuer die eingegebenen Namen Profile an. Leere Felder werden zu
-// "Spieler 1", "Spieler 2" usw. - ein Gast soll nicht tippen MUESSEN.
+// "Player 1", "Player 2" usw. - ein Gast soll nicht tippen MUESSEN.
 //
 // Gibt es einen Namen schon, wird das bestehende Profil wiederverwendet:
 // sonst haette jedes erneute Betreten des Gast-Modus dieselben Spieler
 // ein weiteres Mal angelegt.
 export function createGuestPlayers(names: string[]): Profile[] {
   const cleaned = names.map((n) => n.trim());
-  const used = cleaned.map((name, i) => (name.length > 0 ? name : `Spieler ${i + 1}`));
+  const used = cleaned.map((name, i) => (name.length > 0 ? name : `Player ${i + 1}`));
   rememberGuestNames(cleaned);
 
   const existing = guestListProfiles(true, true);

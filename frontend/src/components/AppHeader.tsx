@@ -172,9 +172,9 @@ export function AppHeader({ guest, onLeaveGuest, activeScreen, onNavigate, onOpe
         <div className="app-account">
           {guest ? (
             <>
-              <span className="app-account-guest">GAST</span>
+              <span className="app-account-guest">GUEST</span>
               <button type="button" className="app-account-login" onClick={onLeaveGuest}>
-                Anmelden / Konto anlegen
+                Sign in / Create account
               </button>
             </>
           ) : (
@@ -186,8 +186,8 @@ export function AppHeader({ guest, onLeaveGuest, activeScreen, onNavigate, onOpe
                 type="button"
                 className="app-logout-btn"
                 onClick={() => void logout()}
-                title="Abmelden"
-                aria-label="Abmelden"
+                title="Sign out"
+                aria-label="Sign out"
               >
                 <LogOut size={18} strokeWidth={2} />
               </button>

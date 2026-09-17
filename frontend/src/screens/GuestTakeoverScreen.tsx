@@ -24,7 +24,7 @@ export function GuestTakeoverScreen({ summary, onDone }: Props) {
       await takeOverGuestData();
       onDone();
     } catch {
-      setError("Die Übernahme hat nicht geklappt. Prüfe deine Internetverbindung — deine lokalen Daten sind unberührt.");
+      setError("The transfer did not work. Check your internet connection — your local data is untouched.");
       setBusy(false);
     }
   }
@@ -41,22 +41,21 @@ export function GuestTakeoverScreen({ summary, onDone }: Props) {
           </span>
         </div>
 
-        <h1 className="auth-title">Gast-Daten übernehmen?</h1>
+        <h1 className="auth-title">Carry over guest data?</h1>
         <p className="auth-lede">
-          Auf diesem Gerät liegen aus dem Gast-Modus noch{" "}
+          This device still holds{" "}
           <b>
-            {summary.profiles} {summary.profiles === 1 ? "Spieler" : "Spieler"}
+            {summary.profiles} {summary.profiles === 1 ? "player" : "players"}
           </b>{" "}
-          und{" "}
+          and{" "}
           <b>
-            {summary.matches} {summary.matches === 1 ? "abgeschlossenes Spiel" : "abgeschlossene Spiele"}
-          </b>
-          . Sollen sie in dein Konto wandern?
+            {summary.matches} {summary.matches === 1 ? "finished game" : "finished games"}
+          </b>{" "}
+          from guest mode. Move them into your account?
         </p>
         <p className="auth-note">
-          Spieler und Spiele wandern immer gemeinsam — die Spiele verweisen auf ihre Spieler, einzeln übernommen fehlten
-          in der Statistik die Namen. Entscheidest du dich dagegen, bleiben die Daten lokal liegen und werden nicht
-          gelöscht.
+          Players and games always move together — games reference their players, so taking only one of the two would
+          leave your statistics without names. If you decline, the data simply stays local and is not deleted.
         </p>
 
         {error && (
@@ -67,10 +66,10 @@ export function GuestTakeoverScreen({ summary, onDone }: Props) {
 
         <div className="auth-form">
           <button type="button" className="btn-primary auth-submit" onClick={takeOver} disabled={busy}>
-            {busy ? "Wird übernommen…" : "Ja, ins Konto übernehmen"}
+            {busy ? "Transferring…" : "Yes, move into my account"}
           </button>
           <button type="button" className="btn-secondary auth-submit" onClick={onDone} disabled={busy}>
-            Nein, getrennt lassen
+            No, keep them separate
           </button>
         </div>
       </div>

@@ -90,25 +90,24 @@ export function AuthScreen({ onGuestStart }: Props) {
       <div className="auth-screen">
         <div className="auth-card">
           <Brand />
-          <h1 className="auth-title">Bisherige Daten in diesem Browser</h1>
+          <h1 className="auth-title">Existing data in this browser</h1>
           <p className="auth-lede">
-            An der alten, geräteinternen Sitzung hängen noch{" "}
+            The old device-local session still holds{" "}
             <b>
-              {legacy.profiles} {legacy.profiles === 1 ? "Profil" : "Profile"}
+              {legacy.profiles} {legacy.profiles === 1 ? "profile" : "profiles"}
             </b>{" "}
-            und{" "}
+            and{" "}
             <b>
-              {legacy.matches} {legacy.matches === 1 ? "Match" : "Matches"}
+              {legacy.matches} {legacy.matches === 1 ? "match" : "matches"}
             </b>
             .
           </p>
           <p className="auth-note">
-            Diese Daten werden <b>nicht</b> in dein neues Konto übernommen — so hast du es entschieden. Gelöscht wird
-            ebenfalls nichts: sie bleiben unter der alten Kennung liegen und lassen sich später noch holen, falls du es
-            dir anders überlegst.
+            This data will <b>not</b> be carried over into your new account — that was your decision. Nothing is
+            deleted either: it stays under the old identifier and can still be fetched later if you change your mind.
           </p>
           <button type="button" className="btn-primary auth-submit" onClick={acknowledgeLegacy}>
-            Verstanden — neu anfangen
+            Understood — start fresh
           </button>
         </div>
       </div>
@@ -120,20 +119,20 @@ export function AuthScreen({ onGuestStart }: Props) {
       <div className="auth-card">
         <Brand />
         <h1 className="auth-title">
-          {mode === "register" ? "Konto anlegen" : mode === "login" ? "Anmelden" : "Ohne Anmeldung spielen"}
+          {mode === "register" ? "Create account" : mode === "login" ? "Sign in" : "Play without an account"}
         </h1>
         <p className="auth-lede">
           {mode === "guest"
-            ? "Sofort loslegen — ohne Konto, dafür ohne Statistik."
-            : "Profile, Spiele und Statistiken hängen an deinem Konto — auf jedem Gerät dieselben Daten."}
+            ? "Start right away — no account, but no statistics either."
+            : "Profiles, games and statistics belong to your account — the same data on every device."}
         </p>
 
         <SegmentedControl
-          label="Was möchtest du tun?"
+          label="What would you like to do?"
           options={[
-            { value: "register", label: "Neues Konto" },
-            { value: "login", label: "Anmelden" },
-            { value: "guest", label: "Ohne Anmeldung" },
+            { value: "register", label: "New account" },
+            { value: "login", label: "Sign in" },
+            { value: "guest", label: "No account" },
           ]}
           value={mode}
           onChange={(value) => {
@@ -147,7 +146,7 @@ export function AuthScreen({ onGuestStart }: Props) {
         ) : (
           <form className="auth-form" onSubmit={handleSubmit}>
             <label className="auth-field">
-              <span className="auth-field-label">E-Mail-Adresse</span>
+              <span className="auth-field-label">Email address</span>
               <input
                 type="email"
                 className="auth-input"
@@ -159,7 +158,7 @@ export function AuthScreen({ onGuestStart }: Props) {
             </label>
 
             <label className="auth-field">
-              <span className="auth-field-label">Passwort</span>
+              <span className="auth-field-label">Password</span>
               <input
                 type="password"
                 className="auth-input"
@@ -168,7 +167,7 @@ export function AuthScreen({ onGuestStart }: Props) {
                 onChange={(e) => setPassword(e.target.value)}
                 required
               />
-              {mode === "register" && <span className="auth-field-hint">Mindestens 6 Zeichen.</span>}
+              {mode === "register" && <span className="auth-field-hint">At least 6 characters.</span>}
             </label>
 
             {error && (
@@ -178,7 +177,7 @@ export function AuthScreen({ onGuestStart }: Props) {
             )}
 
             <button type="submit" className="btn-primary auth-submit" disabled={busy}>
-              {busy ? "Einen Moment…" : mode === "register" ? "Konto anlegen" : "Anmelden"}
+              {busy ? "One moment…" : mode === "register" ? "Create account" : "Sign in"}
             </button>
           </form>
         )}
@@ -209,20 +208,20 @@ function GuestPanel({ onStart }: { onStart: () => void }) {
   return (
     <div className="auth-form">
       <div className="guest-warning">
-        <div className="guest-warning-title">Ohne Konto gilt:</div>
+        <div className="guest-warning-title">Without an account:</div>
         <ul>
-          <li>Spiele werden nicht gespeichert</li>
-          <li>Keine Statistiken, keine Historie</li>
-          <li>Nach dem Leeren des Browsers ist alles weg</li>
-          <li>Ein Konto lässt sich jederzeit nachträglich anlegen</li>
+          <li>Games are not saved</li>
+          <li>No statistics, no history</li>
+          <li>Clearing your browser wipes everything</li>
+          <li>You can create an account at any time later</li>
         </ul>
       </div>
 
       <div className="auth-field">
-        <span className="auth-field-label">Spielernamen</span>
+        <span className="auth-field-label">Player names</span>
         <span className="auth-field-hint">
-          Optional — wer nichts einträgt, spielt als „Spieler 1", „Spieler 2" und so weiter.
-          {remembered.length > 0 && " Zuletzt genutzte Namen sind schon eingetragen."}
+          Optional — leave a field empty and you play as “Player 1”, “Player 2” and so on.
+          {remembered.length > 0 && " Your most recently used names are already filled in."}
         </span>
         <div className="guest-names">
           {names.map((name, i) => (
@@ -230,7 +229,7 @@ function GuestPanel({ onStart }: { onStart: () => void }) {
               key={i}
               type="text"
               className="auth-input"
-              placeholder={`Spieler ${i + 1}`}
+              placeholder={`Player ${i + 1}`}
               value={name}
               onChange={(e) => setName(i, e.target.value)}
             />
@@ -239,7 +238,7 @@ function GuestPanel({ onStart }: { onStart: () => void }) {
         <div className="guest-name-actions">
           {names.length < MAX_GUEST_PLAYERS && (
             <button type="button" className="btn-secondary guest-name-btn" onClick={() => setNames((p) => [...p, ""])}>
-              + Spieler
+              + Player
             </button>
           )}
           {names.length > 1 && (
@@ -248,14 +247,14 @@ function GuestPanel({ onStart }: { onStart: () => void }) {
               className="btn-secondary guest-name-btn"
               onClick={() => setNames((p) => p.slice(0, -1))}
             >
-              − Spieler
+              − Player
             </button>
           )}
         </div>
       </div>
 
       <button type="button" className="btn-primary auth-submit" onClick={start}>
-        Verstanden — ohne Konto spielen
+        Understood — play without an account
       </button>
     </div>
   );

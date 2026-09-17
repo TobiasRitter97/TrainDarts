@@ -25,7 +25,7 @@ export function FirstProfileScreen({ email, onDone }: Props) {
     if (busy) return;
     const trimmed = name.trim();
     if (!trimmed) {
-      setError("Bitte gib einen Namen ein — oder wähle „Später“.");
+      setError("Please enter a name — or choose “Later”.");
       return;
     }
     setBusy(true);
@@ -34,7 +34,7 @@ export function FirstProfileScreen({ email, onDone }: Props) {
       await profilesDb.createProfile({ name: trimmed });
       onDone();
     } catch {
-      setError("Das Profil konnte nicht angelegt werden. Prüfe deine Internetverbindung.");
+      setError("The profile could not be created. Check your internet connection.");
       setBusy(false);
     }
   }
@@ -51,10 +51,10 @@ export function FirstProfileScreen({ email, onDone }: Props) {
           </span>
         </div>
 
-        <h1 className="auth-title">Spielerprofil anlegen</h1>
+        <h1 className="auth-title">Create player profile</h1>
         <p className="auth-lede">
-          Unter diesem Namen spielst du. Er steht später im Spielbildschirm und in der Statistik — weitere Spieler
-          kannst du jederzeit ergänzen.
+          This is the name you play under. It shows up in the game screen and in your statistics — you can add more
+          players at any time.
         </p>
 
         <form className="auth-form" onSubmit={handleSubmit}>
@@ -67,7 +67,7 @@ export function FirstProfileScreen({ email, onDone }: Props) {
               onChange={(e) => setName(e.target.value)}
               autoFocus
             />
-            <span className="auth-field-hint">Vorgeschlagen aus deiner E-Mail-Adresse — du kannst ihn ändern.</span>
+            <span className="auth-field-hint">Suggested from your email address — feel free to change it.</span>
           </label>
 
           {error && (
@@ -77,10 +77,10 @@ export function FirstProfileScreen({ email, onDone }: Props) {
           )}
 
           <button type="submit" className="btn-primary auth-submit" disabled={busy}>
-            {busy ? "Einen Moment…" : "Profil anlegen und loslegen"}
+            {busy ? "One moment…" : "Create profile and start"}
           </button>
           <button type="button" className="btn-secondary auth-submit" onClick={onDone} disabled={busy}>
-            Später
+            Later
           </button>
         </form>
       </div>

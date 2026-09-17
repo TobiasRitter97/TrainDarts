@@ -49,7 +49,7 @@ const missingConfigKeys = Object.entries(firebaseConfig)
 
 export const firebaseConfigError: string | null =
   missingConfigKeys.length > 0
-    ? `Firebase-Konfiguration unvollständig: ${missingConfigKeys.join(", ")} fehlt. Lokal fehlt dann die Datei frontend/.env (Vorlage: .env.example); im Deployment fehlen die Environment Variables.`
+    ? `Firebase configuration incomplete: ${missingConfigKeys.join(", ")} missing. Locally this means frontend/.env is absent (template: .env.example); in a deployment the environment variables are not set.`
     : null;
 
 const app = initializeApp(firebaseConfig);
@@ -112,38 +112,40 @@ export function ensureSignedIn(): Promise<User> {
   if (user) return Promise.resolve(user);
   return authReady().then((resolved) => {
     if (resolved && !resolved.isAnonymous) return resolved;
-    throw new Error("Nicht angemeldet.");
+    throw new Error("Not signed in.");
   });
 }
 
 export function currentUid(): string {
   const user = signedInUser();
-  if (!user) throw new Error("Nicht angemeldet - Firestore-Zugriff ohne Konto ist nicht moeglich.");
+  if (!user) throw new Error("Not signed in - Firestore access without an account is not possible.");
   return user.uid;
 }
 
 // ---------------------------------------------------------------- An-/Abmelden
 
 // Firebase liefert technische Codes wie "auth/invalid-credential".
-// Tobias soll lesbare Saetze sehen, keine Fehlercodes.
+// Angezeigt werden lesbare Saetze, keine Fehlercodes. Die Oberflaeche
+// der Plattform ist durchgehend englisch (Tobias-Vorgabe), deshalb
+// auch diese Texte.
 const AUTH_ERRORS: Record<string, string> = {
-  "auth/invalid-email": "Diese E-Mail-Adresse sieht nicht richtig aus.",
-  "auth/missing-email": "Bitte gib eine E-Mail-Adresse ein.",
-  "auth/missing-password": "Bitte gib ein Passwort ein.",
-  "auth/email-already-in-use": "Für diese E-Mail-Adresse gibt es schon ein Konto. Melde dich stattdessen an.",
-  "auth/weak-password": "Das Passwort ist zu kurz. Es braucht mindestens 6 Zeichen.",
-  "auth/invalid-credential": "E-Mail-Adresse oder Passwort stimmt nicht.",
-  "auth/wrong-password": "E-Mail-Adresse oder Passwort stimmt nicht.",
-  "auth/user-not-found": "Zu dieser E-Mail-Adresse gibt es kein Konto.",
-  "auth/user-disabled": "Dieses Konto wurde gesperrt.",
-  "auth/too-many-requests": "Zu viele Versuche. Warte einen Moment und probiere es dann noch einmal.",
-  "auth/network-request-failed": "Keine Verbindung zum Server. Prüfe deine Internetverbindung.",
-  "auth/operation-not-allowed": "Anmeldung per E-Mail ist im Firebase-Projekt nicht aktiviert.",
+  "auth/invalid-email": "That does not look like a valid email address.",
+  "auth/missing-email": "Please enter your email address.",
+  "auth/missing-password": "Please enter a password.",
+  "auth/email-already-in-use": "There is already an account for this email address. Sign in instead.",
+  "auth/weak-password": "That password is too short — it needs at least 6 characters.",
+  "auth/invalid-credential": "Email address or password is not correct.",
+  "auth/wrong-password": "Email address or password is not correct.",
+  "auth/user-not-found": "There is no account for this email address.",
+  "auth/user-disabled": "This account has been disabled.",
+  "auth/too-many-requests": "Too many attempts. Wait a moment, then try again.",
+  "auth/network-request-failed": "No connection to the server. Check your internet connection.",
+  "auth/operation-not-allowed": "Email sign-in is not enabled in the Firebase project.",
 };
 
 export function authErrorText(error: unknown): string {
   const code = typeof error === "object" && error !== null && "code" in error ? String((error as { code: unknown }).code) : "";
-  return AUTH_ERRORS[code] ?? "Das hat nicht geklappt. Versuch es bitte noch einmal.";
+  return AUTH_ERRORS[code] ?? "That did not work. Please try again.";
 }
 
 // Bewusst OHNE linkWithCredential: eine noch vorhandene anonyme

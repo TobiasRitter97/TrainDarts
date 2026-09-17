@@ -1013,7 +1013,7 @@ export const STATIC_GAMES = [
         "key": "numberOfLegs",
         "label": "Legs",
         "type": "number",
-        "default": 10,
+        "default": 1,
         "min": 1,
         "max": 20,
         "hint": "How many legs the match lasts. Any number from 1 to 20."

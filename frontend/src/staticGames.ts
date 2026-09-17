@@ -996,6 +996,16 @@ export const STATIC_GAMES = [
         "computedHint": "pressureTargetAverage"
       },
       {
+        "key": "gameMode",
+        "label": "Game Mode",
+        "type": "select",
+        "options": [
+          { "value": "training", "label": "Training Mode", "hint": "Play on after missing the target." },
+          { "value": "strict", "label": "Strict / Challenge Mode", "hint": "The leg ends immediately when the dart limit is reached." }
+        ],
+        "default": "training"
+      },
+      {
         "key": "checkoutMode",
         "label": "Out mode",
         "type": "select",
@@ -1007,15 +1017,13 @@ export const STATIC_GAMES = [
       },
       {
         "key": "numberOfLegs",
-        "label": "Number of Legs",
-        "type": "select",
-        "options": [
-          { "value": 5, "label": "5" },
-          { "value": 10, "label": "10" },
-          { "value": 15, "label": "15" },
-          { "value": 20, "label": "20" }
-        ],
-        "default": 10
+        "label": "Legs",
+        "type": "number",
+        "default": 10,
+        "min": 1,
+        "max": 20,
+        "presets": [5, 10, 15, 20],
+        "hint": "How many legs the match lasts. Any number from 1 to 20."
       }
     ]
   }

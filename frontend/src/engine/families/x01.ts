@@ -28,14 +28,29 @@ export const PRESSURE_LEVEL_DARTS: Record<string, number> = {
 export const PRESSURE_CUSTOM_MIN = 9;
 export const PRESSURE_CUSTOM_MAX = 60;
 
+// Was passiert, wenn das Dart-Limit Z ohne Checkout erreicht ist
+// (Tobias-Anforderung 17.09.2026):
+//   training - Ziel gilt als verfehlt, das Leg laeuft regulaer weiter
+//              bis zum echten Double Out, die Darts zaehlen als Overtime.
+//   strict   - das Leg endet sofort ("Challenge failed").
+export type PressureGameMode = "training" | "strict";
+
+export function gameMode(settings: Record<string, unknown>): PressureGameMode {
+  return settings.gameMode === "strict" ? "strict" : "training";
+}
+
 export type PressureLegResult = {
   darts: number;
   checkout: boolean;
   points: number;
   // Restscore beim Abbruch (0, wenn ausgecheckt wurde).
   remaining: number;
-  // "Gegen den Ghost gewonnen" = Leg mit hoechstens Z Darts beendet.
+  // "Gegen den Ghost gewonnen" = INNERHALB von Z Darts ausgecheckt.
   wonVsGhost: boolean;
+  // Darts ueber dem Limit (0, solange das Ziel gehalten wurde).
+  overtime: number;
+  // Ziel verfehlt - entweder ueberzogen oder gar nicht ausgecheckt.
+  failed: boolean;
 };
 
 export type X01PlayerState = {
@@ -46,6 +61,9 @@ export type X01PlayerState = {
   // ---- nur Pressure 501 ----
   dartsThisLeg: number;
   legDone: boolean;
+  // Dart-Limit im laufenden Leg ohne Checkout erreicht. Im Training Mode
+  // laeuft das Leg danach weiter, deshalb braucht es ein eigenes Flag.
+  targetMissed: boolean;
   pressurePoints: number;
   legResults: PressureLegResult[];
   // Gesamtzaehler fuer den 3-Dart-Average ueber alle Legs.
@@ -67,6 +85,7 @@ export function createPlayerState(startingScore: number = STARTING_SCORE): X01Pl
     highestCheckout: 0,
     dartsThisLeg: 0,
     legDone: false,
+    targetMissed: false,
     pressurePoints: 0,
     legResults: [],
     totalScored: 0,
@@ -101,12 +120,6 @@ export function dartLimit(settings: Record<string, unknown>): number {
   return PRESSURE_LEVEL_DARTS[level] ?? PRESSURE_LEVEL_DARTS.beginner;
 }
 
-// Ein Leg endet spaetestens mit der Aufnahme, in der Dart Z+6 geworfen
-// wurde - also auf volle Aufnahmen aufgerundet.
-export function abortDarts(dartLimitValue: number): number {
-  return Math.ceil((dartLimitValue + 6) / 3) * 3;
-}
-
 // Rein rechnerische Referenzlinie, kein simulierter Wurf.
 export function ghostRemaining(startingScore: number, dartLimitValue: number, dartsThrown: number): number {
   return Math.max(0, Math.round(startingScore - (startingScore / dartLimitValue) * dartsThrown));
@@ -139,10 +152,16 @@ export function pressureSummary(state: X01PlayerState, dartLimitValue: number, t
   const legs = state.legResults;
   const aborted = legs.filter((l) => !l.checkout);
   const checkouts = legs.filter((l) => l.checkout);
+  const missed = legs.filter((l) => l.failed);
   return {
     points: state.pressurePoints,
     maxPoints: totalLegs * 5,
     average: average(state.totalScored, state.totalDarts),
+    legsPlayed: legs.length,
+    targetsReached: legs.filter((l) => l.wonVsGhost).length,
+    // Nur ueber die verfehlten Legs gemittelt - bei gehaltenem Ziel gibt
+    // es keine Overtime, die wuerde den Schnitt sonst nur verwaessern.
+    avgOvertime: missed.length > 0 ? Math.round((missed.reduce((s, l) => s + l.overtime, 0) / missed.length) * 10) / 10 : null,
     legsWonVsGhostPercent: legs.length > 0 ? Math.round((legs.filter((l) => l.wonVsGhost).length / legs.length) * 100) : null,
     avgDartsPerLeg: legs.length > 0 ? Math.round((legs.reduce((s, l) => s + l.darts, 0) / legs.length) * 10) / 10 : null,
     checkoutPercent: legs.length > 0 ? Math.round((checkouts.length / legs.length) * 100) : null,

@@ -55,7 +55,7 @@ export function ResultScreen({ match, onRematch, onExit }: Props) {
         {match.pressureInfo &&
           ` · ${match.pressureInfo.dartLimit} darts · target average ${match.pressureInfo.targetAverage} · ${
             match.pressureInfo.outMode === "master_out" ? "Master Out" : "Double Out"
-          }`}
+          } · ${match.pressureInfo.gameMode === "strict" ? "Strict Mode" : "Training Mode"}`}
       </p>
 
       <ol className="result-list">
@@ -99,7 +99,9 @@ export function ResultScreen({ match, onRematch, onExit }: Props) {
               </div>
             ) : null}
             {p.segmentResults !== null ? <SegmentSummary player={p} /> : null}
-            {p.pressureSummary !== null ? <PressureSummary summary={p.pressureSummary} /> : null}
+            {p.pressureSummary !== null ? (
+              <PressureSummary summary={p.pressureSummary} gameMode={match.pressureInfo?.gameMode ?? "training"} />
+            ) : null}
           </div>
         ))}
       </div>
@@ -172,7 +174,13 @@ function SegmentSummary({ player }: { player: MatchPlayer }) {
 
 // Endauswertung Pressure 501 - alle Werte kommen aus dem Replay
 // (siehe engine/families/x01.ts pressureSummary).
-function PressureSummary({ summary }: { summary: NonNullable<MatchPlayer["pressureSummary"]> }) {
+function PressureSummary({
+  summary,
+  gameMode,
+}: {
+  summary: NonNullable<MatchPlayer["pressureSummary"]>;
+  gameMode: "training" | "strict";
+}) {
   const fmt = (value: number | null, suffix = "") => (value === null ? "—" : `${value}${suffix}`);
   return (
     <>
@@ -183,8 +191,15 @@ function PressureSummary({ summary }: { summary: NonNullable<MatchPlayer["pressu
         3-dart average: <b>{fmt(summary.average)}</b>
       </div>
       <div className="result-stat-row">
-        Legs on target (beat the ghost): <b>{fmt(summary.legsWonVsGhostPercent, "%")}</b>
+        Targets reached: <b>{summary.targetsReached}</b> / {summary.legsPlayed} ({fmt(summary.legsWonVsGhostPercent, "%")})
       </div>
+      {/* Im Strict Mode endet das Leg am Limit - Overtime kann es dort
+          gar nicht geben, deshalb entfaellt die Zeile. */}
+      {gameMode === "training" && (
+        <div className="result-stat-row">
+          Ø overtime on missed legs: <b>{summary.avgOvertime === null ? "—" : `+${summary.avgOvertime}`}</b>
+        </div>
+      )}
       <div className="result-stat-row">
         Ø darts per leg: <b>{fmt(summary.avgDartsPerLeg)}</b>
       </div>

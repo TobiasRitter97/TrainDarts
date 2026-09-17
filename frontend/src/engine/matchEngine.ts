@@ -727,8 +727,13 @@ export class MatchEngine {
     return x01Family.dartLimit(this.settings);
   }
 
+  // Frei waehlbar von 1 bis 20 (Tobias-Anforderung 17.09.2026). Hier
+  // wird zusaetzlich geklemmt, damit ein aus der DB geladenes Match mit
+  // kaputtem Wert nicht die Leg-Zaehlung sprengt.
   private pressureTotalLegs(): number {
-    return Math.max(1, Number(this.settings.numberOfLegs ?? 10));
+    const raw = Math.round(Number(this.settings.numberOfLegs ?? 10));
+    if (!Number.isFinite(raw)) return 10;
+    return Math.min(20, Math.max(1, raw));
   }
 
   private commitPressureVisit(playerId: string, result: ThrowResult, outcome: string | null): void {
@@ -764,9 +769,15 @@ export class MatchEngine {
       if (scoreBefore > state.highestCheckout) state.highestCheckout = scoreBefore;
       state.legsWon += 1;
       this.finishPressureLeg(state, limit, true);
-    } else if (state.dartsThisLeg >= x01Family.abortDarts(limit)) {
-      // Dart Z+6 ist in dieser Aufnahme gefallen - Leg vorbei, 0 Punkte.
-      this.finishPressureLeg(state, limit, false);
+    } else if (state.dartsThisLeg >= limit) {
+      // Dart-Limit erreicht, ohne auszuchecken. Ein Bust aendert daran
+      // nichts - die Darts sind geworfen und zaehlen mit.
+      state.targetMissed = true;
+      if (x01Family.gameMode(this.settings) === "strict") {
+        // Challenge failed: das Leg endet sofort, keine weiteren Darts.
+        this.finishPressureLeg(state, limit, false);
+      }
+      // Training Mode: das Leg laeuft regulaer weiter bis zum Double Out.
     }
 
     this.clearVisit();
@@ -781,12 +792,17 @@ export class MatchEngine {
 
   private finishPressureLeg(state: x01Family.X01PlayerState, limit: number, checkout: boolean): void {
     const points = x01Family.legPoints(limit, state.dartsThisLeg, checkout);
+    // Ziel gehalten heisst: INNERHALB von Z Darts ausgecheckt. Ein im
+    // Strict Mode bei genau Z abgebrochenes Leg ist kein Erfolg.
+    const wonVsGhost = checkout && state.dartsThisLeg <= limit;
     state.legResults.push({
       darts: state.dartsThisLeg,
       checkout,
       points,
       remaining: checkout ? 0 : state.score,
-      wonVsGhost: state.dartsThisLeg <= limit,
+      wonVsGhost,
+      overtime: Math.max(0, state.dartsThisLeg - limit),
+      failed: !wonVsGhost,
     });
     state.pressurePoints += points;
     state.legDone = true;
@@ -813,6 +829,7 @@ export class MatchEngine {
       s.score = this.startingScore();
       s.dartsThisLeg = 0;
       s.legDone = false;
+      s.targetMissed = false;
     }
   }
 
@@ -1271,6 +1288,7 @@ export class MatchEngine {
             targetAverage: x01Family.targetAverage(this.startingScore(), this.pressureDartLimit()),
             outMode: (this.settings.checkoutMode as string) ?? "double_out",
             totalLegs: this.pressureTotalLegs(),
+            gameMode: x01Family.gameMode(this.settings),
           }
         : null,
       round: this.roundNumber,
@@ -1293,6 +1311,7 @@ export class MatchEngine {
     const limit = this.pressureDartLimit();
     const ghost = x01Family.ghostRemaining(this.startingScore(), limit, state.dartsThisLeg);
     const last = state.legResults[state.legResults.length - 1] ?? null;
+    const overtime = Math.max(0, state.dartsThisLeg - limit);
     return {
       dartsThisLeg: state.dartsThisLeg,
       dartLimit: limit,
@@ -1301,7 +1320,22 @@ export class MatchEngine {
       diffToGhost: ghost - state.score,
       points: state.pressurePoints,
       legDone: state.legDone,
-      lastLeg: last ? { darts: last.darts, points: last.points, checkout: last.checkout } : null,
+      gameMode: x01Family.gameMode(this.settings),
+      targetMissed: state.targetMissed,
+      // Solange das Ziel haelt: verbleibende Darts. Danach null, weil
+      // stattdessen der Overtime-Zaehler angezeigt wird.
+      dartsLeft: state.targetMissed ? null : Math.max(0, limit - state.dartsThisLeg),
+      overtime,
+      lastLeg: last
+        ? {
+            darts: last.darts,
+            points: last.points,
+            checkout: last.checkout,
+            remaining: last.remaining,
+            overtime: last.overtime,
+            failed: last.failed,
+          }
+        : null,
     };
   }
 

@@ -24,7 +24,9 @@ export function settingsAreValid(schema: SettingField[], values: Record<string, 
   return visibleSettings(schema, values).every((field) => {
     if (field.type !== "number") return true;
     const value = Number(values[field.key]);
-    if (!Number.isFinite(value)) return false;
+    // Alle Zahlenfelder der Plattform sind Stueckzahlen (Darts, Legs,
+    // Sets) - Kommawerte sind ueberall unsinnig.
+    if (!Number.isInteger(value)) return false;
     if (field.min !== undefined && value < field.min) return false;
     if (field.max !== undefined && value > field.max) return false;
     return true;

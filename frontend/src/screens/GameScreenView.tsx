@@ -138,7 +138,8 @@ export function GameScreenView({ match, game, actions, boardStatus, onOpenSettin
           {match.pressureInfo && (
             <span className="game-screen-subtitle">
               {match.pressureInfo.dartLimit} darts · ⌀ {match.pressureInfo.targetAverage} ·{" "}
-              {match.pressureInfo.outMode === "master_out" ? "Master Out" : "Double Out"}
+              {match.pressureInfo.outMode === "master_out" ? "Master Out" : "Double Out"} ·{" "}
+              {match.pressureInfo.gameMode === "strict" ? "Strict" : "Training"}
             </span>
           )}
         </div>

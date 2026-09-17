@@ -123,6 +123,8 @@ export type MatchPlayer = {
   segmentTotalTargets: number | null;
   // Nur bei Pressure 501: Live-Werte fuer das Scoreboard. "diffToGhost"
   // ist positiv, wenn der Spieler VOR dem Ghost liegt (weniger Rest).
+  // "dartsLeft" ist null, sobald das Ziel verfehlt ist - dann zaehlt
+  // stattdessen "overtime" die Darts ueber dem Limit.
   pressure: {
     dartsThisLeg: number;
     dartLimit: number;
@@ -130,13 +132,20 @@ export type MatchPlayer = {
     diffToGhost: number;
     points: number;
     legDone: boolean;
-    lastLeg: { darts: number; points: number; checkout: boolean } | null;
+    gameMode: "training" | "strict";
+    targetMissed: boolean;
+    dartsLeft: number | null;
+    overtime: number;
+    lastLeg: { darts: number; points: number; checkout: boolean; remaining: number; overtime: number; failed: boolean } | null;
   } | null;
   // Nur bei Pressure 501, fuer die Endauswertung.
   pressureSummary: {
     points: number;
     maxPoints: number;
     average: number | null;
+    legsPlayed: number;
+    targetsReached: number;
+    avgOvertime: number | null;
     legsWonVsGhostPercent: number | null;
     avgDartsPerLeg: number | null;
     checkoutPercent: number | null;
@@ -180,7 +189,13 @@ export type MatchState = {
   segmentInfo: { remainingDarts: number | null; dartsOnTarget: number; nextTarget: string | null } | null;
   // Nur bei Pressure 501: Kopfzeilen-Infos (Dart-Limit, Ziel-Average,
   // Out-Modus, Anzahl Legs).
-  pressureInfo: { dartLimit: number; targetAverage: number; outMode: string; totalLegs: number } | null;
+  pressureInfo: {
+    dartLimit: number;
+    targetAverage: number;
+    outMode: string;
+    totalLegs: number;
+    gameMode: "training" | "strict";
+  } | null;
   round: number;
   legNumber: number | null;
   setNumber: number | null;

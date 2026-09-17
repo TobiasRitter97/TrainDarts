@@ -33,9 +33,15 @@ function now(): string {
   return new Date().toISOString();
 }
 
+// Merkt sich den Startzeitpunkt je Match, damit er auch dann stabil
+// bleibt, wenn der Lesezugriff auf das bestehende Dokument gerade
+// fehlschlaegt (offline).
+const startedAtCache = new Map<string, string>();
+
 // Schreibt bei jeder Aenderung das komplette Match-Dokument neu
 // (Matches bleiben klein genug, dass das unproblematisch ist) - das
-// vermeidet fehleranfaellige inkrementelle Abgleiche bei Undo/Korrektur.
+// vermeidet fehleranfaellige inkrementelle Abgleiche bei Undo/Korrektur
+// und ist die Grundlage fuer "Fortsetzen nach Neustart".
 export async function saveMatch(
   matchId: string,
   gameId: string,
@@ -45,9 +51,18 @@ export async function saveMatch(
   status: MatchStatus = "in_progress",
   winnerProfileId: string | null = null
 ): Promise<void> {
-  const ref = doc(await matchesCollection(), matchId);
-  const existing = await getDoc(ref);
-  const startedAt = existing.exists() ? (existing.data() as StoredMatch).startedAt : now();
+  const collectionRef = await matchesCollection();
+  const ref = doc(collectionRef, matchId);
+
+  let startedAt = startedAtCache.get(matchId) ?? now();
+  try {
+    const existing = await getDoc(ref);
+    if (existing.exists()) startedAt = (existing.data() as StoredMatch).startedAt;
+  } catch {
+    // Offline: der zwischengespeicherte bzw. neu erzeugte Wert genuegt.
+  }
+  startedAtCache.set(matchId, startedAt);
+
   const match: StoredMatch = {
     id: matchId,
     gameId,
@@ -60,7 +75,81 @@ export async function saveMatch(
     finishedAt: status === "finished" ? now() : null,
     winnerProfileId,
   };
-  await setDoc(ref, match);
+
+  try {
+    await setDoc(ref, match);
+  } catch (err) {
+    // Ein ABGESCHLOSSENES Spiel darf nie verloren gehen: es wandert in
+    // die lokale Warteschlange und wird beim naechsten erfolgreichen
+    // Verbindungsaufbau nachgereicht (siehe flushPendingMatches).
+    // Zwischenstaende muessen nicht gepuffert werden - der naechste
+    // Dart schreibt ohnehin das komplette Dokument neu.
+    if (status === "finished") queuePendingMatch(match);
+    throw err;
+  }
+}
+
+// ---------------------------------------------------------------- Warteschlange
+
+const PENDING_KEY = "darts-pending-matches";
+const PENDING_LIMIT = 20;
+
+function readPending(): StoredMatch[] {
+  try {
+    const raw = localStorage.getItem(PENDING_KEY);
+    return raw ? (JSON.parse(raw) as StoredMatch[]) : [];
+  } catch {
+    return [];
+  }
+}
+
+function writePending(list: StoredMatch[]): void {
+  try {
+    localStorage.setItem(PENDING_KEY, JSON.stringify(list.slice(-PENDING_LIMIT)));
+  } catch {
+    // Privates Fenster oder Speicher voll - dann bleibt nur der
+    // Versuch beim naechsten Schreiben.
+  }
+}
+
+// Gleiche matchId ueberschreibt den alten Eintrag: dieselbe Partie
+// landet nie doppelt in der Warteschlange und nie doppelt in Firestore.
+function queuePendingMatch(match: StoredMatch): void {
+  const list = readPending().filter((m) => m.id !== match.id);
+  list.push(match);
+  writePending(list);
+}
+
+export function pendingMatchCount(): number {
+  return readPending().length;
+}
+
+// Reicht wartende Spiele nach. Wird nach dem Login und bei jedem
+// "wieder online"-Ereignis aufgerufen. Was nicht durchgeht, bleibt in
+// der Warteschlange stehen.
+export async function flushPendingMatches(): Promise<number> {
+  const list = readPending();
+  if (list.length === 0) return 0;
+
+  let collectionRef;
+  try {
+    collectionRef = await matchesCollection();
+  } catch {
+    return 0; // nicht angemeldet - spaeter noch einmal
+  }
+
+  const failed: StoredMatch[] = [];
+  let uploaded = 0;
+  for (const match of list) {
+    try {
+      await setDoc(doc(collectionRef, match.id), match);
+      uploaded += 1;
+    } catch {
+      failed.push(match);
+    }
+  }
+  writePending(failed);
+  return uploaded;
 }
 
 export async function setStatus(matchId: string, status: MatchStatus, winnerProfileId: string | null = null): Promise<void> {

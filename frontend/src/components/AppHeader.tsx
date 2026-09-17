@@ -1,8 +1,10 @@
 import { useEffect, useRef, useState } from "react";
-import { BarChart3, ChevronDown, Globe, Home, MoreHorizontal, Search, Settings, Star, Target, Wrench } from "lucide-react";
+import { BarChart3, ChevronDown, Globe, Home, LogOut, MoreHorizontal, Search, Settings, Star, Target, Wrench } from "lucide-react";
 import { Profile } from "../api";
 import * as profilesDb from "../data/profiles";
+import { logout, signedInUser } from "../data/firebase";
 import { BoardControlBar } from "./BoardControlBar";
+import "../screens/AuthScreen.css";
 import "./AppHeader.css";
 
 export type AppScreen = "hub" | "online-lobby" | "profiles" | "stats" | "board-debug" | "other";
@@ -163,6 +165,22 @@ export function AppHeader({ activeScreen, onNavigate, onOpenSettings, pendingRes
           <ChevronDown size={16} strokeWidth={2} />
         </button>
         <BoardControlBar />
+        {/* Angemeldetes Konto sichtbar, Abmelden direkt daneben
+            (Tobias-Anforderung 17.09.2026). */}
+        <div className="app-account">
+          <span className="app-account-mail" title={signedInUser()?.email ?? ""}>
+            {signedInUser()?.email}
+          </span>
+          <button
+            type="button"
+            className="app-logout-btn"
+            onClick={() => void logout()}
+            title="Abmelden"
+            aria-label="Abmelden"
+          >
+            <LogOut size={18} strokeWidth={2} />
+          </button>
+        </div>
       </div>
     </header>
   );

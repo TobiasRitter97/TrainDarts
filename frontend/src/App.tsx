@@ -4,6 +4,7 @@ import { AppHeader, AppScreen } from "./components/AppHeader";
 import { GameHubScreen } from "./screens/GameHubScreen";
 import { GameSetupScreen, LocalStartInfo } from "./screens/GameSetupScreen";
 import { LocalGameScreen } from "./screens/LocalGameScreen";
+import { AuthScreen } from "./screens/AuthScreen";
 import { ProfileScreen } from "./screens/ProfileScreen";
 import { StatsScreen } from "./screens/StatsScreen";
 import { PiSettingsModal } from "./screens/PiSettingsModal";
@@ -15,6 +16,7 @@ import * as matchesDb from "./data/matches";
 import * as profilesDb from "./data/profiles";
 import { recordGamePlayed } from "./data/localPrefs";
 import { ResumeInfo } from "./engine/useLocalMatch";
+import { authReady, firebaseConfigError, observeAuth, signedInUser } from "./data/firebase";
 import { STATIC_GAMES } from "./staticGames";
 import "./App.css";
 
@@ -47,7 +49,53 @@ function useShouldSuggestPiSettings(): boolean {
 // verwerfen - einmal beim Laden der App pruefen und den Nutzer
 // entscheiden lassen. Seit Phase E kommt das aus Firestore
 // (matchesDb.findInProgressMatch()) statt vom eigenen Backend.
+// Login-Gate: solange die gespeicherte Sitzung noch geprueft wird,
+// bleibt der Bildschirm ruhig; ohne Konto kommt der Login-Screen.
+//
+// WICHTIG: geprueft wird nur die LOKALE Sitzung, es wird nichts online
+// nachgefragt. Ein Internetausfall meldet also niemand ab - am Board
+// kann weitergespielt werden (Tobias-Vorgabe 17.09.2026).
 export default function App() {
+  const [authState, setAuthState] = useState<"checking" | "out" | "in">("checking");
+
+  useEffect(() => {
+    let cancelled = false;
+    authReady().then(() => {
+      if (!cancelled) setAuthState(signedInUser() ? "in" : "out");
+    });
+    const unsubscribe = observeAuth(() => {
+      if (!cancelled) setAuthState(signedInUser() ? "in" : "out");
+    });
+    return () => {
+      cancelled = true;
+      unsubscribe();
+    };
+  }, []);
+
+  // Beim Anmelden wartende Spiele nachreichen, ebenso sobald das Geraet
+  // wieder online ist.
+  useEffect(() => {
+    if (authState !== "in") return;
+    const flush = () => void matchesDb.flushPendingMatches().catch(() => undefined);
+    flush();
+    window.addEventListener("online", flush);
+    return () => window.removeEventListener("online", flush);
+  }, [authState]);
+
+  // Ohne gueltige Konfiguration kaeme sonst nur eine weisse Seite.
+  if (firebaseConfigError) {
+    return (
+      <div className="app-boot app-boot-error">
+        <p>{firebaseConfigError}</p>
+      </div>
+    );
+  }
+  if (authState === "checking") return <div className="app-boot">Einen Moment…</div>;
+  if (authState === "out") return <AuthScreen />;
+  return <SignedInApp />;
+}
+
+function SignedInApp() {
   const [view, setView] = useState<View>({ screen: "hub" });
   const [pendingResume, setPendingResume] = useState<PendingResumeInfo | null>(null);
   // Der Dialog ("Fortsetzen?"/"Verwerfen") poppt nur EINMAL automatisch

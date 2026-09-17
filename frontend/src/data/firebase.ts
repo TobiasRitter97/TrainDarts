@@ -1,76 +1,167 @@
-// Firebase-Anbindung (Phase E des Client-Rewrites, siehe
-// ~/.claude/plans/agile-brewing-wadler.md). Ersetzt das alte Python-
-// Backend + SQLite fuer Profile/Match-Historie/Statistiken/
+// Firebase-Anbindung. Ersetzt seit Phase E des Client-Rewrites das alte
+// Python-Backend + SQLite fuer Profile/Match-Historie/Statistiken/
 // Bestenlisten - kein eigener Server mehr noetig.
 //
-// Jede Installation (Browser) bekommt automatisch eine anonyme
-// Firebase-Identitaet (kein sichtbarer Login), analog zur bisherigen
-// Isolation "jeder Pi hat nur seine eigenen Daten" - alle Daten liegen
-// unter users/{uid}/... und sind nur fuer diese Identitaet sichtbar
-// (siehe Firestore-Regeln in docs/DEPLOY.md). Bekannte Einschraenkung:
-// die anonyme Identitaet ist an DIESEN Browser/DIESES Geraet gebunden -
-// ein Wechsel des Geraets/Browsers startet mit leeren Profilen, genau
-// wie bisher ein Wechsel des Pis.
+// Seit 17.09.2026 (Tobias-Anforderung) meldet sich die App mit einem
+// echten E-Mail-Konto an statt anonym. Damit haengen Profile und
+// Matches nicht mehr am Browser, sondern am Konto: Cache loeschen,
+// Inkognito-Fenster oder ein anderes Geraet zeigen nach dem Login
+// dieselben Daten.
 //
-// Der apiKey unten ist bewusst kein Geheimnis - Firebase-Web-API-Keys
-// sind oeffentlich, die eigentliche Absicherung passiert ueber die
-// Firestore-Sicherheitsregeln (nur der eigene uid-Pfad ist lesbar/
-// schreibbar), nicht ueber ein verstecktes Passwort.
+// Die Sitzung wird lokal gehalten (Firebase-Standard). Ein
+// Internetausfall meldet also NICHT ab - am Board kann weitergespielt
+// werden, auch wenn Firestore gerade nicht erreichbar ist.
 import { initializeApp } from "firebase/app";
-import { getAuth, onAuthStateChanged, signInAnonymously, type User } from "firebase/auth";
+import {
+  createUserWithEmailAndPassword,
+  getAuth,
+  onAuthStateChanged,
+  signInWithEmailAndPassword,
+  signOut,
+  type User,
+} from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
 import { getDatabase } from "firebase/database";
 
+// Alle Werte kommen aus der .env (Vorlage: .env.example). Der
+// Web-API-Key ist bewusst kein Geheimnis - Firebase-Web-Keys sind
+// oeffentlich, abgesichert wird ueber die Firestore-Regeln. Die
+// Verlagerung ist Aufraeumarbeit, damit projektspezifische Werte nicht
+// im Quelltext stehen.
 const firebaseConfig = {
-  apiKey: "AIzaSyCcvmvIwu_pV-Ojng2QLLyPI6qvfzs2dD0",
-  authDomain: "traindarts.firebaseapp.com",
-  projectId: "traindarts",
-  storageBucket: "traindarts.firebasestorage.app",
-  messagingSenderId: "670103117013",
-  appId: "1:670103117013:web:ee42c1fd3e698526f7565c",
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
+  appId: import.meta.env.VITE_FIREBASE_APP_ID,
 };
+
+// Fehlt die .env (lokal) bzw. sind die Environment Variables im
+// Deployment nicht gesetzt, backt Vite "undefined" ins Bundle und
+// Firebase scheitert spaeter mit einer kryptischen Meldung. Hier wird
+// das bewusst NICHT geworfen - ein Fehler beim Laden dieses Moduls
+// wuerde die ganze App als weisse Seite enden lassen. Stattdessen
+// meldet App.tsx den Zustand als lesbaren Hinweis.
+const missingConfigKeys = Object.entries(firebaseConfig)
+  .filter(([, value]) => !value)
+  .map(([key]) => key);
+
+export const firebaseConfigError: string | null =
+  missingConfigKeys.length > 0
+    ? `Firebase-Konfiguration unvollständig: ${missingConfigKeys.join(", ")} fehlt. Lokal fehlt dann die Datei frontend/.env (Vorlage: .env.example); im Deployment fehlen die Environment Variables.`
+    : null;
 
 const app = initializeApp(firebaseConfig);
 export const db = getFirestore(app);
 export const auth = getAuth(app);
+
 // Realtime Database (Phase F, Online-Multiplayer): fuer den EPHEMEREN
 // Raum-Zustand waehrend einer laufenden Online-Partie besser geeignet
-// als Firestore (einfachere Echtzeit-Listener, kein Index-Aufwand fuer
-// den simplen "ganzer Raum aendert sich"-Anwendungsfall). Dauerhafte
-// Daten (Profile/Statistiken) bleiben in Firestore (siehe profiles.ts/
-// matches.ts/stats.ts).
-//
-// Explizite databaseURL noetig: die Datenbank wurde in europe-west1
-// angelegt, ohne diese URL versucht das SDK die (falsche) Standard-
-// US-Region zu erraten und Schreibzugriffe haengen dann unbemerkt.
-export const rtdb = getDatabase(app, "https://traindarts-default-rtdb.europe-west1.firebasedatabase.app");
+// als Firestore. Dauerhafte Daten (Profile/Statistiken) bleiben in
+// Firestore (siehe profiles.ts/matches.ts/gameStats.ts).
+export const rtdb = getDatabase(app, import.meta.env.VITE_FIREBASE_DATABASE_URL);
 
-let readyPromise: Promise<User> | null = null;
+// ---------------------------------------------------------------- Sitzung
 
-// Muss vor jedem Firestore-Zugriff abgewartet werden (einmal pro
-// Seitenaufruf) - danach ist auth.currentUser garantiert gesetzt.
-export function ensureSignedIn(): Promise<User> {
-  if (readyPromise) return readyPromise;
-  readyPromise = new Promise((resolve, reject) => {
-    const unsubscribe = onAuthStateChanged(
-      auth,
-      (user) => {
-        if (user) {
-          unsubscribe();
-          resolve(user);
-        }
-      },
-      reject
-    );
-    signInAnonymously(auth).catch(reject);
+let currentUser: User | null = null;
+let firstCheckDone = false;
+const firstCheckWaiters: (() => void)[] = [];
+
+onAuthStateChanged(auth, (user) => {
+  currentUser = user;
+  if (!firstCheckDone) {
+    firstCheckDone = true;
+    firstCheckWaiters.splice(0).forEach((resolve) => resolve());
+  }
+});
+
+// Wartet einmalig darauf, dass Firebase eine eventuell gespeicherte
+// Sitzung wiederhergestellt hat. Danach steht fest, ob jemand
+// angemeldet ist - ohne dass hier von sich aus angemeldet wuerde.
+export function authReady(): Promise<User | null> {
+  if (firstCheckDone) return Promise.resolve(currentUser);
+  return new Promise((resolve) => {
+    firstCheckWaiters.push(() => resolve(currentUser));
   });
-  return readyPromise;
+}
+
+export function observeAuth(listener: (user: User | null) => void): () => void {
+  return onAuthStateChanged(auth, listener);
+}
+
+// Ein angemeldeter Nutzer im Sinne der App. Eine wiederhergestellte
+// ANONYME Sitzung aus der Zeit vor dem Login zaehlt bewusst nicht -
+// sie wird nur noch fuer den einmaligen Hinweis beim ersten Start
+// ausgewertet (siehe legacyAnonymousUser()).
+export function signedInUser(): User | null {
+  return currentUser && !currentUser.isAnonymous ? currentUser : null;
+}
+
+// Die alte anonyme Sitzung, falls der Browser sie noch hat. Ihre Daten
+// werden NICHT uebernommen und NICHT geloescht - sie bleiben unter der
+// alten UID in Firestore liegen.
+export function legacyAnonymousUser(): User | null {
+  return currentUser?.isAnonymous ? currentUser : null;
+}
+
+// Muss vor jedem Firestore-Zugriff abgewartet werden. Meldet sich
+// NICHT mehr von selbst an - die Screens liegen hinter dem Login.
+export function ensureSignedIn(): Promise<User> {
+  const user = signedInUser();
+  if (user) return Promise.resolve(user);
+  return authReady().then((resolved) => {
+    if (resolved && !resolved.isAnonymous) return resolved;
+    throw new Error("Nicht angemeldet.");
+  });
 }
 
 export function currentUid(): string {
-  const uid = auth.currentUser?.uid;
-  if (!uid) {
-    throw new Error("Not signed in to Firebase yet - await ensureSignedIn() first.");
-  }
-  return uid;
+  const user = signedInUser();
+  if (!user) throw new Error("Nicht angemeldet - Firestore-Zugriff ohne Konto ist nicht moeglich.");
+  return user.uid;
+}
+
+// ---------------------------------------------------------------- An-/Abmelden
+
+// Firebase liefert technische Codes wie "auth/invalid-credential".
+// Tobias soll lesbare Saetze sehen, keine Fehlercodes.
+const AUTH_ERRORS: Record<string, string> = {
+  "auth/invalid-email": "Diese E-Mail-Adresse sieht nicht richtig aus.",
+  "auth/missing-email": "Bitte gib eine E-Mail-Adresse ein.",
+  "auth/missing-password": "Bitte gib ein Passwort ein.",
+  "auth/email-already-in-use": "Für diese E-Mail-Adresse gibt es schon ein Konto. Melde dich stattdessen an.",
+  "auth/weak-password": "Das Passwort ist zu kurz. Es braucht mindestens 6 Zeichen.",
+  "auth/invalid-credential": "E-Mail-Adresse oder Passwort stimmt nicht.",
+  "auth/wrong-password": "E-Mail-Adresse oder Passwort stimmt nicht.",
+  "auth/user-not-found": "Zu dieser E-Mail-Adresse gibt es kein Konto.",
+  "auth/user-disabled": "Dieses Konto wurde gesperrt.",
+  "auth/too-many-requests": "Zu viele Versuche. Warte einen Moment und probiere es dann noch einmal.",
+  "auth/network-request-failed": "Keine Verbindung zum Server. Prüfe deine Internetverbindung.",
+  "auth/operation-not-allowed": "Anmeldung per E-Mail ist im Firebase-Projekt nicht aktiviert.",
+};
+
+export function authErrorText(error: unknown): string {
+  const code = typeof error === "object" && error !== null && "code" in error ? String((error as { code: unknown }).code) : "";
+  return AUTH_ERRORS[code] ?? "Das hat nicht geklappt. Versuch es bitte noch einmal.";
+}
+
+// Bewusst OHNE linkWithCredential: eine noch vorhandene anonyme
+// Sitzung wird vorher beendet, damit ein frisches Konto mit eigener
+// UID entsteht (Tobias-Entscheidung 17.09.2026). Die alten Daten
+// bleiben unangetastet unter der alten UID liegen.
+export async function registerWithEmail(email: string, password: string): Promise<User> {
+  if (auth.currentUser?.isAnonymous) await signOut(auth);
+  const credential = await createUserWithEmailAndPassword(auth, email.trim(), password);
+  return credential.user;
+}
+
+export async function loginWithEmail(email: string, password: string): Promise<User> {
+  if (auth.currentUser?.isAnonymous) await signOut(auth);
+  const credential = await signInWithEmailAndPassword(auth, email.trim(), password);
+  return credential.user;
+}
+
+export async function logout(): Promise<void> {
+  await signOut(auth);
 }

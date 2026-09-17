@@ -1,0 +1,167 @@
+.auth-screen {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: var(--sp-5);
+  background: var(--c-bg);
+}
+
+.auth-card {
+  width: min(480px, 100%);
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+  background: var(--c-surface);
+  border: 1px solid var(--c-border);
+  border-radius: var(--radius-lg);
+  padding: var(--sp-6);
+  box-shadow: var(--shadow-lg);
+}
+
+.auth-brand {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+}
+
+.auth-brand-icon {
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  border-radius: var(--radius-sm);
+  background: var(--c-bg);
+  color: var(--c-brand);
+}
+
+.auth-brand-name {
+  font-size: var(--fs-md);
+  font-weight: var(--fw-display);
+  letter-spacing: 0.01em;
+}
+
+.auth-brand-accent {
+  color: var(--c-brand);
+}
+
+.auth-title {
+  margin: 0;
+  font-size: var(--fs-lg);
+  font-weight: var(--fw-display);
+  line-height: 1.1;
+}
+
+.auth-lede {
+  margin: 0;
+  font-size: var(--fs-sm);
+  color: var(--c-text-muted);
+  line-height: 1.5;
+}
+
+.auth-note {
+  margin: 0;
+  padding: var(--sp-3);
+  border-left: 2px solid var(--c-accent);
+  background: var(--c-bg);
+  border-radius: var(--radius-sm);
+  font-size: var(--fs-xs);
+  color: var(--c-text-muted);
+  line-height: 1.5;
+}
+
+.auth-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+}
+
+.auth-field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+}
+
+.auth-field-label {
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-strong);
+}
+
+.auth-field-hint {
+  font-size: var(--fs-xs);
+  color: var(--c-text-muted);
+}
+
+.auth-input {
+  min-height: var(--touch-min);
+  padding: 0 var(--sp-3);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--c-border-strong);
+  background: var(--c-bg);
+  color: var(--c-text);
+  font-family: inherit;
+  font-size: var(--fs-md);
+}
+
+.auth-input:focus-visible {
+  outline: 2px solid var(--c-brand);
+  outline-offset: 2px;
+}
+
+.auth-error {
+  margin: 0;
+  padding: var(--sp-3);
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--c-danger) 18%, var(--c-bg));
+  border: 1px solid var(--c-danger);
+  color: var(--c-text);
+  font-size: var(--fs-sm);
+  line-height: 1.45;
+}
+
+.auth-submit {
+  width: 100%;
+}
+
+.auth-submit:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* ---------- Kopfzeile: angemeldeter Nutzer + Abmelden ---------- */
+
+.app-account {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+}
+
+.app-account-mail {
+  max-width: 14rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--fs-xs);
+  color: var(--c-text-muted);
+}
+
+.app-logout-btn {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--c-border-strong);
+  background: var(--c-surface);
+  color: var(--c-text-muted);
+  cursor: pointer;
+}
+
+.app-logout-btn:hover {
+  border-color: var(--c-danger);
+  color: var(--c-danger-strong);
+}
+
+.app-logout-btn:focus-visible {
+  outline: 2px solid var(--c-brand);
+  outline-offset: 2px;
+}

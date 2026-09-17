@@ -369,3 +369,46 @@
   border-color: var(--c-brand);
   color: var(--c-brand);
 }
+
+/* Pressure 501: Zusatzzeilen in der Spieler-Kachel (Dart-Zaehler,
+   Ghost, Differenz, Punkte). */
+.scoreboard-pressure {
+  margin-top: var(--sp-3);
+  padding-top: var(--sp-3);
+  border-top: 1px solid var(--c-border);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.scoreboard-pressure-row {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--sp-3);
+  font-size: var(--fs-xs);
+  color: var(--c-text-muted);
+}
+
+.scoreboard-pressure-diff {
+  font-size: var(--fs-lg);
+  font-weight: var(--fw-display);
+  color: var(--c-text-muted);
+}
+
+.scoreboard-pressure-diff.ahead {
+  color: var(--c-brand);
+}
+
+.scoreboard-pressure-diff.behind {
+  color: var(--c-danger-strong);
+}
+
+.game-screen-subtitle {
+  display: block;
+  margin-top: 2px;
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-regular);
+  letter-spacing: 0.04em;
+  color: var(--c-text-muted);
+  text-align: right;
+}

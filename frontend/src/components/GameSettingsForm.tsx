@@ -1,4 +1,5 @@
 import { SettingField } from "../api";
+import { targetAverage } from "../engine/families/x01";
 import "./GameSettingsForm.css";
 
 type Props = {
@@ -7,24 +8,50 @@ type Props = {
   onChange: (key: string, value: unknown) => void;
 };
 
-// Rendert die Game Settings rein aus dem settingsSchema der
-// GameDefinition (SPEC §32) - keine eigene Setup-Seite pro Spiel.
-export function GameSettingsForm({ schema, values, onChange }: Props) {
-  function isVisible(field: SettingField): boolean {
+// Welche Felder aktuell ueberhaupt sichtbar sind (showIf). Wird auch vom
+// Setup-Screen gebraucht, um nur SICHTBARE Zahlenfelder zu pruefen -
+// ein ausgeblendetes Feld darf den Start nie blockieren.
+export function visibleSettings(schema: SettingField[], values: Record<string, unknown>): SettingField[] {
+  return schema.filter((field) => {
     if (!field.showIf) return true;
     const { key, equals } = field.showIf;
     return Array.isArray(equals) ? equals.includes(values[key]) : values[key] === equals;
-  }
+  });
+}
 
+// Ist der Wert eines sichtbaren Zahlenfelds innerhalb von min/max?
+export function settingsAreValid(schema: SettingField[], values: Record<string, unknown>): boolean {
+  return visibleSettings(schema, values).every((field) => {
+    if (field.type !== "number") return true;
+    const value = Number(values[field.key]);
+    if (!Number.isFinite(value)) return false;
+    if (field.min !== undefined && value < field.min) return false;
+    if (field.max !== undefined && value > field.max) return false;
+    return true;
+  });
+}
+
+// Live berechneter Zusatztext (aendert sich mit der Eingabe, deshalb
+// kein statischer "hint").
+function computedHintText(field: SettingField, values: Record<string, unknown>): string | null {
+  if (field.computedHint !== "pressureTargetAverage") return null;
+  const darts = Number(values[field.key]);
+  if (!Number.isFinite(darts) || darts <= 0) return null;
+  return `Target average: ${targetAverage(501, darts).toFixed(1).replace(".", ",")}`;
+}
+
+// Rendert die Game Settings rein aus dem settingsSchema der
+// GameDefinition (SPEC §32) - keine eigene Setup-Seite pro Spiel.
+export function GameSettingsForm({ schema, values, onChange }: Props) {
   return (
     <div className="settings-form">
-      {schema.filter(isVisible).map((field) => {
+      {visibleSettings(schema, values).map((field) => {
         // Hat die aktive Option einen eigenen Hint, ersetzt dieser den
         // allgemeinen Feld-Hint - so zeigt z.B. "Safehouse" nur die
         // Erklaerung der gerade gewaehlten Option (Standard/Easy/Off),
         // nicht alle drei auf einmal (Tobias-Feedback 11.09.2026).
         const activeOption = field.options?.find((opt) => values[field.key] === opt.value);
-        const hint = activeOption?.hint ?? field.hint;
+        const hint = computedHintText(field, values) ?? activeOption?.hint ?? field.hint;
         return (
         <div key={field.key} className="settings-row">
           <label className="settings-label">{field.label}</label>

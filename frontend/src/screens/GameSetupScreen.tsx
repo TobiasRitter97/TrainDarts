@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { defaultSettingsValues, GameDefinition, Leaderboard, Profile } from "../api";
 import { PlayerPicker } from "../components/PlayerPicker";
-import { GameSettingsForm } from "../components/GameSettingsForm";
+import { GameSettingsForm, settingsAreValid } from "../components/GameSettingsForm";
 import { STATIC_GAMES } from "../staticGames";
 import { computeLeaderboardsForGame } from "../data/stats";
 import "./GameSetupScreen.css";
@@ -42,6 +42,10 @@ export function GameSetupScreen({ gameId, onBack, onStart }: Props) {
   if (!game) {
     return <p className="screen-error">Unknown game "{gameId}".</p>;
   }
+
+  // Ein sichtbares Zahlenfeld ausserhalb seines min/max blockiert den
+  // Start (z.B. eigene Dartzahl bei Pressure 501: nur 9-60 erlaubt).
+  const valid = settingsAreValid(game.settingsSchema, settings);
 
   return (
     <div className="game-setup">
@@ -93,9 +97,13 @@ export function GameSetupScreen({ gameId, onBack, onStart }: Props) {
         </>
       )}
 
+      {!valid && (
+        <p className="screen-error">Please fix the highlighted setting - the value is outside the allowed range.</p>
+      )}
+
       <button
         className="btn-primary continue-btn"
-        disabled={players.length === 0}
+        disabled={players.length === 0 || !valid}
         onClick={() => onStart({ game, players, settings })}
       >
         START GAME

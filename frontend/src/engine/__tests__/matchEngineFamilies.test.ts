@@ -11,6 +11,7 @@ import { describe, expect, it } from "vitest";
 import { GameDefinition } from "../../api";
 import * as groupingFamily from "../families/grouping";
 import * as randomSegmentFamily from "../families/randomSegment";
+import * as x01Family from "../families/x01";
 import { MatchEngine, MatchPlayerRef } from "../matchEngine";
 import { Segment } from "../scoring";
 
@@ -601,5 +602,177 @@ describe("random_segment (Random Segment Training)", () => {
     for (let i = 1; i < targets.length; i++) {
       expect(randomSegmentFamily.targetLabel(targets[i])).not.toBe(randomSegmentFamily.targetLabel(targets[i - 1]));
     }
+  });
+});
+
+describe("x01 / Pressure 501", () => {
+  const GAME: GameDefinition = {
+    id: "pressure501",
+    name: "Pressure 501",
+    description: "",
+    category: "CHECKOUT",
+    icon: "⏱",
+    engineFamily: "x01",
+    startingScore: 501,
+    pressureMode: true,
+    playerRange: [1, 4],
+    implemented: true,
+    durationModes: ["legs"],
+    settingsSchema: [],
+  };
+
+  function pressureEngine(settings: Record<string, unknown> = {}, players: MatchPlayerRef[] = [{ id: "solo", name: "Solo" }]) {
+    return new MatchEngine("p501", GAME, players, {
+      level: "beginner", // Z = 36
+      checkoutMode: "double_out",
+      numberOfLegs: 10,
+      ...settings,
+    });
+  }
+
+  it("uses 501 as the starting score and the ghost line from the dart limit", () => {
+    const engine = pressureEngine();
+    let state = engine.toDict();
+    expect(state.players[0].score).toBe(501);
+    expect(state.players[0].pressure?.ghostRemaining).toBe(501); // 0 Darts
+    expect(state.pressureInfo).toMatchObject({ dartLimit: 36, targetAverage: 41.8, outMode: "double_out" });
+
+    throwAndConfirm(engine, ["S1", "S1", "S1"]); // 3 Darts geworfen
+    state = engine.toDict();
+    // 501 - (501/36)*3 = 459.25 -> 459
+    expect(state.players[0].pressure?.ghostRemaining).toBe(459);
+    expect(state.players[0].pressure?.dartsThisLeg).toBe(3);
+  });
+
+  it("uses the custom dart count for the ghost (Z=33 -> 455 after 3 darts)", () => {
+    const engine = pressureEngine({ level: "custom", customDarts: 33 });
+    throwAndConfirm(engine, ["S1", "S1", "S1"]);
+    const state = engine.toDict();
+    // 501 - (501/33)*3 = 455.45 -> 455
+    expect(state.players[0].pressure?.ghostRemaining).toBe(455);
+    expect(state.players[0].pressure?.dartLimit).toBe(33);
+  });
+
+  it("Double Out: a T1 on 3 remaining is no finish, the leg continues", () => {
+    // Grosses Z, damit die Abbruchgrenze hier nicht dazwischenfunkt.
+    const engine = pressureEngine({ level: "custom", customDarts: 60 });
+    throwAndConfirm(engine, ["T20", "T20", "T20"]); // 501 -> 321
+    throwAndConfirm(engine, ["T20", "T20", "T20"]); // 321 -> 141
+    throwAndConfirm(engine, ["T20", "T20", "S18"]); // 141 -> 3
+    expect(engine.toDict().players[0].score).toBe(3);
+
+    throwDarts(engine, ["T1"]); // Rest 0, aber Triple ist kein gueltiger Double-Out-Finish
+    engine.confirmVisit();
+    const state = engine.toDict();
+    expect(state.players[0].score).toBe(3); // Bust -> Rest bleibt stehen
+    expect(state.players[0].pressure?.legDone).toBe(false); // Leg laeuft weiter
+  });
+
+  it("Master Out: a T1 on 3 remaining finishes the leg", () => {
+    const engine = pressureEngine({ checkoutMode: "master_out", level: "custom", customDarts: 60 });
+    throwAndConfirm(engine, ["T20", "T20", "T20"]);
+    throwAndConfirm(engine, ["T20", "T20", "T20"]);
+    throwAndConfirm(engine, ["T20", "T20", "S18"]); // Rest 3
+    expect(engine.toDict().players[0].score).toBe(3);
+
+    throwDarts(engine, ["T1"]); // Master Out: Triple beendet
+    engine.confirmVisit();
+    expect(engine.toDict().players[0].pressure?.lastLeg?.checkout).toBe(true);
+  });
+
+  it("Master Out: leaving 1 is a bust like anywhere else", () => {
+    const engine = pressureEngine({ checkoutMode: "master_out", level: "custom", customDarts: 60 });
+    throwAndConfirm(engine, ["T20", "T20", "T20"]);
+    throwAndConfirm(engine, ["T20", "T20", "T20"]); // Rest 141
+    throwAndConfirm(engine, ["T20", "T20", "S20"]); // wuerde Rest 1 ergeben -> Bust
+    const state = engine.toDict();
+    expect(state.players[0].score).toBe(141); // zurueck auf den Aufnahme-Startwert
+    expect(state.players[0].pressure?.dartsThisLeg).toBe(9); // Bust-Darts zaehlen mit
+  });
+
+  it("awards points by darts used relative to Z", () => {
+    // Reine Rechenregel, unabhaengig vom Match-Ablauf.
+    expect(x01Family.legPoints(36, 30, true)).toBe(5); // <= Z-6
+    expect(x01Family.legPoints(36, 31, true)).toBe(4); // Z-5
+    expect(x01Family.legPoints(36, 33, true)).toBe(4); // Z-3
+    expect(x01Family.legPoints(36, 34, true)).toBe(3); // Z-2
+    expect(x01Family.legPoints(36, 36, true)).toBe(3); // Z
+    expect(x01Family.legPoints(36, 39, true)).toBe(2); // Z+3
+    expect(x01Family.legPoints(36, 42, true)).toBe(1); // Z+6
+    expect(x01Family.legPoints(36, 30, false)).toBe(0); // kein Checkout
+  });
+
+  it("rounds the abort limit up to full visits (Z=35 -> 42 darts, not 41)", () => {
+    expect(x01Family.abortDarts(36)).toBe(42);
+    expect(x01Family.abortDarts(35)).toBe(42);
+    expect(x01Family.abortDarts(33)).toBe(39);
+
+    const engine = pressureEngine({ level: "custom", customDarts: 35 });
+    // 13 Aufnahmen a 3 Darts = 39 Darts, kein Checkout -> Leg laeuft noch
+    for (let i = 0; i < 13; i++) throwAndConfirm(engine, ["S1", "S1", "S1"]);
+    let state = engine.toDict();
+    expect(state.players[0].pressure?.dartsThisLeg).toBe(39);
+    expect(state.players[0].pressure?.lastLeg).toBeNull(); // noch kein Leg beendet
+
+    throwAndConfirm(engine, ["S1", "S1", "S1"]); // Dart 40-42 -> jetzt Abbruch
+    state = engine.toDict();
+    expect(state.players[0].pressure?.lastLeg).toMatchObject({ darts: 42, points: 0, checkout: false });
+    expect(state.players[0].pressure?.dartsThisLeg).toBe(0); // neues Leg
+  });
+
+  it("counts bust darts and only the darts actually thrown on a checkout", () => {
+    const engine = pressureEngine({ level: "custom", customDarts: 60 });
+    throwAndConfirm(engine, ["T20", "T20", "T20"]); // 321
+    throwAndConfirm(engine, ["T20", "T20", "T20"]); // 141
+    throwAndConfirm(engine, ["T20", "T20", "D12"]); // Bust bei 141 - Darts zaehlen trotzdem
+    expect(engine.toDict().players[0].pressure?.dartsThisLeg).toBe(9);
+
+    throwAndConfirm(engine, ["T20", "T17", "D15"]); // 141 - 60 - 51 - 30 = 0, Checkout mit 3 Darts
+    const state = engine.toDict();
+    expect(state.players[0].pressure?.lastLeg).toMatchObject({ darts: 12, checkout: true });
+  });
+
+  it("recomputes ghost, dart counter and points after a correction (replay)", () => {
+    const engine = pressureEngine({ level: "custom", customDarts: 60 });
+    throwAndConfirm(engine, ["T20", "T20", "T20"]); // 501 -> 321
+    throwDarts(engine, ["T20"]);
+    let state = engine.toDict();
+    expect(state.players[0].score).toBe(261);
+    expect(state.players[0].pressure?.dartsThisLeg).toBe(3); // laufende Aufnahme noch nicht committet
+
+    // Ersten Dart der ersten Aufnahme nachtraeglich auf S20 korrigieren.
+    const firstSeq = 0;
+    engine.correctThrow(firstSeq, seg("S20"));
+    state = engine.toDict();
+    expect(state.players[0].score).toBe(301); // 501 - 20 - 60 - 60 - 60
+    expect(state.players[0].pressure?.dartsThisLeg).toBe(3);
+    expect(state.players[0].pressure?.ghostRemaining).toBe(476); // 501 - (501/60)*3
+  });
+
+  it("skips players who already finished their leg and starts a new leg once everyone is done", () => {
+    const engine = pressureEngine({ level: "custom", customDarts: 9 }, PLAYERS); // Z=9 -> Abbruch nach 15 Darts
+    // Alice checkt sofort: 501 in 9 Darts ist unrealistisch, daher per Abbruch testen.
+    for (let i = 0; i < 5; i++) {
+      throwAndConfirm(engine, ["S1", "S1", "S1"]); // Alice
+      throwAndConfirm(engine, ["S1", "S1", "S1"]); // Bob
+    }
+    const state = engine.toDict();
+    // Beide haben 15 Darts -> beide Legs abgebrochen -> Leg 2 laeuft
+    expect(state.legNumber).toBe(2);
+    expect(state.players[0].pressure?.lastLeg).toMatchObject({ darts: 15, points: 0 });
+    expect(state.players[1].pressure?.lastLeg).toMatchObject({ darts: 15, points: 0 });
+    expect(state.players[0].pressure?.dartsThisLeg).toBe(0);
+  });
+
+  it("finishes the match after the configured number of legs", () => {
+    const engine = pressureEngine({ level: "custom", customDarts: 9, numberOfLegs: 2 });
+    // Z=9 -> Abbruch nach 15 Darts = 5 Aufnahmen pro Leg
+    for (let leg = 0; leg < 2; leg++) {
+      for (let i = 0; i < 5; i++) throwAndConfirm(engine, ["S1", "S1", "S1"]);
+    }
+    const state = engine.toDict();
+    expect(state.finished).toBe(true);
+    expect(state.players[0].pressureSummary).toMatchObject({ points: 0, maxPoints: 10, checkoutPercent: 0 });
+    expect(state.players[0].pressureSummary?.avgDartsPerLeg).toBe(15);
   });
 });

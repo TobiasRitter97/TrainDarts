@@ -133,7 +133,15 @@ export function GameScreenView({ match, game, actions, boardStatus, onOpenSettin
           <ArrowLeft size={18} strokeWidth={2} />
           Back to Game Hub
         </button>
-        <div className="game-screen-title">{game.name}</div>
+        <div className="game-screen-title">
+          {game.name}
+          {match.pressureInfo && (
+            <span className="game-screen-subtitle">
+              {match.pressureInfo.dartLimit} darts · ⌀ {match.pressureInfo.targetAverage} ·{" "}
+              {match.pressureInfo.outMode === "master_out" ? "Master Out" : "Double Out"}
+            </span>
+          )}
+        </div>
       </div>
 
       <PlayerScoreboard

@@ -948,5 +948,75 @@ export const STATIC_GAMES = [
         "hint": "Which segments can be drawn. Large Singles are the outer ring between triple and double, Small Singles the inner ring between bull and triple. At least one group stays active."
       }
     ]
+  },
+  {
+    "id": "pressure501",
+    "name": "Pressure 501",
+    "description": "501 against a ghost pace. Finish within your dart limit to score points.",
+    "category": "CHECKOUT",
+    "icon": "\u23f1",
+    "engineFamily": "x01",
+    "startingScore": 501,
+    "pressureMode": true,
+    "playerRange": [
+      1,
+      4
+    ],
+    "implemented": true,
+    "durationModes": [
+      "legs"
+    ],
+    "settingsSchema": [
+      {
+        "key": "level",
+        "label": "Level",
+        "type": "select",
+        "options": [
+          { "value": "beginner_plus", "label": "Beginner+ \u00b7 42 darts \u00b7 \u2300 36" },
+          { "value": "beginner", "label": "Beginner \u00b7 36 darts \u00b7 \u2300 42" },
+          { "value": "easy", "label": "Easy \u00b7 30 darts \u00b7 \u2300 50" },
+          { "value": "medium", "label": "Medium \u00b7 27 darts \u00b7 \u2300 56" },
+          { "value": "hard", "label": "Hard \u00b7 24 darts \u00b7 \u2300 63" },
+          { "value": "expert", "label": "Expert \u00b7 21 darts \u00b7 \u2300 72" },
+          { "value": "pro", "label": "Pro \u00b7 18 darts \u00b7 \u2300 84" },
+          { "value": "elite", "label": "Elite \u00b7 15 darts \u00b7 \u2300 100" },
+          { "value": "custom", "label": "Custom dart count" }
+        ],
+        "default": "beginner",
+        "hint": "Your dart limit for one leg. Finish faster than the limit to score more points."
+      },
+      {
+        "key": "customDarts",
+        "label": "Custom dart count",
+        "type": "number",
+        "default": 36,
+        "min": 9,
+        "max": 60,
+        "showIf": { "key": "level", "equals": "custom" },
+        "computedHint": "pressureTargetAverage"
+      },
+      {
+        "key": "checkoutMode",
+        "label": "Out mode",
+        "type": "select",
+        "options": [
+          { "value": "double_out", "label": "Double Out", "hint": "Only a double or the bullseye finishes the leg." },
+          { "value": "master_out", "label": "Master Out", "hint": "A double, a triple or the bullseye finishes the leg." }
+        ],
+        "default": "double_out"
+      },
+      {
+        "key": "numberOfLegs",
+        "label": "Number of Legs",
+        "type": "select",
+        "options": [
+          { "value": 5, "label": "5" },
+          { "value": 10, "label": "10" },
+          { "value": 15, "label": "15" },
+          { "value": 20, "label": "20" }
+        ],
+        "default": 10
+      }
+    ]
   }
 ] as unknown as GameDefinition[];

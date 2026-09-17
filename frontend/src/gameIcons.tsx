@@ -14,6 +14,7 @@ import {
   LucideIcon,
   Ruler,
   Shuffle,
+  Timer,
   Target,
   Trophy,
   Users,
@@ -33,6 +34,7 @@ const GAME_ICON_BY_ID: Record<string, LucideIcon> = {
   jdc: Trophy,
   grouping_championship: Ruler,
   random_segment: Shuffle,
+  pressure501: Timer,
 };
 
 export function gameIcon(game: GameDefinition): LucideIcon {

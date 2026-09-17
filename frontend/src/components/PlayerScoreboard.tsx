@@ -28,9 +28,40 @@ export function PlayerScoreboard({ players, activePlayerId, pendingConfirmation,
           <div key={player.id} className={`scoreboard-tile ${isActive ? "active" : ""}`}>
             <div className="scoreboard-name">{player.name}</div>
             <div className={`scoreboard-score ${showBust ? "bust" : ""}`}>{showBust ? "BUST" : player.score ?? "—"}</div>
+            {player.pressure && <PressureBlock pressure={player.pressure} />}
           </div>
         );
       })}
+    </div>
+  );
+}
+
+// Pressure 501: Dart-Zaehler, Ghost-Rest, Differenz zum Ghost (gruen =
+// vorne, rot = hinten) und laufende Punktesumme. Nach einem beendeten
+// Leg bleibt das Ergebnis dieses Legs sichtbar, bis das naechste Leg
+// abgeschlossen ist.
+function PressureBlock({ pressure }: { pressure: NonNullable<MatchPlayer["pressure"]> }) {
+  const diff = pressure.diffToGhost;
+  const ahead = diff > 0;
+  return (
+    <div className="scoreboard-pressure">
+      <div className="scoreboard-pressure-row">
+        <span>
+          {pressure.dartsThisLeg} / {pressure.dartLimit} darts
+        </span>
+        <span>Ghost {pressure.ghostRemaining}</span>
+      </div>
+      <div className={`scoreboard-pressure-diff ${ahead ? "ahead" : diff < 0 ? "behind" : ""}`}>
+        {diff === 0 ? "level with ghost" : `${ahead ? "+" : ""}${diff}`}
+      </div>
+      <div className="scoreboard-pressure-row">
+        <span>{pressure.points} pts</span>
+        {pressure.lastLeg && (
+          <span>
+            Last leg: {pressure.lastLeg.points} pts ({pressure.lastLeg.checkout ? `${pressure.lastLeg.darts} darts` : "no finish"})
+          </span>
+        )}
+      </div>
     </div>
   );
 }

@@ -40,6 +40,10 @@ export type SettingField = {
   // 10.09.2026: bei 121 war z.B. der Unterschied zwischen den
   // Safehouse-Optionen nicht selbsterklaerend).
   hint?: string;
+  // Live berechneter Zusatztext unter dem Feld (der Wert aendert sich
+  // mit der Eingabe, daher kein statischer "hint"). Aktuell nur
+  // "pressureTargetAverage" - siehe GameSettingsForm.
+  computedHint?: "pressureTargetAverage";
 };
 
 export type GameDefinition = {
@@ -61,6 +65,12 @@ export type GameDefinition = {
   targets?: string[];
   catchRange?: [number, number];
   dartsPerCheckout?: number;
+  // x01-Familie: Startwert des Legs (Default 170 fuer "170",
+  // 501 fuer Pressure 501).
+  startingScore?: number;
+  // Schaltet bei der x01-Familie die Pressure-501-Regeln frei
+  // (Dart-Limit, Ghost, Punktwertung, Leg-Ende je Spieler).
+  pressureMode?: boolean;
 };
 
 export function defaultSettingsValues(schema: SettingField[]): Record<string, unknown> {
@@ -111,6 +121,30 @@ export type MatchPlayer = {
     | { label: string; group: "large_single" | "small_single" | "double" | "triple" | "bull"; hit: boolean; dartsUsed: number }[]
     | null;
   segmentTotalTargets: number | null;
+  // Nur bei Pressure 501: Live-Werte fuer das Scoreboard. "diffToGhost"
+  // ist positiv, wenn der Spieler VOR dem Ghost liegt (weniger Rest).
+  pressure: {
+    dartsThisLeg: number;
+    dartLimit: number;
+    ghostRemaining: number;
+    diffToGhost: number;
+    points: number;
+    legDone: boolean;
+    lastLeg: { darts: number; points: number; checkout: boolean } | null;
+  } | null;
+  // Nur bei Pressure 501, fuer die Endauswertung.
+  pressureSummary: {
+    points: number;
+    maxPoints: number;
+    average: number | null;
+    legsWonVsGhostPercent: number | null;
+    avgDartsPerLeg: number | null;
+    checkoutPercent: number | null;
+    avgRemainingOnAbort: number | null;
+    averageAhead: number | null;
+    averageBehind: number | null;
+    dartLimit: number;
+  } | null;
 };
 
 // "coords" nur gesetzt, wenn das Board echte Koordinaten fuer diesen
@@ -144,6 +178,9 @@ export type MatchState = {
   // Budget unbegrenzt ist ("Ziel bleibt offen, bis getroffen") - dann
   // ist dartsOnTarget die sinnvolle Anzeige.
   segmentInfo: { remainingDarts: number | null; dartsOnTarget: number; nextTarget: string | null } | null;
+  // Nur bei Pressure 501: Kopfzeilen-Infos (Dart-Limit, Ziel-Average,
+  // Out-Modus, Anzahl Legs).
+  pressureInfo: { dartLimit: number; targetAverage: number; outMode: string; totalLegs: number } | null;
   round: number;
   legNumber: number | null;
   setNumber: number | null;

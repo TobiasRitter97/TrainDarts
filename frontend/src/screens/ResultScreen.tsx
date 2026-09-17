@@ -13,6 +13,7 @@ type Props = {
 // Random Checkout). REMATCH und GAME HUB genuegen fuer den ersten
 // Durchstich; SAME/CHANGE PLAYERS und OTHER GAME folgen spaeter.
 function rankValue(p: MatchPlayer, setsEnabled: boolean): number {
+  if (p.pressureSummary !== null) return p.pressureSummary.points;
   if (setsEnabled) return (p.setsWon ?? 0) * 1000 + (p.legsWon ?? 0);
   // 121: hoechstes erreichtes Level entscheidet, bei Gleichstand
   // erfolgreiche Checkouts (SPEC §18).
@@ -29,6 +30,7 @@ function rankValue(p: MatchPlayer, setsEnabled: boolean): number {
 // allgemein) deutlich leichter zu lesen und zu erweitern.
 function resultValueText(p: MatchPlayer, setsEnabled: boolean): string {
   if (setsEnabled) return `${p.setsWon} Sets (${p.legsWon} Legs)`;
+  if (p.pressureSummary !== null) return `${p.pressureSummary.points}/${p.pressureSummary.maxPoints} points`;
   if (p.segmentResults !== null) {
     const hits = p.segmentResults.filter((r) => r.hit).length;
     return `${hits}/${p.segmentTotalTargets ?? p.segmentResults.length} Targets`;
@@ -48,7 +50,13 @@ export function ResultScreen({ match, onRematch, onExit }: Props) {
   return (
     <div className="result-screen">
       <h1 className="screen-title">🏆 RESULTS</h1>
-      <p className="screen-note">{match.gameName}</p>
+      <p className="screen-note">
+        {match.gameName}
+        {match.pressureInfo &&
+          ` · ${match.pressureInfo.dartLimit} darts · target average ${match.pressureInfo.targetAverage} · ${
+            match.pressureInfo.outMode === "master_out" ? "Master Out" : "Double Out"
+          }`}
+      </p>
 
       <ol className="result-list">
         {ranked.map((p, i) => (
@@ -91,6 +99,7 @@ export function ResultScreen({ match, onRematch, onExit }: Props) {
               </div>
             ) : null}
             {p.segmentResults !== null ? <SegmentSummary player={p} /> : null}
+            {p.pressureSummary !== null ? <PressureSummary summary={p.pressureSummary} /> : null}
           </div>
         ))}
       </div>
@@ -157,6 +166,37 @@ function SegmentSummary({ player }: { player: MatchPlayer }) {
           Missed: <b>{missed.map((r) => r.label).join(", ")}</b>
         </div>
       )}
+    </>
+  );
+}
+
+// Endauswertung Pressure 501 - alle Werte kommen aus dem Replay
+// (siehe engine/families/x01.ts pressureSummary).
+function PressureSummary({ summary }: { summary: NonNullable<MatchPlayer["pressureSummary"]> }) {
+  const fmt = (value: number | null, suffix = "") => (value === null ? "—" : `${value}${suffix}`);
+  return (
+    <>
+      <div className="result-stat-row">
+        Points: <b>{summary.points}</b> / {summary.maxPoints}
+      </div>
+      <div className="result-stat-row">
+        3-dart average: <b>{fmt(summary.average)}</b>
+      </div>
+      <div className="result-stat-row">
+        Legs on target (beat the ghost): <b>{fmt(summary.legsWonVsGhostPercent, "%")}</b>
+      </div>
+      <div className="result-stat-row">
+        Ø darts per leg: <b>{fmt(summary.avgDartsPerLeg)}</b>
+      </div>
+      <div className="result-stat-row">
+        Checkout rate: <b>{fmt(summary.checkoutPercent, "%")}</b>
+      </div>
+      <div className="result-stat-row">
+        Ø remaining on unfinished legs: <b>{fmt(summary.avgRemainingOnAbort)}</b>
+      </div>
+      <div className="result-stat-row">
+        Under pressure — ahead <b>{fmt(summary.averageAhead)}</b> vs. behind <b>{fmt(summary.averageBehind)}</b>
+      </div>
     </>
   );
 }

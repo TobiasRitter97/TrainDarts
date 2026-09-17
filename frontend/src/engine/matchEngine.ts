@@ -346,7 +346,7 @@ export class MatchEngine {
   private createPlayerState(): PlayerState {
     switch (this.familyName) {
       case "x01":
-        return x01Family.createPlayerState();
+        return x01Family.createPlayerState(this.startingScore());
       case "random_checkout":
         return randomCheckoutFamily.createPlayerState(this.randomTargets[0] ?? 0);
       case "target_progression":
@@ -497,6 +497,11 @@ export class MatchEngine {
       throws: this.currentVisitSeqs.map((seq, i) => ({ throwSeq: seq, label: throwLabel(this.currentVisitThrows[i]) })),
     });
     this.visitHistory = this.visitHistory.slice(-HISTORY_LIMIT);
+
+    if (this.familyName === "x01" && this.isPressureMode()) {
+      this.commitPressureVisit(playerId, result, outcome);
+      return;
+    }
 
     if (this.familyName === "x01") {
       state.score = result.score;
@@ -704,6 +709,124 @@ export class MatchEngine {
     }
   }
 
+  // ------------------------------------------------------------ pressure 501
+  // Pressure 501 nutzt dieselbe x01-Countdown-Logik (In-/Out-Modus,
+  // Bust) und ergaenzt nur Dart-Limit, Ghost und Punktwertung. Alle
+  // Zusatzwerte entstehen hier beim Replay - nichts davon wird
+  // ausserhalb fortgeschrieben, deshalb stimmen Korrektur und UNDO
+  // automatisch.
+  private isPressureMode(): boolean {
+    return Boolean(this.game.pressureMode);
+  }
+
+  private startingScore(): number {
+    return Number(this.game.startingScore ?? x01Family.STARTING_SCORE);
+  }
+
+  private pressureDartLimit(): number {
+    return x01Family.dartLimit(this.settings);
+  }
+
+  private pressureTotalLegs(): number {
+    return Math.max(1, Number(this.settings.numberOfLegs ?? 10));
+  }
+
+  private commitPressureVisit(playerId: string, result: ThrowResult, outcome: string | null): void {
+    const state = this.playerStates[playerId] as x01Family.X01PlayerState;
+    const limit = this.pressureDartLimit();
+    const start = this.startingScore();
+    const dartsThisVisit = this.currentVisitThrows.length;
+    const scoreBefore = state.score;
+
+    // Lag der Spieler BEIM START dieser Aufnahme vor oder hinter dem
+    // Ghost? Danach wird die Aufnahme fuer die Druck-Kennzahl zugeordnet.
+    const ghostBefore = x01Family.ghostRemaining(start, limit, state.dartsThisLeg);
+    const wasAhead = scoreBefore < ghostBefore;
+
+    // Bei einem Bust liefert applyCountdownThrow den Startwert zurueck -
+    // die Aufnahme bringt dann 0 Punkte, die Darts zaehlen trotzdem.
+    const scoredThisVisit = scoreBefore - (result.score as number);
+
+    state.score = result.score as number;
+    state.dartsThisLeg += dartsThisVisit;
+    state.totalScored += scoredThisVisit;
+    state.totalDarts += dartsThisVisit;
+    if (wasAhead) {
+      state.aheadScored += scoredThisVisit;
+      state.aheadDarts += dartsThisVisit;
+    } else {
+      state.behindScored += scoredThisVisit;
+      state.behindDarts += dartsThisVisit;
+    }
+
+    if (outcome === "checkout") {
+      // Ausgecheckt wurde genau der Rest, der vor der Aufnahme stand.
+      if (scoreBefore > state.highestCheckout) state.highestCheckout = scoreBefore;
+      state.legsWon += 1;
+      this.finishPressureLeg(state, limit, true);
+    } else if (state.dartsThisLeg >= x01Family.abortDarts(limit)) {
+      // Dart Z+6 ist in dieser Aufnahme gefallen - Leg vorbei, 0 Punkte.
+      this.finishPressureLeg(state, limit, false);
+    }
+
+    this.clearVisit();
+
+    if (this.players.every((p) => (this.playerStates[p.id] as x01Family.X01PlayerState).legDone)) {
+      this.maybeFinishPressureMatch();
+      if (!this.finished) this.startNewPressureLeg();
+      return;
+    }
+    this.advanceToNextUnfinishedPressurePlayer();
+  }
+
+  private finishPressureLeg(state: x01Family.X01PlayerState, limit: number, checkout: boolean): void {
+    const points = x01Family.legPoints(limit, state.dartsThisLeg, checkout);
+    state.legResults.push({
+      darts: state.dartsThisLeg,
+      checkout,
+      points,
+      remaining: checkout ? 0 : state.score,
+      wonVsGhost: state.dartsThisLeg <= limit,
+    });
+    state.pressurePoints += points;
+    state.legDone = true;
+  }
+
+  private maybeFinishPressureMatch(): void {
+    if (this.legNumber < this.pressureTotalLegs()) return;
+    this.finished = true;
+    this.winnerId = this.players.reduce((best, p) =>
+      (this.playerStates[p.id] as x01Family.X01PlayerState).pressurePoints >
+      (this.playerStates[best.id] as x01Family.X01PlayerState).pressurePoints
+        ? p
+        : best
+    ).id;
+  }
+
+  private startNewPressureLeg(): void {
+    this.legNumber += 1;
+    this.startingPlayerIndex = (this.startingPlayerIndex + 1) % this.players.length;
+    this.activeIndex = this.startingPlayerIndex;
+    this.roundNumber = 1;
+    for (const p of this.players) {
+      const s = this.playerStates[p.id] as x01Family.X01PlayerState;
+      s.score = this.startingScore();
+      s.dartsThisLeg = 0;
+      s.legDone = false;
+    }
+  }
+
+  // Wer sein Leg beendet hat (Checkout oder Abbruch), wird in der
+  // Rotation uebersprungen, bis alle durch sind.
+  private advanceToNextUnfinishedPressurePlayer(): void {
+    this.advancePlayer();
+    let guard = 0;
+    while ((this.playerStates[this.players[this.activeIndex].id] as x01Family.X01PlayerState).legDone && guard < this.players.length) {
+      this.advancePlayer();
+      guard += 1;
+    }
+  }
+
   // ------------------------------------------------------------ x01 legs
   private setsEnabled(): boolean {
     return Boolean(this.settings.setsEnabled);
@@ -748,7 +871,7 @@ export class MatchEngine {
     this.startingPlayerIndex = (this.startingPlayerIndex + 1) % this.players.length;
     this.activeIndex = this.startingPlayerIndex;
     this.roundNumber = 1;
-    for (const p of this.players) this.playerStates[p.id].score = x01Family.STARTING_SCORE;
+    for (const p of this.players) this.playerStates[p.id].score = this.startingScore();
   }
 
   // ------------------------------------------------------------ random checkout rounds
@@ -1142,6 +1265,14 @@ export class MatchEngine {
       checkoutSuggestion: this.checkoutSuggestion(),
       attemptInfo: this.attemptInfoDisplay(),
       segmentInfo: this.segmentInfoDisplay(),
+      pressureInfo: this.isPressureMode()
+        ? {
+            dartLimit: this.pressureDartLimit(),
+            targetAverage: x01Family.targetAverage(this.startingScore(), this.pressureDartLimit()),
+            outMode: (this.settings.checkoutMode as string) ?? "double_out",
+            totalLegs: this.pressureTotalLegs(),
+          }
+        : null,
       round: this.roundNumber,
       legNumber: this.familyName === "x01" ? this.legNumber : null,
       setNumber: this.familyName === "x01" && this.setsEnabled() ? this.setNumber : null,
@@ -1152,6 +1283,25 @@ export class MatchEngine {
       finished: this.finished,
       winnerId: this.winnerId,
       winnerName: this.players.find((p) => p.id === this.winnerId)?.name ?? null,
+    };
+  }
+
+  // Live-Werte fuers Scoreboard bei Pressure 501. Der Ghost haengt am
+  // EIGENEN Dart-Zaehler des Spielers, nicht an einer gemeinsamen Uhr.
+  private pressurePlayerDisplay(state: x01Family.X01PlayerState): MatchPlayer["pressure"] {
+    if (!this.isPressureMode()) return null;
+    const limit = this.pressureDartLimit();
+    const ghost = x01Family.ghostRemaining(this.startingScore(), limit, state.dartsThisLeg);
+    const last = state.legResults[state.legResults.length - 1] ?? null;
+    return {
+      dartsThisLeg: state.dartsThisLeg,
+      dartLimit: limit,
+      ghostRemaining: ghost,
+      // Positiv = der Spieler liegt VOR dem Ghost (weniger Rest).
+      diffToGhost: ghost - state.score,
+      points: state.pressurePoints,
+      legDone: state.legDone,
+      lastLeg: last ? { darts: last.darts, points: last.points, checkout: last.checkout } : null,
     };
   }
 
@@ -1189,6 +1339,10 @@ export class MatchEngine {
       // verfehlten Ziele im Ergebnis-Screen).
       segmentResults: this.familyName === "random_segment" ? (state.results ?? null) : null,
       segmentTotalTargets: this.familyName === "random_segment" ? this.segmentTargets.length : null,
+      pressure: this.pressurePlayerDisplay(state as x01Family.X01PlayerState),
+      pressureSummary: this.isPressureMode()
+        ? x01Family.pressureSummary(state as x01Family.X01PlayerState, this.pressureDartLimit(), this.pressureTotalLegs())
+        : null,
     };
   }
 }

@@ -78,11 +78,56 @@ Datei im Repo: `database.rules.json`. Sie werden NICHT automatisch
 ausgerollt - Inhalt kopieren und in der Firebase Console unter
 "Realtime Database -> Rules" veroeffentlichen.
 
-WICHTIG: Die neuen Regeln verlangen eine BESTAETIGTE E-Mail-Adresse und
-beschraenken Lesen und Schreiben auf die Teilnehmer eines Raums. Mit dem
-aktuellen Client bricht dadurch das Anlegen und das Beitreten per PIN -
-beide lesen heute den kompletten Raum, bevor sie Teilnehmer sind. Erst
-den Client anpassen, dann die Regeln veroeffentlichen.
+### Was die Regeln tun
+
+Vorher galt fuer `rooms/$pin` nur `auth != null`, fuer Lesen UND
+Schreiben. Jeder angemeldete Nutzer konnte damit jeden Raum lesen,
+aendern und loeschen, sobald er eine der 90.000 moeglichen PINs erraten
+hatte - inklusive komplettem Event-Log. Die Bestaetigung der
+E-Mail-Adresse galt hier ausserdem nicht, anders als in Firestore.
+
+Jetzt gilt:
+
+- **Ueberall** ist eine bestaetigte E-Mail-Adresse noetig
+  (`auth.token.email_verified == true`), wie in `firestore.rules`.
+- **Vollzugriff** auf einen Raum (Event-Log, Einstellungen, matchId,
+  hostUid) haben nur seine Teilnehmer.
+- **Schreiben** ist nur in drei Faellen erlaubt: einen noch nicht
+  vorhandenen Raum anlegen (man muss selbst der Host sein), als
+  bestehender Teilnehmer, oder beim Beitritt zu einem Raum mit Status
+  `waiting` (danach muss man selbst in der Spielerliste stehen).
+- **Offen fuer alle angemeldeten, bestaetigten Nutzer** bleiben genau
+  zwei Kinder: `status` (gibt es diese PIN, wartet der Raum?) und
+  `players` (der Beitritt haengt sich an die bestehende Liste an).
+  Ein Fremder sieht damit hoechstens, ob eine geratene PIN existiert
+  und wie die 1-4 Anwesenden heissen - nicht den Spielverlauf.
+
+### Zur Teilnehmerpruefung
+
+RTDB-Regeln koennen nicht ueber Kinder iterieren; es gibt kein
+"enthaelt". `players` ist ein Array und liegt in der Datenbank als
+Objekt mit den Schluesseln 0..3. Da `MAX_PLAYERS = 4` ist (siehe
+`frontend/src/online/roomDb.ts`), zaehlen die Regeln die vier
+moeglichen Plaetze einzeln auf. Die Datenform bleibt dadurch
+unveraendert.
+
+### Warum in der Datei keine Kommentare stehen
+
+Die RTDB lehnt `"//"`-Schluessel ab - und zwar auf JEDER Ebene, nicht
+nur auf der obersten. Erlaubt sind ausschliesslich `.read`, `.write`,
+`.validate` und `.indexOn`; jeder andere Schluessel gilt als Kindpfad
+und muss ein Objekt enthalten, keinen String. Deshalb steht die
+Erklaerung hier und nicht in der Regeldatei.
+
+### Reihenfolge beim Ausrollen
+
+1. Eigenes Konto ueber den Link in der Bestaetigungsmail bestaetigen.
+2. Den angepassten Client ausrollen (`roomDb.ts` liest beim Anlegen und
+   Beitreten nur noch `status` bzw. `players` statt des ganzen Raums).
+3. Erst dann die Regeln veroeffentlichen.
+
+Der angepasste Client funktioniert auch unter den ALTEN Regeln, Schritt
+2 laesst sich also gefahrlos vorziehen und testen.
 ```
 
 Bewusst ohne `runTransaction()`: in Tests zeigte sich, dass

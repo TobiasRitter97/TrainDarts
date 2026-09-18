@@ -57,9 +57,43 @@ function generatePin(): string {
   return String(Math.floor(10000 + Math.random() * 90000));
 }
 
+// Liest den KOMPLETTEN Raum. Nur fuer Aufrufer, die bereits Teilnehmer
+// sind - die verschaerften Regeln (database.rules.json) geben den
+// ganzen Knoten ausschliesslich Teilnehmern frei.
 async function readRoom(pin: string): Promise<Room | null> {
   const snap = await get(roomRef(pin));
   return snap.exists() ? (snap.val() as Room) : null;
+}
+
+// Die beiden Kinder, die auch Nicht-Teilnehmern offenstehen. Anlegen
+// und Beitreten lesen bewusst NUR diese Pfade - ein get() auf den
+// ganzen Raum wuerde unter den neuen Regeln abgelehnt.
+async function readStatus(pin: string): Promise<RoomStatus | null> {
+  const snap = await get(ref(rtdb, `rooms/${pin}/status`));
+  return snap.exists() ? (snap.val() as RoomStatus) : null;
+}
+
+// "players" ist ein Array. Firebase liefert dichte Zahlen-Schluessel in
+// der Regel als Array zurueck, bei Luecken aber als Objekt - deshalb
+// hier einmal vereinheitlicht. Die gespeicherte Form bleibt unberuehrt.
+async function readPlayers(pin: string): Promise<RoomPlayer[]> {
+  const snap = await get(ref(rtdb, `rooms/${pin}/players`));
+  const value = snap.val();
+  if (!value) return [];
+  if (Array.isArray(value)) return value.filter(Boolean) as RoomPlayer[];
+  return Object.keys(value)
+    .sort((a, b) => Number(a) - Number(b))
+    .map((key) => (value as Record<string, RoomPlayer>)[key])
+    .filter(Boolean);
+}
+
+// Ein abgelehnter Zugriff wirft PERMISSION_DENIED, er liefert KEIN
+// leeres Ergebnis. Ohne diese Unterscheidung wuerde ein Rechteproblem
+// faelschlich als "PIN ist frei" bzw. "Raum gibt es nicht" erscheinen.
+function isPermissionDenied(err: unknown): boolean {
+  const code = typeof err === "object" && err !== null && "code" in err ? String((err as { code: unknown }).code) : "";
+  const message = err instanceof Error ? err.message : "";
+  return code.toUpperCase().includes("PERMISSION_DENIED") || message.toUpperCase().includes("PERMISSION_DENIED");
 }
 
 // Erstellt einen neuen Raum mit einer freien (noch nicht in Benutzung
@@ -69,7 +103,16 @@ export async function createRoom(hostPlayer: Omit<RoomPlayer, "uid">): Promise<s
   const user = await ensureSignedIn();
   for (let attempt = 0; attempt < 5; attempt++) {
     const pin = generatePin();
-    if (await readRoom(pin)) continue; // PIN schon vergeben - naechster Versuch
+    let taken: boolean;
+    try {
+      // Existiert "status", gibt es den Raum bereits. Fehlt er, ist die
+      // PIN frei.
+      taken = (await readStatus(pin)) !== null;
+    } catch (err) {
+      if (isPermissionDenied(err)) throw new Error("Not allowed to create a room - please sign in again.");
+      throw err;
+    }
+    if (taken) continue; // PIN schon vergeben - naechster Versuch
     const room: Room = {
       hostUid: user.uid,
       status: "waiting",
@@ -91,12 +134,33 @@ export async function createRoom(hostPlayer: Omit<RoomPlayer, "uid">): Promise<s
 // Meldung.
 export async function joinRoom(pin: string, guestPlayer: Omit<RoomPlayer, "uid">): Promise<void> {
   const user = await ensureSignedIn();
-  const room = await readRoom(pin);
-  if (room === null) throw new Error("No room found with this PIN.");
-  if (room.status !== "waiting") throw new Error("This room is already in progress or has ended.");
-  if (room.players.length >= MAX_PLAYERS) throw new Error("Room is full (4 players max).");
-  if (room.players.some((p) => p.uid === user.uid)) return; // schon beigetreten - keine Doppelung
-  await update(roomRef(pin), { players: [...room.players, { ...guestPlayer, uid: user.uid }] });
+
+  // Nur die Lesezugriffe liegen im try - die Pruefungen darunter werfen
+  // eigene, bereits verstaendliche Fehler und sollen nicht durch die
+  // Rechte-Behandlung laufen.
+  let status: RoomStatus | null;
+  try {
+    status = await readStatus(pin);
+  } catch (err) {
+    // Ein Rechteproblem darf nicht als "PIN gibt es nicht" erscheinen -
+    // das waere eine irrefuehrende Fehlermeldung.
+    if (isPermissionDenied(err)) throw new Error("Not allowed to join this room - please sign in again.");
+    throw err;
+  }
+  if (status === null) throw new Error("No room found with this PIN.");
+  if (status !== "waiting") throw new Error("This room is already in progress or has ended.");
+
+  let players: RoomPlayer[];
+  try {
+    players = await readPlayers(pin);
+  } catch (err) {
+    if (isPermissionDenied(err)) throw new Error("Not allowed to join this room - please sign in again.");
+    throw err;
+  }
+
+  if (players.length >= MAX_PLAYERS) throw new Error("Room is full (4 players max).");
+  if (players.some((p) => p.uid === user.uid)) return; // schon beigetreten - keine Doppelung
+  await update(roomRef(pin), { players: [...players, { ...guestPlayer, uid: user.uid }] });
 }
 
 export function subscribeToRoom(pin: string, callback: (room: Room | null) => void): Unsubscribe {

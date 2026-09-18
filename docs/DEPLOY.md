@@ -73,16 +73,16 @@ den ephemeren Online-Multiplayer-Raumzustand (Phase F, `frontend/src/
 online/`):
 
 ```json
-{
-  "rules": {
-    "rooms": {
-      "$pin": {
-        ".read": "auth != null",
-        ".write": "auth != null"
-      }
-    }
-  }
-}
+Die Regeln der Realtime Database stehen seit dem 18.09.2026 als eigene
+Datei im Repo: `database.rules.json`. Sie werden NICHT automatisch
+ausgerollt - Inhalt kopieren und in der Firebase Console unter
+"Realtime Database -> Rules" veroeffentlichen.
+
+WICHTIG: Die neuen Regeln verlangen eine BESTAETIGTE E-Mail-Adresse und
+beschraenken Lesen und Schreiben auf die Teilnehmer eines Raums. Mit dem
+aktuellen Client bricht dadurch das Anlegen und das Beitreten per PIN -
+beide lesen heute den kompletten Raum, bevor sie Teilnehmer sind. Erst
+den Client anpassen, dann die Regeln veroeffentlichen.
 ```
 
 Bewusst ohne `runTransaction()`: in Tests zeigte sich, dass

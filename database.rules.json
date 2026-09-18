@@ -1,0 +1,39 @@
+{
+  "//": "Realtime-Database-Regeln fuer TrainDarts (Online-Raeume).",
+  "//_1": "Bis zum 18.09.2026 stand hier nur: auth != null fuer Lesen UND Schreiben.",
+  "//_2": "Damit konnte JEDER angemeldete Nutzer jeden Raum lesen, aendern und",
+  "//_3": "loeschen, sobald er eine der 90.000 moeglichen PINs erraten hatte -",
+  "//_4": "inklusive komplettem Event-Log. Ausserdem galt die Bestaetigung der",
+  "//_5": "E-Mail-Adresse hier nicht, anders als in firestore.rules.",
+  "//_6": "",
+  "//_7": "ACHTUNG: Diese Datei wird NICHT automatisch ausgerollt. Inhalt in der",
+  "//_8": "Firebase Console unter Realtime Database -> Rules einfuegen und",
+  "//_9": "veroeffentlichen. Vorher die Hinweise in docs/DEPLOY.md lesen.",
+  "//_10": "",
+  "//_11": "Zur Teilnehmerpruefung: 'players' ist ein Array und liegt in der RTDB",
+  "//_12": "als Objekt mit den Schluesseln 0..3 (MAX_PLAYERS = 4 in",
+  "//_13": "online/roomDb.ts). Regeln koennen nicht ueber Kinder iterieren, daher",
+  "//_14": "werden die vier moeglichen Plaetze einzeln geprueft. Die Datenform",
+  "//_15": "bleibt dabei unveraendert.",
+  "rules": {
+    "rooms": {
+      "$pin": {
+        "//": "Vollzugriff (inkl. Event-Log, Einstellungen, matchId) nur fuer die Teilnehmer dieses Raums.",
+        ".read": "auth != null && auth.token.email_verified == true && (data.child('players').child('0').child('uid').val() == auth.uid || data.child('players').child('1').child('uid').val() == auth.uid || data.child('players').child('2').child('uid').val() == auth.uid || data.child('players').child('3').child('uid').val() == auth.uid)",
+
+        "//_write": "Drei erlaubte Faelle: (a) einen noch nicht vorhandenen Raum anlegen, dabei muss man selbst der Host sein; (b) man ist bereits Teilnehmer; (c) man tritt einem WARTENDEN Raum bei und steht danach selbst in der Spielerliste.",
+        ".write": "auth != null && auth.token.email_verified == true && ((!data.exists() && newData.child('hostUid').val() == auth.uid) || data.child('players').child('0').child('uid').val() == auth.uid || data.child('players').child('1').child('uid').val() == auth.uid || data.child('players').child('2').child('uid').val() == auth.uid || data.child('players').child('3').child('uid').val() == auth.uid || (data.child('status').val() == 'waiting' && (newData.child('players').child('0').child('uid').val() == auth.uid || newData.child('players').child('1').child('uid').val() == auth.uid || newData.child('players').child('2').child('uid').val() == auth.uid || newData.child('players').child('3').child('uid').val() == auth.uid)))",
+
+        "status": {
+          "//": "Damit laesst sich pruefen, ob es die PIN ueberhaupt gibt und ob der Raum noch auf Mitspieler wartet - ohne den Raum selbst zu sehen.",
+          ".read": "auth != null && auth.token.email_verified == true"
+        },
+
+        "players": {
+          "//": "Wer beitreten will, muss die bestehende Liste lesen koennen: roomDb.joinRoom() haengt sich an die vorhandene Liste an (Lesen, aendern, zurueckschreiben). Sichtbar werden dadurch nur die Namen der 1-4 Anwesenden - nicht der Event-Log, nicht die Einstellungen.",
+          ".read": "auth != null && auth.token.email_verified == true"
+        }
+      }
+    }
+  }
+}

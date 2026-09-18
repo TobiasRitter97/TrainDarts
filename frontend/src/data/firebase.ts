@@ -267,6 +267,15 @@ export async function sendPasswordReset(): Promise<string> {
   return address;
 }
 
+// "Passwort vergessen" auf dem Login-Screen - hier ist noch NIEMAND
+// angemeldet, die Adresse kommt direkt aus dem Eingabefeld. Anders als
+// sendPasswordReset() oben (fuer den bereits angemeldeten Nutzer im
+// Profiles-Tab) verlangt sendPasswordResetEmail() dafuer keine
+// Sitzung.
+export async function requestPasswordReset(email: string): Promise<void> {
+  await sendPasswordResetEmail(auth, email.trim(), actionCodeSettings());
+}
+
 export async function logout(): Promise<void> {
   await signOut(auth);
 }

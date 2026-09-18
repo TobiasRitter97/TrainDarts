@@ -1,7 +1,7 @@
 import { FormEvent, useEffect, useState } from "react";
 import { Target } from "lucide-react";
 import { collection, getDocs } from "firebase/firestore";
-import { authErrorText, db, legacyAnonymousUser, loginWithEmail, registerWithEmail } from "../data/firebase";
+import { authErrorText, db, legacyAnonymousUser, loginWithEmail, registerWithEmail, requestPasswordReset } from "../data/firebase";
 import {
   createGuestPlayers,
   enterGuestMode,
@@ -25,9 +25,16 @@ export function AuthScreen({ onGuestStart, onNeedsVerification }: Props) {
   const [mode, setMode] = useState<Mode>("register");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  // Nur bei der Registrierung sichtbar - Tippfehler im Passwort faellt
+  // sonst erst beim naechsten Login auf.
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [legacy, setLegacy] = useState<{ profiles: number; matches: number } | null>(null);
+  // "Passwort vergessen" - unabhaengig vom Haupt-Formular, damit ein
+  // Senden nicht wie ein fehlgeschlagener Login-Versuch aussieht.
+  const [resetBusy, setResetBusy] = useState(false);
+  const [resetNotice, setResetNotice] = useState<string | null>(null);
 
   // Liegt in diesem Browser noch eine anonyme Sitzung mit Daten? Dann
   // einmalig zeigen, was daran haengt - bevor bewusst neu angefangen
@@ -71,12 +78,24 @@ export function AuthScreen({ onGuestStart, onNeedsVerification }: Props) {
     event.preventDefault();
     if (busy) return;
     setError(null);
+    setResetNotice(null);
+
+    // Reiner Client-Check gegen Vertipper, VOR jedem Netzwerkaufruf -
+    // ohne das erst beim naechsten Login zu bemerken. Nichts wurde
+    // hier abgeschickt, deshalb bleiben beide Felder unveraendert
+    // stehen, statt sie wie bei einem echten Versuch zu leeren.
+    if (mode === "register" && password !== confirmPassword) {
+      setError("Passwords do not match.");
+      return;
+    }
+
     setBusy(true);
     // Das Passwort wird nach dem Absenden aus dem Formularzustand
     // entfernt und nirgendwohin weitergereicht: der Warte-Bildschirm
     // arbeitet auf der bestehenden Sitzung, nicht auf Zugangsdaten.
     const submitted = password;
     setPassword("");
+    setConfirmPassword("");
     try {
       if (mode === "register") {
         // Auch eine bereits vergebene Adresse fuehrt hierher, ohne dass
@@ -100,6 +119,29 @@ export function AuthScreen({ onGuestStart, onNeedsVerification }: Props) {
       setError(authErrorText(err, mode === "register" ? "register" : "login"));
     } finally {
       setBusy(false);
+    }
+  }
+
+  async function handleForgotPassword() {
+    if (resetBusy) return;
+    const address = email.trim();
+    if (!address) {
+      setError("Enter your email address above first, then tap “Forgot password?” again.");
+      return;
+    }
+    setResetBusy(true);
+    setError(null);
+    setResetNotice(null);
+    try {
+      await requestPasswordReset(address);
+      // Bewusst NICHT bestaetigen oder verneinen, ob es zu dieser
+      // Adresse ein Konto gibt - dieselbe Zurueckhaltung wie bei den
+      // Login-Fehlermeldungen (siehe authErrorText in data/firebase.ts).
+      setResetNotice(`If there's an account for ${address}, we've sent a password reset link. Check your inbox — and your spam folder.`);
+    } catch (err) {
+      setError(authErrorText(err, "register"));
+    } finally {
+      setResetBusy(false);
     }
   }
 
@@ -156,6 +198,8 @@ export function AuthScreen({ onGuestStart, onNeedsVerification }: Props) {
           onChange={(value) => {
             setMode(value as Mode);
             setError(null);
+            setResetNotice(null);
+            setConfirmPassword("");
           }}
         />
 
@@ -187,6 +231,35 @@ export function AuthScreen({ onGuestStart, onNeedsVerification }: Props) {
               />
               {mode === "register" && <span className="auth-field-hint">At least 6 characters.</span>}
             </label>
+
+            {mode === "register" && (
+              // Zweite Eingabe nur bei der Registrierung - ein
+              // Vertipper faellt sonst erst beim naechsten Login auf.
+              <label className="auth-field">
+                <span className="auth-field-label">Confirm password</span>
+                <input
+                  type="password"
+                  className="auth-input"
+                  autoComplete="new-password"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  required
+                />
+              </label>
+            )}
+
+            {mode === "login" && (
+              <button
+                type="button"
+                className="auth-link auth-forgot-link"
+                onClick={handleForgotPassword}
+                disabled={resetBusy}
+              >
+                {resetBusy ? "Sending…" : "Forgot password?"}
+              </button>
+            )}
+
+            {resetNotice && <p className="auth-notice">{resetNotice}</p>}
 
             {error && (
               <p className="auth-error" role="alert">

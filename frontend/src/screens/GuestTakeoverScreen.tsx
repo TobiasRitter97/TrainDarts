@@ -15,13 +15,23 @@ type Props = { summary: { profiles: number; matches: number }; onDone: () => voi
 export function GuestTakeoverScreen({ summary, onDone }: Props) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Namen, die beim Uebernehmen einen Zusatz bekommen haben, weil im
+  // Konto schon ein Profil so hiess.
+  const [renamed, setRenamed] = useState<{ from: string; to: string }[] | null>(null);
 
   async function takeOver() {
     if (busy) return;
     setBusy(true);
     setError(null);
     try {
-      await takeOverGuestData();
+      const result = await takeOverGuestData();
+      if (result.renamed.length > 0) {
+        // Nicht stillschweigend umbenennen - kurz zeigen, was passiert
+        // ist, und erst dann weiter.
+        setRenamed(result.renamed);
+        setBusy(false);
+        return;
+      }
       onDone();
     } catch {
       setError("The transfer did not work. Check your internet connection — your local data is untouched.");
@@ -64,13 +74,37 @@ export function GuestTakeoverScreen({ summary, onDone }: Props) {
           </p>
         )}
 
+        {renamed && (
+          <>
+            <p className="auth-notice">
+              Done. {renamed.length === 1 ? "One player was renamed" : `${renamed.length} players were renamed`} because
+              your account already had a profile with that name:
+            </p>
+            <ul className="takeover-renamed">
+              {renamed.map((r) => (
+                <li key={r.to}>
+                  “{r.from}” → <b>“{r.to}”</b>
+                </li>
+              ))}
+            </ul>
+          </>
+        )}
+
         <div className="auth-form">
-          <button type="button" className="btn-primary auth-submit" onClick={takeOver} disabled={busy}>
-            {busy ? "Transferring…" : "Yes, move into my account"}
-          </button>
-          <button type="button" className="btn-secondary auth-submit" onClick={onDone} disabled={busy}>
-            No, keep them separate
-          </button>
+          {renamed ? (
+            <button type="button" className="btn-primary auth-submit" onClick={onDone}>
+              Continue
+            </button>
+          ) : (
+            <>
+              <button type="button" className="btn-primary auth-submit" onClick={takeOver} disabled={busy}>
+                {busy ? "Transferring…" : "Yes, move into my account"}
+              </button>
+              <button type="button" className="btn-secondary auth-submit" onClick={onDone} disabled={busy}>
+                No, keep them separate
+              </button>
+            </>
+          )}
         </div>
       </div>
     </div>

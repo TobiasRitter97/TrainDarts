@@ -1,6 +1,7 @@
 import { useEffect, useState, FormEvent } from "react";
 import { Profile } from "../api";
 import * as profilesDb from "../data/profiles";
+import { ProfileNameError } from "../data/profileNames";
 import "./PlayerPicker.css";
 
 const DEFAULT_COLOR = "#d9a441";
@@ -27,6 +28,7 @@ export function PlayerPicker({ selected, onChange, max = 4 }: Props) {
   const [guestName, setGuestName] = useState("");
 
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [nameError, setNameError] = useState<string | null>(null);
   const [editName, setEditName] = useState("");
 
   useEffect(() => {
@@ -66,29 +68,35 @@ export function PlayerPicker({ selected, onChange, max = 4 }: Props) {
 
   async function submitCreate(e: FormEvent) {
     e.preventDefault();
-    const name = newName.trim();
-    if (!name) return;
-    const profile = await profilesDb.createProfile({
-      name,
-      initials: newInitials.trim() || undefined,
-      color: DEFAULT_COLOR,
-    });
-    setProfiles((prev) => [...prev, profile]);
-    if (selected.length < max) onChange([...selected, profile]);
-    setNewName("");
-    setNewInitials("");
-    setShowCreate(false);
+    setNameError(null);
+    try {
+      const profile = await profilesDb.createProfile({
+        name: newName,
+        initials: newInitials.trim() || undefined,
+        color: DEFAULT_COLOR,
+      });
+      setProfiles((prev) => [...prev, profile]);
+      if (selected.length < max) onChange([...selected, profile]);
+      setNewName("");
+      setNewInitials("");
+      setShowCreate(false);
+    } catch (err) {
+      setNameError(err instanceof ProfileNameError ? err.message : "The profile could not be created.");
+    }
   }
 
   async function submitGuest(e: FormEvent) {
     e.preventDefault();
-    const name = guestName.trim();
-    if (!name) return;
-    const profile = await profilesDb.createProfile({ name, is_guest: true, color: "#6b756c" });
-    setProfiles((prev) => [...prev, profile]);
-    if (selected.length < max) onChange([...selected, profile]);
-    setGuestName("");
-    setShowGuest(false);
+    setNameError(null);
+    try {
+      const profile = await profilesDb.createProfile({ name: guestName, is_guest: true, color: "#6b756c" });
+      setProfiles((prev) => [...prev, profile]);
+      if (selected.length < max) onChange([...selected, profile]);
+      setGuestName("");
+      setShowGuest(false);
+    } catch (err) {
+      setNameError(err instanceof ProfileNameError ? err.message : "The profile could not be created.");
+    }
   }
 
   function startEdit(profile: Profile) {
@@ -98,13 +106,16 @@ export function PlayerPicker({ selected, onChange, max = 4 }: Props) {
 
   async function submitEdit(e: FormEvent, id: string) {
     e.preventDefault();
-    const name = editName.trim();
-    if (!name) return;
-    const updated = await profilesDb.updateProfile(id, { name });
-    if (!updated) return;
-    setProfiles((prev) => prev.map((p) => (p.id === id ? updated : p)));
-    onChange(selected.map((p) => (p.id === id ? updated : p)));
-    setEditingId(null);
+    setNameError(null);
+    try {
+      const updated = await profilesDb.updateProfile(id, { name: editName });
+      if (!updated) return;
+      setProfiles((prev) => prev.map((p) => (p.id === id ? updated : p)));
+      onChange(selected.map((p) => (p.id === id ? updated : p)));
+      setEditingId(null);
+    } catch (err) {
+      setNameError(err instanceof ProfileNameError ? err.message : "The profile could not be saved.");
+    }
   }
 
   async function handleDelete(profile: Profile) {
@@ -118,6 +129,7 @@ export function PlayerPicker({ selected, onChange, max = 4 }: Props) {
     <div className="player-picker">
       {loading && <p className="screen-note">Loading profiles…</p>}
       {error && <p className="screen-error">{error}</p>}
+      {nameError && <p className="screen-error">{nameError}</p>}
 
       <div className="profile-grid">
         {profiles.map((profile) => {

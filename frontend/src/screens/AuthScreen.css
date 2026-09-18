@@ -313,3 +313,18 @@
   outline-offset: 2px;
   border-radius: var(--radius-sm);
 }
+
+/* Liste der bei der Uebernahme umbenannten Spieler. */
+.takeover-renamed {
+  margin: 0;
+  padding-left: 1.2rem;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+  font-size: var(--fs-sm);
+  color: var(--c-text-muted);
+}
+
+.takeover-renamed b {
+  color: var(--c-text);
+}

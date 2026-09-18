@@ -1,6 +1,7 @@
 import { FormEvent, useState } from "react";
 import { Target } from "lucide-react";
 import * as profilesDb from "../data/profiles";
+import { ProfileNameError } from "../data/profileNames";
 import "./AuthScreen.css";
 
 type Props = { email: string; onDone: () => void };
@@ -27,18 +28,17 @@ export function FirstProfileScreen({ email, onDone }: Props) {
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
     if (busy) return;
-    const trimmed = name.trim();
-    if (!trimmed) {
-      setError("Please enter a name to continue.");
-      return;
-    }
     setBusy(true);
     setError(null);
     try {
-      await profilesDb.createProfile({ name: trimmed });
+      await profilesDb.createProfile({ name });
       onDone();
-    } catch {
-      setError("The profile could not be created. Check your internet connection.");
+    } catch (err) {
+      setError(
+        err instanceof ProfileNameError
+          ? err.message
+          : "The profile could not be created. Check your internet connection."
+      );
       setBusy(false);
     }
   }

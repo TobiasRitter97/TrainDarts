@@ -14,6 +14,7 @@
 import { Profile } from "../api";
 import { MatchEvent } from "../engine/matchEngine";
 import { computeConfigHash } from "./configHash";
+import { assertNameFree, isSameName, makeNameUnique, validateName } from "./profileNames";
 import type { MatchStatus, StoredMatch } from "./matches";
 
 const MODE_KEY = "darts-guest-mode";
@@ -93,10 +94,14 @@ export function guestGetProfile(profileId: string): Profile | null {
   return guestProfiles().find((p) => p.id === profileId) ?? null;
 }
 
+// Dieselben Namensregeln wie fuer Konto-Profile, nur ohne Firestore:
+// eindeutig innerhalb des Gast-Speichers dieses Browsers.
 export function guestCreateProfile(data: { name: string; initials?: string; color?: string; is_guest?: boolean }): Profile {
+  const name = validateName(data.name);
+  assertNameFree(name, guestListProfiles(true, true));
   const profile: Profile = {
     id: crypto.randomUUID(),
-    name: data.name,
+    name,
     initials: data.initials ?? null,
     color: data.color ?? null,
     is_guest: data.is_guest ? 1 : 0,
@@ -113,7 +118,15 @@ export function guestUpdateProfile(profileId: string, data: { name?: string; ini
   const index = list.findIndex((p) => p.id === profileId);
   if (index < 0) return null;
   const updated = { ...list[index] };
-  if (data.name !== undefined) updated.name = data.name;
+  if (data.name !== undefined) {
+    const name = validateName(data.name);
+    // Bleibt der Name derselbe, wird nicht geprueft - unveraendertes
+    // Speichern muss immer gehen.
+    if (!isSameName(name, list[index].name)) {
+      assertNameFree(name, guestListProfiles(true, true), profileId);
+    }
+    updated.name = name;
+  }
   if (data.initials !== undefined) updated.initials = data.initials;
   if (data.color !== undefined) updated.color = data.color;
   list[index] = updated;
@@ -137,11 +150,21 @@ export function createGuestPlayers(names: string[]): Profile[] {
   const used = cleaned.map((name, i) => (name.length > 0 ? name : `Player ${i + 1}`));
   rememberGuestNames(cleaned);
 
-  const existing = guestListProfiles(true, true);
-  return used.map((name) => {
-    const match = existing.find((p) => p.name.toLowerCase() === name.toLowerCase());
-    return match ?? guestCreateProfile({ name });
-  });
+  // Ein vorhandener Name wird wiederverwendet statt doppelt angelegt.
+  // Tippt jemand denselben Namen zweimal ins Formular, bekommt der
+  // zweite Eintrag einen Zusatz - sonst waeren zwei Spieler im selben
+  // Spiel nicht auseinanderzuhalten.
+  const result: Profile[] = [];
+  for (const name of used) {
+    const pool = guestListProfiles(true, true);
+    const match = pool.find((p) => p.name.toLocaleLowerCase() === name.toLocaleLowerCase());
+    if (match && !result.some((r) => r.id === match.id)) {
+      result.push(match);
+      continue;
+    }
+    result.push(guestCreateProfile({ name: makeNameUnique(name, pool) }));
+  }
+  return result;
 }
 
 // ---------------------------------------------------------------- Matches

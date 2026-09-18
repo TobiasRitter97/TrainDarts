@@ -1,6 +1,7 @@
 import { useEffect, useState, FormEvent } from "react";
 import { Profile, ProfileStats } from "../api";
 import * as profilesDb from "../data/profiles";
+import { ProfileNameError } from "../data/profileNames";
 import { computeProfileStats } from "../data/stats";
 import "./ProfileScreen.css";
 
@@ -19,6 +20,7 @@ export function ProfileScreen({ onBack }: Props) {
   const [loadingStats, setLoadingStats] = useState(false);
 
   const [showCreate, setShowCreate] = useState(false);
+  const [nameError, setNameError] = useState<string | null>(null);
   const [newName, setNewName] = useState("");
   const [newInitials, setNewInitials] = useState("");
   const [loadError, setLoadError] = useState(false);
@@ -46,13 +48,16 @@ export function ProfileScreen({ onBack }: Props) {
 
   async function submitCreate(e: FormEvent) {
     e.preventDefault();
-    const name = newName.trim();
-    if (!name) return;
-    const profile = await profilesDb.createProfile({ name, initials: newInitials.trim() || undefined });
-    setNewName("");
-    setNewInitials("");
-    setShowCreate(false);
-    reloadProfiles(profile.id);
+    setNameError(null);
+    try {
+      const profile = await profilesDb.createProfile({ name: newName, initials: newInitials.trim() || undefined });
+      setNewName("");
+      setNewInitials("");
+      setShowCreate(false);
+      reloadProfiles(profile.id);
+    } catch (err) {
+      setNameError(err instanceof ProfileNameError ? err.message : "The profile could not be created.");
+    }
   }
 
   async function handleDelete(profile: Profile) {
@@ -98,6 +103,7 @@ export function ProfileScreen({ onBack }: Props) {
             </div>
           ))}
           {loadError && <p className="screen-error">Could not load profiles.</p>}
+          {nameError && <p className="screen-error">{nameError}</p>}
           {!loadError && profiles.length === 0 && <p className="screen-note">No profiles yet.</p>}
 
           {showCreate ? (

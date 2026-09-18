@@ -27,7 +27,7 @@ describe("Loesch-Registry", () => {
     // das Profildokument, das separat geloescht wird.
     found.delete(PROFILE_COLLECTION);
 
-    const registered = new Set(PROFILE_OWNED_COLLECTIONS.map((c) => c.collection));
+    const registered = new Set<string>(PROFILE_OWNED_COLLECTIONS.map((c) => c.collection));
     const missing = [...found].filter((name) => !registered.has(name));
 
     expect(
@@ -61,7 +61,7 @@ describe("Loesch-Registry – Gegenprobe des Waechters", () => {
       found.add(m[1]);
     }
     found.delete(PROFILE_COLLECTION);
-    const registered = new Set(PROFILE_OWNED_COLLECTIONS.map((c) => c.collection));
+    const registered = new Set<string>(PROFILE_OWNED_COLLECTIONS.map((c) => c.collection));
     const missing = [...found].filter((name) => !registered.has(name));
     expect(missing).toEqual(["achievements"]);
   });

@@ -21,7 +21,9 @@ import { recordGamePlayed } from "./data/localPrefs";
 import { ResumeInfo } from "./engine/useLocalMatch";
 import { authReady, firebaseConfigError, logout, observeAuth, signedInUser, unverifiedUser } from "./data/firebase";
 import { guestDataSummary, isGuest, leaveGuestMode } from "./data/guestStore";
+import { PrivacyScreen } from "./screens/PrivacyScreen";
 import { STATIC_GAMES } from "./staticGames";
+import { usePathname } from "./routing";
 import "./App.css";
 
 type View =
@@ -81,6 +83,11 @@ function markTakeoverAsked(uid: string): void {
 }
 
 export default function App() {
+  // /datenschutz ist die einzige Seite mit einer echten URL und muss
+  // unabhaengig vom Anmeldezustand (und sogar bei kaputter
+  // Firebase-Konfiguration) erreichbar sein - die Pruefung steht
+  // deshalb vor jedem anderen fruehen Return unten.
+  const pathname = usePathname();
   const [authState, setAuthState] = useState<"checking" | "out" | "guest" | "unverified" | "in">("checking");
   // Nach dem Anmelden noch offene Zwischenschritte.
   const [takeover, setTakeover] = useState<{ profiles: number; matches: number } | null>(null);
@@ -151,6 +158,8 @@ export default function App() {
     window.addEventListener("online", flush);
     return () => window.removeEventListener("online", flush);
   }, [authState]);
+
+  if (pathname === "/datenschutz") return <PrivacyScreen />;
 
   // Ohne gueltige Konfiguration kaeme sonst nur eine weisse Seite.
   if (firebaseConfigError) {

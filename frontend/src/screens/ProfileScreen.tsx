@@ -1,7 +1,7 @@
 import { FormEvent, useEffect, useState } from "react";
 import { LogOut, Mail, Pencil, Power, RotateCcw, Trash2 } from "lucide-react";
 import { Profile } from "../api";
-import { authErrorText, logout, sendPasswordReset, signedInUser } from "../data/firebase";
+import { accountErrorText, authErrorText, logout, sendPasswordReset, signedInUser } from "../data/firebase";
 import { isGuest } from "../data/guestStore";
 import * as profilesDb from "../data/profiles";
 import { ProfileNameError } from "../data/profileNames";
@@ -44,6 +44,13 @@ export function ProfileScreen({ onBack }: Props) {
 
   const [showInactive, setShowInactive] = useState<"active" | "all">("active");
   const [busy, setBusy] = useState(false);
+
+  // Konto endgueltig loeschen (18.09.2026) - unabhaengig von den
+  // Zustaenden fuer einzelne Spielerprofile oben, damit ein Fehler im
+  // einen Dialog den anderen nicht verwirrt.
+  const [showDeleteAccount, setShowDeleteAccount] = useState(false);
+  const [accountDeleteError, setAccountDeleteError] = useState<string | null>(null);
+  const [accountDeleteBusy, setAccountDeleteBusy] = useState(false);
 
   function reload() {
     // includeArchived: der Tab zeigt auch deaktivierte Profile, damit
@@ -135,6 +142,21 @@ export function ProfileScreen({ onBack }: Props) {
     }
   }
 
+  async function performDeleteAccount() {
+    if (accountDeleteBusy) return;
+    setAccountDeleteBusy(true);
+    setAccountDeleteError(null);
+    try {
+      await profilesDb.deleteAccount();
+      // Erfolg: deleteAccount() meldet die Firebase-Sitzung ab, der
+      // Auth-Beobachter in App.tsx uebernimmt von hier - dieser Screen
+      // wird gleich unmontiert.
+    } catch (err) {
+      setAccountDeleteError(accountErrorText(err));
+      setAccountDeleteBusy(false);
+    }
+  }
+
   const active = profiles.filter((p) => p.archived_at === null);
   const inactive = profiles.filter((p) => p.archived_at !== null);
   const shown = showInactive === "all" ? profiles : active;
@@ -169,6 +191,18 @@ export function ProfileScreen({ onBack }: Props) {
                 <LogOut size={16} strokeWidth={2} /> Sign out
               </button>
             </div>
+
+            <div className="account-danger">
+              <button
+                className="btn-delete"
+                onClick={() => {
+                  setAccountDeleteError(null);
+                  setShowDeleteAccount(true);
+                }}
+              >
+                <Trash2 size={16} strokeWidth={2} /> Delete account
+              </button>
+            </div>
           </div>
         </>
       )}
@@ -180,6 +214,12 @@ export function ProfileScreen({ onBack }: Props) {
           </p>
         </div>
       )}
+
+      <p className="screen-note profile-privacy-link">
+        <a className="profile-quiet-link" href="/datenschutz">
+          Privacy Policy
+        </a>
+      </p>
 
       <h2 className="section-title">Player profiles</h2>
 
@@ -311,6 +351,44 @@ export function ProfileScreen({ onBack }: Props) {
         Deactivated profiles disappear from game selection but keep all their matches and statistics. Nothing is ever
         deleted.
       </p>
+
+      {showDeleteAccount && (
+        <div className="delete-overlay" onClick={() => !accountDeleteBusy && setShowDeleteAccount(false)}>
+          <div className="delete-modal" onClick={(e) => e.stopPropagation()}>
+            <h2 className="delete-title">
+              Do you really want to delete your account? Your saved training data and statistics will be permanently
+              deleted.
+            </h2>
+            <p className="delete-note">
+              This cannot be undone. If you'd rather keep everything, close this and deactivate a player profile
+              instead — that's reversible.
+            </p>
+
+            {accountDeleteError && (
+              <p className="delete-blocked" role="alert">
+                {accountDeleteError}
+              </p>
+            )}
+
+            <p className="delete-note profile-quiet-note">
+              If deletion doesn't fully complete, write to{" "}
+              <a className="profile-quiet-link" href="mailto:tobi.ritter@web.de">
+                tobi.ritter@web.de
+              </a>{" "}
+              and it will be removed manually.
+            </p>
+
+            <div className="delete-actions">
+              <button className="btn-secondary" onClick={() => setShowDeleteAccount(false)} disabled={accountDeleteBusy}>
+                Cancel
+              </button>
+              <button className="btn-delete" onClick={performDeleteAccount} disabled={accountDeleteBusy}>
+                {accountDeleteBusy ? "Deleting…" : "Delete account permanently"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

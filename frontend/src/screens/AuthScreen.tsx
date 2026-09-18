@@ -197,6 +197,25 @@ export function AuthScreen({ onGuestStart, onNeedsVerification }: Props) {
             <button type="submit" className="btn-primary auth-submit" disabled={busy}>
               {busy ? "One moment…" : mode === "register" ? "Create account" : "Sign in"}
             </button>
+
+            {mode === "register" ? (
+              // Bewusst KEINE Pflicht-Checkbox ("Ich stimme zu") -
+              // Tobias-Vorgabe 18.09.2026. Nur ein dezenter Hinweis
+              // direkt unter dem Button, mit Link zur Richtlinie.
+              <p className="auth-privacy-note">
+                Creating an account sets up a user profile for you. See the{" "}
+                <a className="auth-link auth-privacy-link" href="/datenschutz">
+                  Privacy Policy
+                </a>{" "}
+                for details on how your data is used.
+              </p>
+            ) : (
+              <p className="auth-privacy-note auth-privacy-note-login">
+                <a className="auth-link auth-privacy-link" href="/datenschutz">
+                  Privacy Policy
+                </a>
+              </p>
+            )}
           </form>
         )}
       </div>

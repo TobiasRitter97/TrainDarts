@@ -270,3 +270,25 @@ export async function sendPasswordReset(): Promise<string> {
 export async function logout(): Promise<void> {
   await signOut(auth);
 }
+
+// Fehlertext fuer das Loeschen des Kontos (screens/ProfileScreen.tsx).
+// Eigene Funktion statt eines dritten authErrorText()-Kontexts: der
+// wichtige Fall hier ist ein GANZ anderer als bei Login/Registrierung.
+//
+// deleteAccount() (data/profiles.ts) loescht IMMER zuerst die
+// Firestore-Daten und ruft erst danach deleteUser() auf. Kommt
+// "auth/requires-recent-login", sind die Firestore-Daten also bereits
+// weg - nur die Anmeldung selbst konnte noch nicht entfernt werden,
+// weil Firebase das aus Sicherheitsgruenden eine kuerzliche Anmeldung
+// verlangt. Der Text sagt das ehrlich, statt einen generischen
+// Fehler zu zeigen.
+export function accountErrorText(error: unknown): string {
+  const code = typeof error === "object" && error !== null && "code" in error ? String((error as { code: unknown }).code) : "";
+  if (code === "auth/requires-recent-login") {
+    return "Your saved data has been deleted. To also remove your login, please sign out, sign in again, and delete your account once more — Firebase requires a recent sign-in for this last step.";
+  }
+  if (code === "auth/network-request-failed") {
+    return "No connection to the server. Nothing was deleted — check your internet connection and try again.";
+  }
+  return "Your account could not be fully deleted automatically. Please contact tobi.ritter@web.de and it will be removed manually.";
+}

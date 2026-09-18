@@ -1,9 +1,22 @@
 // 1:1-Port von backend/persistence/models.py (Phase E des Client-
 // Rewrites, siehe ~/.claude/plans/agile-brewing-wadler.md) - Firestore
 // statt SQLite, sonst identisches Verhalten.
-import { collection, doc, getDoc, getDocs, query, runTransaction, setDoc, updateDoc, where, writeBatch } from "firebase/firestore";
+import {
+  collection,
+  doc,
+  type DocumentReference,
+  getDoc,
+  getDocs,
+  query,
+  runTransaction,
+  setDoc,
+  updateDoc,
+  where,
+  writeBatch,
+} from "firebase/firestore";
+import { deleteUser } from "firebase/auth";
 import { Profile } from "../api";
-import { currentUid, db, ensureSignedIn } from "./firebase";
+import { auth, currentUid, db, ensureSignedIn } from "./firebase";
 import * as guest from "./guestStore";
 import { clearLastUsedProfile, getLastUsedProfileId } from "./localPrefs";
 import { assertNameFree, isSameName, ProfileNameError, validateName } from "./profileNames";
@@ -243,4 +256,56 @@ export async function deleteProfile(profileId: string): Promise<void> {
   // Die geraetelokale Vorauswahl darf nicht auf ein geloeschtes Profil
   // zeigen.
   if (getLastUsedProfileId() === profileId) clearLastUsedProfile();
+}
+
+// ---------------------------------------------------------------- Konto loeschen
+
+// Loescht das GESAMTE Konto: alle eigenen Profile und alle eigenen
+// Spiele in Firestore, danach die Firebase-Anmeldung selbst. Anders
+// als deleteProfile() gibt es hier keine "aber ein anderer Spieler
+// haengt noch daran"-Ausnahme - es geht das ganze Konto weg, also
+// darf auch jedes Match darunter verschwinden, geteilt oder nicht.
+//
+// Sicherheit: jede Abfrage haengt an "users/{uid}" mit der UID der
+// eigenen, bestaetigten Sitzung (ensureSignedIn()/currentUid()) - ein
+// anderes Konto ist von hier aus technisch nicht erreichbar.
+//
+// Die Realtime-Database-Raeume (online/roomDb.ts) werden bewusst NICHT
+// angefasst: sie sind ohnehin fluechtig (ein Raum loescht sich selbst,
+// sobald die Partie endet) und wuerden, waeren sie noch aktiv, auch
+// den/die anderen Teilnehmer betreffen - das widerspraeche "keine
+// Daten anderer Nutzer aendern".
+//
+// Reihenfolge wichtig: ERST die Firestore-Daten loeschen, DANN das
+// Konto. Schlaegt deleteUser() mit "auth/requires-recent-login" fehl
+// (Firebase verlangt fuer diesen Schritt eine kuerzliche Anmeldung),
+// sind die gespeicherten Daten trotzdem schon weg - siehe
+// accountErrorText() in data/firebase.ts fuer die Nutzermeldung dazu.
+export async function deleteAccount(): Promise<void> {
+  if (guest.isGuest()) throw new Error("Guest sessions have no account to delete.");
+
+  await ensureSignedIn();
+  const user = auth.currentUser;
+  if (!user) throw new Error("Not signed in.");
+
+  const userDoc = (await profilesCollection()).parent!; // users/{uid}, aus der eigenen Sitzung
+  const collectionsToWipe = [PROFILE_COLLECTION, ...PROFILE_OWNED_COLLECTIONS.map((c) => c.collection)];
+
+  const refs: DocumentReference[] = [];
+  for (const name of collectionsToWipe) {
+    const snap = await getDocs(collection(userDoc, name));
+    refs.push(...snap.docs.map((d) => d.ref));
+  }
+
+  // Firestore erlaubt maximal 500 Operationen pro Batch. Fuer ein
+  // Hobby-Konto praktisch immer ein einziger Durchlauf, aber auch bei
+  // sehr vielen Spielen korrekt.
+  for (let i = 0; i < refs.length; i += 450) {
+    const batch = writeBatch(db);
+    for (const ref of refs.slice(i, i + 450)) batch.delete(ref);
+    await batch.commit();
+  }
+
+  clearLastUsedProfile();
+  await deleteUser(user);
 }

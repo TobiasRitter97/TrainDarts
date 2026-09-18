@@ -83,7 +83,7 @@ function markTakeoverAsked(uid: string): void {
 }
 
 export default function App() {
-  // /datenschutz ist die einzige Seite mit einer echten URL und muss
+  // /privacy ist die einzige Seite mit einer echten URL und muss
   // unabhaengig vom Anmeldezustand (und sogar bei kaputter
   // Firebase-Konfiguration) erreichbar sein - die Pruefung steht
   // deshalb vor jedem anderen fruehen Return unten.
@@ -159,7 +159,7 @@ export default function App() {
     return () => window.removeEventListener("online", flush);
   }, [authState]);
 
-  if (pathname === "/datenschutz") return <PrivacyScreen />;
+  if (pathname === "/privacy") return <PrivacyScreen />;
 
   // Ohne gueltige Konfiguration kaeme sonst nur eine weisse Seite.
   if (firebaseConfigError) {

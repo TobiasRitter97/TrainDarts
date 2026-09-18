@@ -1,7 +1,7 @@
 import "../shared.css";
 import "./PrivacyScreen.css";
 
-// /datenschutz - erreichbar unabhaengig vom Anmeldezustand (siehe
+// /privacy - erreichbar unabhaengig vom Anmeldezustand (siehe
 // App.tsx: die Pfadpruefung liegt VOR dem Login-Gate). Beschreibt nur
 // Dienste und Daten, die im Code tatsaechlich vorkommen:
 //   - Firebase Authentication (E-Mail/Passwort)

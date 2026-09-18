@@ -1,8 +1,8 @@
 // Minimalstes Routing fuer die eine Seite, die eine echte, teilbare
-// URL braucht: /datenschutz. Der Rest der App kennt keine URLs, nur
+// URL braucht: /privacy. Der Rest der App kennt keine URLs, nur
 // internen View-State (App.tsx) - dafuer extra einen Router
 // einzufuehren waere fuer eine einzelne statische Seite unnoetig
-// schwer. Ein <a href="/datenschutz"> loest einen echten
+// schwer. Ein <a href="/privacy"> loest einen echten
 // Seitenaufruf aus; vercel.json sorgt dafuer, dass Vercel dafuer
 // weiterhin index.html ausliefert statt 404.
 import { useEffect, useState } from "react";

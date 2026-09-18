@@ -216,7 +216,7 @@ export function ProfileScreen({ onBack }: Props) {
       )}
 
       <p className="screen-note profile-privacy-link">
-        <a className="profile-quiet-link" href="/datenschutz">
+        <a className="profile-quiet-link" href="/privacy">
           Privacy Policy
         </a>
       </p>

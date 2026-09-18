@@ -76,3 +76,11 @@ export function recordProfileUsed(profileId: string): void {
     // Privates Fenster - dann eben ohne Vorauswahl.
   }
 }
+
+export function clearLastUsedProfile(): void {
+  try {
+    localStorage.removeItem(LAST_PROFILE_KEY);
+  } catch {
+    // siehe oben
+  }
+}

@@ -1,10 +1,11 @@
 // 1:1-Port von backend/persistence/models.py (Phase E des Client-
 // Rewrites, siehe ~/.claude/plans/agile-brewing-wadler.md) - Firestore
 // statt SQLite, sonst identisches Verhalten.
-import { collection, doc, getDoc, getDocs, runTransaction, setDoc, updateDoc } from "firebase/firestore";
+import { collection, doc, getDoc, getDocs, query, runTransaction, setDoc, updateDoc, where, writeBatch } from "firebase/firestore";
 import { Profile } from "../api";
 import { currentUid, db, ensureSignedIn } from "./firebase";
 import * as guest from "./guestStore";
+import { clearLastUsedProfile, getLastUsedProfileId } from "./localPrefs";
 import { assertNameFree, isSameName, ProfileNameError, validateName } from "./profileNames";
 
 async function profilesCollection() {
@@ -146,4 +147,100 @@ export async function archiveProfile(profileId: string): Promise<void> {
 export async function reactivateProfile(profileId: string): Promise<void> {
   if (guest.isGuest()) return guest.guestReactivateProfile(profileId);
   await updateDoc(doc(await profilesCollection(), profileId), { archived_at: null });
+}
+
+
+// ---------------------------------------------------------------- Loeschen
+
+// Jede Sammlung unter users/{uid}, deren Dokumente einem Spielerprofil
+// zugeordnet sind. deleteProfile() geht AUSSCHLIESSLICH diese Liste
+// durch - kommt spaeter eine Sammlung dazu, gehoert sie hier hinein
+// und nirgends sonst. Ein Test (data/__tests__/profileDeletion.test.ts)
+// schlaegt fehl, wenn eine Sammlung im Code auftaucht, die hier fehlt.
+//
+// "arrayField": in einem Match steht nicht EIN profileId, sondern die
+// Liste aller Beteiligten (playerIds).
+export const PROFILE_OWNED_COLLECTIONS = [{ collection: "matches", arrayField: "playerIds" }] as const;
+
+// Die eigene Profil-Sammlung - hier liegt das Profildokument selbst,
+// sie ist deshalb bewusst NICHT Teil der Liste oben.
+export const PROFILE_COLLECTION = "profiles";
+
+export type DeletionInfo = {
+  // Spiele, an denen NUR dieses Profil beteiligt ist - die werden
+  // mitgeloescht.
+  ownGames: number;
+  // Spiele mit weiteren Mitspielern. Die bleiben erhalten: sie gehoeren
+  // auch den anderen Beteiligten, und die Reihenfolge in playerIds
+  // traegt im Event-Log die Zuordnung jedes Wurfs.
+  sharedGames: number;
+  // Gesetzt, wenn nicht geloescht werden darf.
+  blockedReason: string | null;
+};
+
+function unfinishedGameMessage(name: string): string {
+  return `'${name}' is part of an unfinished game. Finish or discard it first.`;
+}
+
+const LAST_PROFILE_MESSAGE = "This is your last profile. Create another one before deleting it.";
+
+// Was wuerde ein Loeschen bedeuten? Die Oberflaeche fragt das VOR der
+// Bestaetigung ab, um die echte Anzahl zu nennen und eine Sperre
+// anzuzeigen, statt sie erst beim Klick zu melden.
+export async function profileDeletionInfo(profileId: string): Promise<DeletionInfo> {
+  if (guest.isGuest()) return guest.guestDeletionInfo(profileId);
+
+  const profile = await getProfile(profileId);
+  const all = await listProfiles(true, true);
+  const col = await profilesCollection();
+
+  let ownGames = 0;
+  let sharedGames = 0;
+  let blockedReason: string | null = all.length <= 1 ? LAST_PROFILE_MESSAGE : null;
+
+  for (const entry of PROFILE_OWNED_COLLECTIONS) {
+    const ref = collection(col.parent!, entry.collection);
+    const snap = await getDocs(query(ref, where(entry.arrayField, "array-contains", profileId)));
+    for (const d of snap.docs) {
+      const data = d.data() as { playerIds?: string[]; status?: string };
+      if (data.status === "in_progress" && blockedReason === null) {
+        blockedReason = unfinishedGameMessage(profile?.name ?? "This profile");
+      }
+      if ((data.playerIds ?? []).length <= 1) ownGames += 1;
+      else sharedGames += 1;
+    }
+  }
+
+  return { ownGames, sharedGames, blockedReason };
+}
+
+// Loescht das Profil und alle Dokumente, die AUSSCHLIESSLICH ihm
+// gehoeren - in einem Batch, damit kein halber Zustand entstehen kann.
+// Dokumente mit weiteren Beteiligten bleiben unangetastet.
+export async function deleteProfile(profileId: string): Promise<void> {
+  if (guest.isGuest()) return guest.guestDeleteProfile(profileId);
+
+  const info = await profileDeletionInfo(profileId);
+  if (info.blockedReason) throw new ProfileNameError(info.blockedReason);
+
+  const col = await profilesCollection();
+  const batch = writeBatch(db);
+
+  for (const entry of PROFILE_OWNED_COLLECTIONS) {
+    const ref = collection(col.parent!, entry.collection);
+    const snap = await getDocs(query(ref, where(entry.arrayField, "array-contains", profileId)));
+    for (const d of snap.docs) {
+      const data = d.data() as { playerIds?: string[] };
+      // Niemals ein Dokument anfassen, an dem noch jemand anderes
+      // haengt.
+      if ((data.playerIds ?? []).length <= 1) batch.delete(d.ref);
+    }
+  }
+
+  batch.delete(doc(col, profileId));
+  await batch.commit();
+
+  // Die geraetelokale Vorauswahl darf nicht auf ein geloeschtes Profil
+  // zeigen.
+  if (getLastUsedProfileId() === profileId) clearLastUsedProfile();
 }

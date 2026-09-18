@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Profile } from "../api";
 import * as profilesDb from "../data/profiles";
+import { CreateProfileDialog } from "./CreateProfileDialog";
 import "./PlayerPicker.css";
 
 const DEFAULT_COLOR = "#d9a441";
@@ -9,6 +10,11 @@ type Props = {
   selected: Profile[];
   onChange: (next: Profile[]) => void;
   max?: number;
+  // Erlaubt hier - und nur hier - das Anlegen eines Gastspielers als
+  // Abkuerzung. Die eigentliche Profilverwaltung bleibt im
+  // Profiles-Tab. Standard aus: der Online-Lobby-Screen zeigt den Link
+  // deshalb nicht.
+  allowGuestCreation?: boolean;
 };
 
 // Wiederverwendbare Spielerauswahl (SPEC §5/§6), eingebettet im
@@ -19,9 +25,10 @@ type Props = {
 // Umbenennen und Deaktivieren von Profilen liegen ausschliesslich im
 // Profiles-Tab (screens/ProfileScreen.tsx) - vorher war beides
 // vermischt und dieselbe Aktion an zwei Orten unterschiedlich streng.
-export function PlayerPicker({ selected, onChange, max = 4 }: Props) {
+export function PlayerPicker({ selected, onChange, max = 4, allowGuestCreation = false }: Props) {
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [loading, setLoading] = useState(true);
+  const [showGuest, setShowGuest] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
 
@@ -86,6 +93,23 @@ export function PlayerPicker({ selected, onChange, max = 4 }: Props) {
           );
         })}
       </div>
+
+      {allowGuestCreation &&
+        (showGuest ? (
+          <CreateProfileDialog
+            asGuest
+            onCancel={() => setShowGuest(false)}
+            onCreated={(profile) => {
+              setProfiles((prev) => [...prev, profile]);
+              if (selected.length < max) onChange([...selected, profile]);
+              setShowGuest(false);
+            }}
+          />
+        ) : (
+          <button type="button" className="add-guest-link" onClick={() => setShowGuest(true)}>
+            Add guest
+          </button>
+        ))}
 
       {!loading && profiles.length === 0 && (
         <p className="screen-note">

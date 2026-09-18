@@ -14,6 +14,7 @@
 import { Profile } from "../api";
 import { MatchEvent } from "../engine/matchEngine";
 import { computeConfigHash } from "./configHash";
+import { clearLastUsedProfile, getLastUsedProfileId } from "./localPrefs";
 import { assertNameFree, findNameConflict, isSameName, ProfileNameError, validateName } from "./profileNames";
 import type { MatchStatus, StoredMatch } from "./matches";
 
@@ -143,6 +144,47 @@ export function guestArchiveProfile(profileId: string): void {
   }
   const list = guestProfiles().map((p) => (p.id === profileId ? { ...p, archived_at: now() } : p));
   writeJson(PROFILES_KEY, list);
+}
+
+// Loeschen im Gast-Speicher - dieselbe Bedeutung wie in Firestore,
+// nur gegen den localStorage. Auch hier gilt: Spiele mit weiteren
+// Beteiligten bleiben erhalten.
+export function guestDeletionInfo(profileId: string): {
+  ownGames: number;
+  sharedGames: number;
+  blockedReason: string | null;
+} {
+  const profile = guestGetProfile(profileId);
+  const all = guestListProfiles(true, true);
+  let ownGames = 0;
+  let sharedGames = 0;
+  let blockedReason: string | null =
+    all.length <= 1 ? "This is your last profile. Create another one before deleting it." : null;
+
+  for (const match of guestMatches()) {
+    if (!match.playerIds.includes(profileId)) continue;
+    if (match.status === "in_progress" && blockedReason === null) {
+      blockedReason = `'${profile?.name ?? "This profile"}' is part of an unfinished game. Finish or discard it first.`;
+    }
+    if (match.playerIds.length <= 1) ownGames += 1;
+    else sharedGames += 1;
+  }
+  return { ownGames, sharedGames, blockedReason };
+}
+
+export function guestDeleteProfile(profileId: string): void {
+  const info = guestDeletionInfo(profileId);
+  if (info.blockedReason) throw new ProfileNameError(info.blockedReason);
+
+  writeJson(
+    MATCHES_KEY,
+    guestMatches().filter((m) => !(m.playerIds.includes(profileId) && m.playerIds.length <= 1))
+  );
+  writeJson(
+    PROFILES_KEY,
+    guestProfiles().filter((p) => p.id !== profileId)
+  );
+  if (getLastUsedProfileId() === profileId) clearLastUsedProfile();
 }
 
 export function guestReactivateProfile(profileId: string): void {

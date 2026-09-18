@@ -1,0 +1,66 @@
+/* Gemeinsamer Anlege-Dialog fuer Profile - benutzt vom Profiles-Tab
+   und von der Spielerauswahl. Alle Werte aus design/tokens.css. */
+.create-profile-dialog {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sp-2);
+  width: 100%;
+  padding: var(--sp-2) 0;
+}
+
+.create-profile-input {
+  min-height: 44px;
+  padding: 0 var(--sp-3);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--c-border-strong);
+  background: var(--c-bg);
+  color: var(--c-text);
+  font-family: inherit;
+  font-size: var(--fs-sm);
+  flex: 1 1 12rem;
+}
+
+.create-profile-input:focus-visible {
+  outline: 2px solid var(--c-brand);
+  outline-offset: 2px;
+}
+
+.create-profile-initials {
+  flex: 0 0 7rem;
+}
+
+.create-profile-error {
+  flex-basis: 100%;
+  margin: 0;
+  font-size: var(--fs-xs);
+  color: var(--c-danger-strong);
+  line-height: 1.4;
+}
+
+/* Der Einstieg in der Spielerauswahl ist bewusst ein Textlink, keine
+   Kachel - Profile werden im Profiles-Tab verwaltet, hier ist es nur
+   eine Abkuerzung fuer einen einmaligen Mitspieler. */
+.add-guest-link {
+  align-self: flex-start;
+  margin-top: var(--sp-2);
+  padding: var(--sp-2) 0;
+  background: none;
+  border: none;
+  color: var(--c-text-muted);
+  font-family: inherit;
+  font-size: var(--fs-sm);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+
+.add-guest-link:hover {
+  color: var(--c-brand);
+}
+
+.add-guest-link:focus-visible {
+  outline: 2px solid var(--c-brand);
+  outline-offset: 2px;
+  border-radius: var(--radius-sm);
+}

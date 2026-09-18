@@ -297,3 +297,96 @@
 .profile-hint {
   max-width: 60ch;
 }
+
+/* ---------- Loeschen (18.09.2026) ---------- */
+
+/* Das Loeschen ist die schwerere der beiden Aktionen und wird deshalb
+   auch farblich als solche gelesen - Deaktivieren bleibt neutral. */
+.icon-btn-danger:hover {
+  border-color: var(--c-danger);
+  color: var(--c-danger-strong);
+}
+
+.delete-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  display: grid;
+  place-items: center;
+  padding: var(--sp-5);
+  background: rgba(0, 0, 0, 0.6);
+}
+
+.delete-modal {
+  width: min(520px, 100%);
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+  background: var(--c-surface-raised);
+  border: 1px solid var(--c-border-strong);
+  border-top: 3px solid var(--c-danger);
+  border-radius: var(--radius-lg);
+  padding: var(--sp-5);
+  box-shadow: var(--shadow-lg);
+}
+
+.delete-title {
+  margin: 0;
+  font-size: var(--fs-md);
+  font-weight: var(--fw-strong);
+  line-height: 1.35;
+}
+
+.delete-note {
+  margin: 0;
+  font-size: var(--fs-sm);
+  color: var(--c-text-muted);
+  line-height: 1.45;
+}
+
+.delete-blocked {
+  margin: 0;
+  padding: var(--sp-3);
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--c-danger) 18%, var(--c-bg));
+  border: 1px solid var(--c-danger);
+  color: var(--c-text);
+  font-size: var(--fs-sm);
+  line-height: 1.45;
+}
+
+.delete-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: var(--sp-3);
+  padding-top: var(--sp-2);
+}
+
+.btn-delete {
+  min-height: var(--touch-min);
+  padding: 0 var(--sp-4);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--c-danger);
+  background: var(--c-danger);
+  color: var(--c-text);
+  font-family: inherit;
+  font-size: var(--fs-md);
+  font-weight: var(--fw-strong);
+  cursor: pointer;
+}
+
+.btn-delete:hover:not(:disabled) {
+  background: var(--c-danger-strong);
+  border-color: var(--c-danger-strong);
+}
+
+.btn-delete:focus-visible {
+  outline: 2px solid var(--c-brand);
+  outline-offset: 2px;
+}
+
+.btn-delete:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}

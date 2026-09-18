@@ -58,7 +58,7 @@ export function GameSetupScreen({ gameId, onBack, onStart }: Props) {
 
       <h2 className="section-title">Players</h2>
       <div className="panel">
-        <PlayerPicker selected={players} onChange={setPlayers} max={game.playerRange[1]} />
+        <PlayerPicker selected={players} onChange={setPlayers} max={game.playerRange[1]} allowGuestCreation />
       </div>
 
       {game.settingsSchema.length > 0 && (

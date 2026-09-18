@@ -1,10 +1,11 @@
 import { FormEvent, useEffect, useState } from "react";
-import { LogOut, Mail, Pencil, Power, RotateCcw } from "lucide-react";
+import { LogOut, Mail, Pencil, Power, RotateCcw, Trash2 } from "lucide-react";
 import { Profile } from "../api";
 import { authErrorText, logout, sendPasswordReset, signedInUser } from "../data/firebase";
 import { isGuest } from "../data/guestStore";
 import * as profilesDb from "../data/profiles";
 import { ProfileNameError } from "../data/profileNames";
+import { CreateProfileDialog } from "../components/CreateProfileDialog";
 import { SegmentedControl } from "../components/SegmentedControl";
 import "./ProfileScreen.css";
 
@@ -34,8 +35,8 @@ export function ProfileScreen({ onBack }: Props) {
   const [notice, setNotice] = useState<string | null>(null);
 
   const [showCreate, setShowCreate] = useState(false);
-  const [newName, setNewName] = useState("");
-  const [newInitials, setNewInitials] = useState("");
+  // Loeschdialog: erst die echten Zahlen holen, dann fragen.
+  const [pendingDelete, setPendingDelete] = useState<{ profile: Profile; info: profilesDb.DeletionInfo } | null>(null);
 
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editName, setEditName] = useState("");
@@ -62,21 +63,6 @@ export function ProfileScreen({ onBack }: Props) {
     setError(err instanceof ProfileNameError ? err.message : fallback);
   }
 
-  async function submitCreate(e: FormEvent) {
-    e.preventDefault();
-    setError(null);
-    setNotice(null);
-    try {
-      await profilesDb.createProfile({ name: newName, initials: newInitials.trim() || undefined });
-      setNewName("");
-      setNewInitials("");
-      setShowCreate(false);
-      reload();
-    } catch (err) {
-      report(err, "The profile could not be created.");
-    }
-  }
-
   function startEdit(profile: Profile) {
     setError(null);
     setNotice(null);
@@ -94,6 +80,31 @@ export function ProfileScreen({ onBack }: Props) {
       reload();
     } catch (err) {
       report(err, "The profile could not be saved.");
+    }
+  }
+
+  async function askDelete(profile: Profile) {
+    setError(null);
+    setNotice(null);
+    try {
+      setPendingDelete({ profile, info: await profilesDb.profileDeletionInfo(profile.id) });
+    } catch {
+      setError("Could not check what deleting this profile would remove.");
+    }
+  }
+
+  async function confirmDelete() {
+    if (!pendingDelete || busy) return;
+    setBusy(true);
+    setError(null);
+    try {
+      await profilesDb.deleteProfile(pendingDelete.profile.id);
+      setPendingDelete(null);
+      reload();
+    } catch (err) {
+      report(err, "The profile could not be deleted.");
+    } finally {
+      setBusy(false);
     }
   }
 
@@ -228,6 +239,9 @@ export function ProfileScreen({ onBack }: Props) {
                     >
                       {archived ? <RotateCcw size={16} strokeWidth={2} /> : <Power size={16} strokeWidth={2} />}
                     </button>
+                    <button className="icon-btn icon-btn-danger" title="Delete" onClick={() => askDelete(profile)}>
+                      <Trash2 size={16} strokeWidth={2} />
+                    </button>
                   </div>
                 </>
               )}
@@ -236,27 +250,62 @@ export function ProfileScreen({ onBack }: Props) {
         })}
 
         {showCreate ? (
-          <form className="profile-edit-form" onSubmit={submitCreate}>
-            <input autoFocus placeholder="Name" value={newName} onChange={(e) => setNewName(e.target.value)} />
-            <input
-              placeholder="Initials (optional)"
-              maxLength={3}
-              value={newInitials}
-              onChange={(e) => setNewInitials(e.target.value)}
-            />
-            <button className="btn-primary" type="submit">
-              Create
-            </button>
-            <button className="btn-secondary" type="button" onClick={() => setShowCreate(false)}>
-              Cancel
-            </button>
-          </form>
+          <CreateProfileDialog
+            onCancel={() => setShowCreate(false)}
+            onCreated={() => {
+              setShowCreate(false);
+              reload();
+            }}
+          />
         ) : (
           <button className="btn-outline add-profile-btn" onClick={() => setShowCreate(true)}>
             + PROFILE
           </button>
         )}
       </div>
+
+      {pendingDelete && (
+        <div className="delete-overlay" onClick={() => setPendingDelete(null)}>
+          <div className="delete-modal" onClick={(e) => e.stopPropagation()}>
+            <h2 className="delete-title">
+              {pendingDelete.info.ownGames > 0
+                ? `Delete '${pendingDelete.profile.name}' and ${pendingDelete.info.ownGames} recorded ${
+                    pendingDelete.info.ownGames === 1 ? "game" : "games"
+                  }? This cannot be undone.`
+                : `Delete '${pendingDelete.profile.name}'? This cannot be undone.`}
+            </h2>
+
+            {pendingDelete.info.sharedGames > 0 && (
+              <p className="delete-note">
+                {pendingDelete.info.sharedGames === 1
+                  ? "1 further game also involves other players and will be kept."
+                  : `${pendingDelete.info.sharedGames} further games also involve other players and will be kept.`}
+              </p>
+            )}
+
+            {pendingDelete.info.blockedReason && (
+              <p className="delete-blocked" role="alert">
+                {pendingDelete.info.blockedReason}
+              </p>
+            )}
+
+            <p className="delete-note">
+              Deactivating instead keeps everything and can be undone at any time.
+            </p>
+
+            <div className="delete-actions">
+              <button className="btn-secondary" onClick={() => setPendingDelete(null)} disabled={busy}>
+                Cancel
+              </button>
+              {!pendingDelete.info.blockedReason && (
+                <button className="btn-delete" onClick={confirmDelete} disabled={busy}>
+                  {busy ? "Deleting…" : "Delete permanently"}
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       <p className="screen-note profile-hint">
         Deactivated profiles disappear from game selection but keep all their matches and statistics. Nothing is ever

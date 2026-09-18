@@ -192,6 +192,8 @@ export function ProfileScreen({ onBack }: Props) {
               </button>
             </div>
 
+            {notice && <p className="screen-note profile-notice">{notice}</p>}
+
             <div className="account-danger">
               <button
                 className="btn-delete"
@@ -238,7 +240,6 @@ export function ProfileScreen({ onBack }: Props) {
       <div className="panel profile-manage">
         {loadError && <p className="screen-error">Could not load profiles.</p>}
         {error && <p className="screen-error">{error}</p>}
-        {notice && <p className="screen-note profile-notice">{notice}</p>}
         {!loadError && profiles.length === 0 && <p className="screen-note">No player profiles yet.</p>}
 
         {shown.map((profile) => {

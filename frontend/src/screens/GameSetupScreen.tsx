@@ -4,7 +4,8 @@ import { PlayerPicker } from "../components/PlayerPicker";
 import { GameSettingsForm, settingsAreValid } from "../components/GameSettingsForm";
 import { STATIC_GAMES } from "../staticGames";
 import { computeLeaderboardsForGame } from "../data/stats";
-import { recordProfileUsed } from "../data/localPrefs";
+import { getLastUsedProfileId, recordProfileUsed } from "../data/localPrefs";
+import * as profilesDb from "../data/profiles";
 import "./GameSetupScreen.css";
 
 export type LocalStartInfo = { game: GameDefinition; players: Profile[]; settings: Record<string, unknown> };
@@ -34,9 +35,28 @@ export function GameSetupScreen({ gameId, onBack, onStart }: Props) {
 
   useEffect(() => {
     setSettings(game ? defaultSettingsValues(game.settingsSchema) : {});
+    setPlayers([]);
     computeLeaderboardsForGame(gameId)
       .then(setLeaderboards)
       .catch(() => setLeaderboards([]));
+
+    // Vorbelegung mit dem zuletzt genutzten Profil (Tobias-Anforderung
+    // 18.09.2026): fuer das haeufigste Solo-Training entfaellt so das
+    // zusaetzliche Antippen des eigenen Profils vor jedem Spiel. Nur
+    // ein Vorschlag - wer jemand anderen will oder zu zweit spielt,
+    // aendert die Auswahl wie gewohnt ueber PlayerPicker.
+    //
+    // "prev.length === 0" schuetzt nur gegen die theoretische
+    // Race-Bedingung, dass der Nutzer schneller selbst waehlt als
+    // diese Anfrage zurueckkommt - eine manuelle Auswahl wird nie
+    // ueberschrieben.
+    profilesDb
+      .listProfiles()
+      .then((list) => {
+        const last = list.find((p) => p.id === getLastUsedProfileId());
+        if (last) setPlayers((prev) => (prev.length === 0 ? [last] : prev));
+      })
+      .catch(() => undefined);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [gameId]);
 

@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { BarChart3, ChevronDown, Globe, Home, LogOut, MoreHorizontal, Search, Settings, Star, Target, Wrench } from "lucide-react";
 import { Profile } from "../api";
 import * as profilesDb from "../data/profiles";
+import { getLastUsedProfileId } from "../data/localPrefs";
 import { logout, signedInUser } from "../data/firebase";
 import { BoardControlBar } from "./BoardControlBar";
 import "../screens/AuthScreen.css";
@@ -37,9 +38,15 @@ export function AppHeader({ guest, onLeaveGuest, activeScreen, onNavigate, onOpe
   const moreRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
+    // Kein Haupt-Profil: gezeigt wird das ZULETZT GENUTZTE, notiert
+    // geraetelokal (Tobias-Vorgabe 18.09.2026). Gibt es keine Notiz,
+    // das erste aktive Profil - rein als Platzhalter.
     profilesDb
       .listProfiles()
-      .then((list) => setProfile(list[0] ?? null))
+      .then((list) => {
+        const lastId = getLastUsedProfileId();
+        setProfile(list.find((p) => p.id === lastId) ?? list[0] ?? null);
+      })
       .catch(() => setProfile(null));
   }, [activeScreen]);
 

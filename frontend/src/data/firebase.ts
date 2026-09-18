@@ -18,6 +18,7 @@ import {
   getAuth,
   onAuthStateChanged,
   sendEmailVerification,
+  sendPasswordResetEmail,
   signInWithEmailAndPassword,
   signOut,
   type User,
@@ -253,6 +254,17 @@ export async function refreshVerification(): Promise<boolean> {
   await user.reload();
   await user.getIdToken(true);
   return Boolean(auth.currentUser?.emailVerified);
+}
+
+// Passwort aendern laeuft ueber eine Mail an die eigene Adresse -
+// dadurch muss das aktuelle Passwort nirgends erneut abgefragt und
+// gehalten werden.
+export async function sendPasswordReset(): Promise<string> {
+  const user = auth.currentUser;
+  const address = user?.email;
+  if (!address) throw new Error("Not signed in.");
+  await sendPasswordResetEmail(auth, address, actionCodeSettings());
+  return address;
 }
 
 export async function logout(): Promise<void> {

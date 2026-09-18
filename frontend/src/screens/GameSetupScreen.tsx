@@ -4,6 +4,7 @@ import { PlayerPicker } from "../components/PlayerPicker";
 import { GameSettingsForm, settingsAreValid } from "../components/GameSettingsForm";
 import { STATIC_GAMES } from "../staticGames";
 import { computeLeaderboardsForGame } from "../data/stats";
+import { recordProfileUsed } from "../data/localPrefs";
 import "./GameSetupScreen.css";
 
 export type LocalStartInfo = { game: GameDefinition; players: Profile[]; settings: Record<string, unknown> };
@@ -104,7 +105,12 @@ export function GameSetupScreen({ gameId, onBack, onStart }: Props) {
       <button
         className="btn-primary continue-btn"
         disabled={players.length === 0 || !valid}
-        onClick={() => onStart({ game, players, settings })}
+        onClick={() => {
+          // Merkt sich geraetelokal, wer zuletzt gespielt hat - daraus
+          // speist sich die Vorauswahl, nicht aus einem Flag am Profil.
+          if (players[0]) recordProfileUsed(players[0].id);
+          onStart({ game, players, settings });
+        }}
       >
         START GAME
       </button>

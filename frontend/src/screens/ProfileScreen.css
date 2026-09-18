@@ -167,3 +167,133 @@
 .history-row.won .history-value {
   color: var(--c-success-strong);
 }
+
+/* ---------- Konto-Abschnitt (Umbau 18.09.2026) ---------- */
+
+.account-panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+}
+
+.account-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-4);
+  flex-wrap: wrap;
+}
+
+.account-label {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+  font-size: var(--fs-sm);
+  color: var(--c-text-muted);
+}
+
+.account-value {
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-strong);
+  word-break: break-all;
+}
+
+.account-verified {
+  color: var(--c-success-strong);
+}
+
+.account-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-3);
+  padding-top: var(--sp-2);
+  border-top: 1px solid var(--c-border);
+}
+
+.account-logout {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+}
+
+/* ---------- Spielerprofile verwalten ---------- */
+
+.profile-manage {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+}
+
+.profile-manage-row {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  min-height: var(--touch-min);
+  padding: var(--sp-2) 0;
+  border-bottom: 1px solid var(--c-border);
+}
+
+.profile-manage-row:last-of-type {
+  border-bottom: none;
+}
+
+.profile-manage-row.archived .avatar,
+.profile-manage-row.archived .profile-manage-name {
+  opacity: 0.5;
+}
+
+.profile-manage-name {
+  flex: 1 1 auto;
+  font-size: var(--fs-md);
+  font-weight: var(--fw-strong);
+}
+
+.profile-inactive-tag {
+  font-size: var(--fs-xs);
+  letter-spacing: 0.1em;
+  color: var(--c-text-faint);
+  border: 1px solid var(--c-border-strong);
+  border-radius: var(--radius-sm);
+  padding: 2px var(--sp-2);
+}
+
+.profile-manage-actions {
+  display: flex;
+  gap: var(--sp-2);
+}
+
+.profile-edit-form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+  align-items: center;
+  width: 100%;
+  padding: var(--sp-2) 0;
+}
+
+.profile-edit-form input {
+  min-height: 44px;
+  padding: 0 var(--sp-3);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--c-border-strong);
+  background: var(--c-bg);
+  color: var(--c-text);
+  font-family: inherit;
+  font-size: var(--fs-sm);
+}
+
+.profile-edit-form input:first-child {
+  flex: 1 1 12rem;
+}
+
+.profile-edit-form input:nth-child(2) {
+  width: 7rem;
+}
+
+.profile-notice {
+  color: var(--c-success-strong);
+}
+
+.profile-hint {
+  max-width: 60ch;
+}

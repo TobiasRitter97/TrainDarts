@@ -55,3 +55,24 @@ export function recordGamePlayed(gameId: string): void {
   const next = [gameId, ...current.filter((id) => id !== gameId)].slice(0, RECENTLY_PLAYED_LIMIT);
   writeJson(RECENTLY_PLAYED_KEY, next);
 }
+
+// Zuletzt genutztes Spielerprofil - rein geraetelokal (Tobias-Vorgabe
+// 18.09.2026: KEIN Primaer-Profil, kein Flag am Profil selbst). Dient
+// nur als Vorauswahl beim Spielstart und in der Kopfzeile.
+const LAST_PROFILE_KEY = "darts-last-used-profile";
+
+export function getLastUsedProfileId(): string | null {
+  try {
+    return localStorage.getItem(LAST_PROFILE_KEY);
+  } catch {
+    return null;
+  }
+}
+
+export function recordProfileUsed(profileId: string): void {
+  try {
+    localStorage.setItem(LAST_PROFILE_KEY, profileId);
+  } catch {
+    // Privates Fenster - dann eben ohne Vorauswahl.
+  }
+}

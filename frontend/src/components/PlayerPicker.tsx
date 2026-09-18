@@ -1,7 +1,6 @@
-import { useEffect, useState, FormEvent } from "react";
+import { useEffect, useState } from "react";
 import { Profile } from "../api";
 import * as profilesDb from "../data/profiles";
-import { ProfileNameError } from "../data/profileNames";
 import "./PlayerPicker.css";
 
 const DEFAULT_COLOR = "#d9a441";
@@ -15,21 +14,18 @@ type Props = {
 // Wiederverwendbare Spielerauswahl (SPEC §5/§6), eingebettet im
 // Game-Setup-Screen. Steuert sich komplett ueber selected/onChange,
 // damit der Setup-Screen den gewaehlten Zustand kennt.
+//
+// Seit dem 18.09.2026 wird hier NUR noch ausgewaehlt. Anlegen,
+// Umbenennen und Deaktivieren von Profilen liegen ausschliesslich im
+// Profiles-Tab (screens/ProfileScreen.tsx) - vorher war beides
+// vermischt und dieselbe Aktion an zwei Orten unterschiedlich streng.
 export function PlayerPicker({ selected, onChange, max = 4 }: Props) {
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const [showCreate, setShowCreate] = useState(false);
-  const [newName, setNewName] = useState("");
-  const [newInitials, setNewInitials] = useState("");
 
-  const [showGuest, setShowGuest] = useState(false);
-  const [guestName, setGuestName] = useState("");
 
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [nameError, setNameError] = useState<string | null>(null);
-  const [editName, setEditName] = useState("");
 
   useEffect(() => {
     profilesDb
@@ -66,143 +62,35 @@ export function PlayerPicker({ selected, onChange, max = 4 }: Props) {
     onChange(selected.filter((p) => p.id !== id));
   }
 
-  async function submitCreate(e: FormEvent) {
-    e.preventDefault();
-    setNameError(null);
-    try {
-      const profile = await profilesDb.createProfile({
-        name: newName,
-        initials: newInitials.trim() || undefined,
-        color: DEFAULT_COLOR,
-      });
-      setProfiles((prev) => [...prev, profile]);
-      if (selected.length < max) onChange([...selected, profile]);
-      setNewName("");
-      setNewInitials("");
-      setShowCreate(false);
-    } catch (err) {
-      setNameError(err instanceof ProfileNameError ? err.message : "The profile could not be created.");
-    }
-  }
 
-  async function submitGuest(e: FormEvent) {
-    e.preventDefault();
-    setNameError(null);
-    try {
-      const profile = await profilesDb.createProfile({ name: guestName, is_guest: true, color: "#6b756c" });
-      setProfiles((prev) => [...prev, profile]);
-      if (selected.length < max) onChange([...selected, profile]);
-      setGuestName("");
-      setShowGuest(false);
-    } catch (err) {
-      setNameError(err instanceof ProfileNameError ? err.message : "The profile could not be created.");
-    }
-  }
-
-  function startEdit(profile: Profile) {
-    setEditingId(profile.id);
-    setEditName(profile.name);
-  }
-
-  async function submitEdit(e: FormEvent, id: string) {
-    e.preventDefault();
-    setNameError(null);
-    try {
-      const updated = await profilesDb.updateProfile(id, { name: editName });
-      if (!updated) return;
-      setProfiles((prev) => prev.map((p) => (p.id === id ? updated : p)));
-      onChange(selected.map((p) => (p.id === id ? updated : p)));
-      setEditingId(null);
-    } catch (err) {
-      setNameError(err instanceof ProfileNameError ? err.message : "The profile could not be saved.");
-    }
-  }
-
-  async function handleDelete(profile: Profile) {
-    if (!confirm(`Really remove ${profile.name}? Past results are kept.`)) return;
-    await profilesDb.archiveProfile(profile.id);
-    setProfiles((prev) => prev.filter((p) => p.id !== profile.id));
-    onChange(selected.filter((p) => p.id !== profile.id));
-  }
 
   return (
     <div className="player-picker">
       {loading && <p className="screen-note">Loading profiles…</p>}
       {error && <p className="screen-error">{error}</p>}
-      {nameError && <p className="screen-error">{nameError}</p>}
 
       <div className="profile-grid">
         {profiles.map((profile) => {
           const order = selected.findIndex((p) => p.id === profile.id);
-          const editing = editingId === profile.id;
           return (
             <div key={profile.id} className={`profile-tile ${order >= 0 ? "selected" : ""}`}>
               {order >= 0 && <span className="order-badge">{order + 1}</span>}
-              {editing ? (
-                <form className="edit-form" onSubmit={(e) => submitEdit(e, profile.id)}>
-                  <input
-                    autoFocus
-                    value={editName}
-                    onChange={(e) => setEditName(e.target.value)}
-                    onBlur={() => setEditingId(null)}
-                  />
-                </form>
-              ) : (
-                <button className="profile-tile-main" onClick={() => toggleSelect(profile)}>
-                  <span className="avatar" style={{ background: profile.color || DEFAULT_COLOR }}>
-                    {(profile.initials || profile.name.slice(0, 2)).toUpperCase()}
-                  </span>
-                  <span className="profile-name">{profile.name}</span>
-                  {!!profile.is_guest && <span className="guest-tag">GUEST</span>}
-                </button>
-              )}
-              <div className="profile-tile-actions">
-                <button className="icon-btn" title="Rename" onClick={() => startEdit(profile)}>
-                  ✎
-                </button>
-                <button className="icon-btn" title="Remove" onClick={() => handleDelete(profile)}>
-                  ✕
-                </button>
-              </div>
+              <button className="profile-tile-main" onClick={() => toggleSelect(profile)}>
+                <span className="avatar" style={{ background: profile.color || DEFAULT_COLOR }}>
+                  {(profile.initials || profile.name.slice(0, 2)).toUpperCase()}
+                </span>
+                <span className="profile-name">{profile.name}</span>
+                {!!profile.is_guest && <span className="guest-tag">GUEST</span>}
+              </button>
             </div>
           );
         })}
-
-        <button className="profile-tile add-tile" onClick={() => setShowCreate((v) => !v)}>
-          + PLAYER
-        </button>
-        <button className="profile-tile add-tile" onClick={() => setShowGuest((v) => !v)}>
-          + GUEST
-        </button>
       </div>
 
-      {showCreate && (
-        <form className="inline-form" onSubmit={submitCreate}>
-          <input autoFocus placeholder="Name" value={newName} onChange={(e) => setNewName(e.target.value)} />
-          <input
-            placeholder="Initials (optional)"
-            maxLength={3}
-            value={newInitials}
-            onChange={(e) => setNewInitials(e.target.value)}
-          />
-          <button className="btn-primary" type="submit">
-            Create profile
-          </button>
-        </form>
-      )}
-
-      {showGuest && (
-        <form className="inline-form" onSubmit={submitGuest}>
-          <input
-            autoFocus
-            placeholder="Guest name"
-            value={guestName}
-            onChange={(e) => setGuestName(e.target.value)}
-          />
-          <button className="btn-primary" type="submit">
-            Add guest
-          </button>
-        </form>
+      {!loading && profiles.length === 0 && (
+        <p className="screen-note">
+          No player profiles yet. Create one under <b>Profiles</b> in the top navigation.
+        </p>
       )}
 
       {selected.length > 0 && (

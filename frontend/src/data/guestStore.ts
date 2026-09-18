@@ -134,8 +134,19 @@ export function guestUpdateProfile(profileId: string, data: { name?: string; ini
   return updated;
 }
 
+// Deaktivieren und Reaktivieren wie bei Konto-Profilen - inklusive
+// Schutz des letzten aktiven Profils.
 export function guestArchiveProfile(profileId: string): void {
+  const active = guestListProfiles(true, false);
+  if (active.length <= 1 && active.some((p) => p.id === profileId)) {
+    throw new ProfileNameError("This is your last active profile. Create another one before deactivating it.");
+  }
   const list = guestProfiles().map((p) => (p.id === profileId ? { ...p, archived_at: now() } : p));
+  writeJson(PROFILES_KEY, list);
+}
+
+export function guestReactivateProfile(profileId: string): void {
+  const list = guestProfiles().map((p) => (p.id === profileId ? { ...p, archived_at: null } : p));
   writeJson(PROFILES_KEY, list);
 }
 

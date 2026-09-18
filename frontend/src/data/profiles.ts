@@ -127,8 +127,23 @@ export async function updateProfile(
   return getProfile(profileId);
 }
 
-// Soft-Delete: Profil verschwindet aus der Auswahl, alte Matches bleiben gueltig.
+// Deaktivieren (kein Loeschen): das Profil verschwindet aus der
+// Spielerauswahl, seine Matches und Statistiken bleiben unangetastet.
+// Umkehrbar ueber reactivateProfile().
+//
+// Das LETZTE aktive Profil laesst sich nicht deaktivieren - sonst
+// koennte man kein Spiel mehr starten und muesste erst ein neues
+// Profil anlegen.
 export async function archiveProfile(profileId: string): Promise<void> {
   if (guest.isGuest()) return guest.guestArchiveProfile(profileId);
+  const active = await listProfiles(true, false);
+  if (active.length <= 1 && active.some((p) => p.id === profileId)) {
+    throw new ProfileNameError("This is your last active profile. Create another one before deactivating it.");
+  }
   await updateDoc(doc(await profilesCollection(), profileId), { archived_at: now() });
+}
+
+export async function reactivateProfile(profileId: string): Promise<void> {
+  if (guest.isGuest()) return guest.guestReactivateProfile(profileId);
+  await updateDoc(doc(await profilesCollection(), profileId), { archived_at: null });
 }

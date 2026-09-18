@@ -8,6 +8,7 @@ import {
   lastGuestNames,
   MAX_GUEST_PLAYERS,
 } from "../data/guestStore";
+import { ProfileNameError } from "../data/profileNames";
 import { SegmentedControl } from "../components/SegmentedControl";
 import "./AuthScreen.css";
 
@@ -211,13 +212,23 @@ function GuestPanel({ onStart }: { onStart: () => void }) {
   const [names, setNames] = useState<string[]>(() =>
     remembered.length > 0 ? remembered : [""]
   );
+  const [error, setError] = useState<string | null>(null);
 
   function setName(index: number, value: string) {
+    setError(null);
     setNames((prev) => prev.map((n, i) => (i === index ? value : n)));
   }
 
   function start() {
-    createGuestPlayers(names);
+    setError(null);
+    try {
+      // Doppelte oder unzulaessige Namen werden hier gemeldet, nicht
+      // still umbenannt - dieselbe Regel wie im Profil-Dialog.
+      createGuestPlayers(names);
+    } catch (err) {
+      setError(err instanceof ProfileNameError ? err.message : "The players could not be created.");
+      return;
+    }
     enterGuestMode();
     onStart();
   }
@@ -269,6 +280,12 @@ function GuestPanel({ onStart }: { onStart: () => void }) {
           )}
         </div>
       </div>
+
+      {error && (
+        <p className="auth-error" role="alert">
+          {error}
+        </p>
+      )}
 
       <button type="button" className="btn-primary auth-submit" onClick={start}>
         Understood — play without an account

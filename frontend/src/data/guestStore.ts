@@ -14,7 +14,7 @@
 import { Profile } from "../api";
 import { MatchEvent } from "../engine/matchEngine";
 import { computeConfigHash } from "./configHash";
-import { assertNameFree, isSameName, makeNameUnique, validateName } from "./profileNames";
+import { assertNameFree, findNameConflict, isSameName, ProfileNameError, validateName } from "./profileNames";
 import type { MatchStatus, StoredMatch } from "./matches";
 
 const MODE_KEY = "darts-guest-mode";
@@ -146,25 +146,48 @@ export function guestArchiveProfile(profileId: string): void {
 // sonst haette jedes erneute Betreten des Gast-Modus dieselben Spieler
 // ein weiteres Mal angelegt.
 export function createGuestPlayers(names: string[]): Profile[] {
-  const cleaned = names.map((n) => n.trim());
-  const used = cleaned.map((name, i) => (name.length > 0 ? name : `Player ${i + 1}`));
-  rememberGuestNames(cleaned);
+  const typed = names.map((n) => n.trim());
+  rememberGuestNames(typed);
 
-  // Ein vorhandener Name wird wiederverwendet statt doppelt angelegt.
-  // Tippt jemand denselben Namen zweimal ins Formular, bekommt der
-  // zweite Eintrag einen Zusatz - sonst waeren zwei Spieler im selben
-  // Spiel nicht auseinanderzuhalten.
-  const result: Profile[] = [];
-  for (const name of used) {
-    const pool = guestListProfiles(true, true);
-    const match = pool.find((p) => p.name.toLocaleLowerCase() === name.toLocaleLowerCase());
-    if (match && !result.some((r) => r.id === match.id)) {
-      result.push(match);
+  // Leere Felder bekommen "Player N". N ist die erste Zahl, die in
+  // DIESER Eingabe noch nicht vorkommt - sonst wuerde ein automatisch
+  // vergebener Name mit einem getippten kollidieren und der Nutzer
+  // bekaeme einen Fehler fuer etwas, das er gar nicht eingegeben hat.
+  const resolved: string[] = [];
+  for (let i = 0; i < typed.length; i++) {
+    if (typed[i].length > 0) {
+      resolved.push(typed[i]);
       continue;
     }
-    result.push(guestCreateProfile({ name: makeNameUnique(name, pool) }));
+    let n = i + 1;
+    const taken = (candidate: string) =>
+      resolved.some((r) => isSameName(r, candidate)) || typed.some((t) => t.length > 0 && isSameName(t, candidate));
+    while (taken(`Player ${n}`)) n++;
+    resolved.push(`Player ${n}`);
   }
-  return result;
+
+  // Getippte Namen werden NICHT still entschaerft: doppelte Eingaben
+  // ergeben dieselbe Fehlermeldung wie im Profil-Dialog. Automatisch
+  // umbenannt wird nur dort, wo niemand gefragt werden kann - bei der
+  // Uebernahme von Gast-Daten in ein Konto (data/guestTakeover.ts).
+  const checked: { id: string; name: string }[] = [];
+  resolved.forEach((name, index) => {
+    const valid = validateName(name);
+    const clash = findNameConflict(valid, checked);
+    if (clash) {
+      throw new ProfileNameError(`You entered “${clash.name}” twice. Every player needs a different name.`);
+    }
+    checked.push({ id: String(index), name: valid });
+  });
+
+  // Ein Name, den es im Gast-Speicher schon gibt, wird wiederverwendet
+  // statt doppelt angelegt - genau dafuer sind die zuletzt genutzten
+  // Namen vorausgefuellt.
+  return checked.map(({ name }) => {
+    const pool = guestListProfiles(true, true);
+    const match = pool.find((p) => isSameName(p.name, name));
+    return match ?? guestCreateProfile({ name });
+  });
 }
 
 // ---------------------------------------------------------------- Matches

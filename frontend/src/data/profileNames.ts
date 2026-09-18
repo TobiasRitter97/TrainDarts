@@ -82,10 +82,14 @@ export function assertNameFree(
   if (clash) throw new ProfileNameError(`There is already a profile called “${clash.name}”. Pick another name.`);
 }
 
-// Haengt " (2)", " (3)" usw. an, bis der Name frei ist. Wird bei der
-// Uebernahme von Gast-Profilen gebraucht: der eingehende Name darf
-// nicht einfach verworfen werden, weil Spiele ueber die Profil-ID
-// darauf verweisen.
+// Haengt " (2)", " (3)" usw. an, bis der Name frei ist.
+//
+// NUR fuer die Uebernahme von Gast-Daten in ein Konto
+// (data/guestTakeover.ts) - also genau dort, wo niemand gefragt werden
+// kann und der eingehende Name trotzdem nicht verworfen werden darf,
+// weil Spiele ueber die Profil-ID darauf verweisen. Ueberall sonst,
+// wo jemand am Bildschirm sitzt, wird ein belegter Name gemeldet
+// statt still entschaerft.
 export function makeNameUnique(name: string, existing: Pick<Profile, "id" | "name">[]): string {
   const base = displayName(name);
   if (!findNameConflict(base, existing)) return base;

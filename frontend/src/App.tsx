@@ -19,7 +19,7 @@ import * as matchesDb from "./data/matches";
 import * as profilesDb from "./data/profiles";
 import { recordGamePlayed } from "./data/localPrefs";
 import { ResumeInfo } from "./engine/useLocalMatch";
-import { authReady, firebaseConfigError, observeAuth, signedInUser } from "./data/firebase";
+import { authReady, firebaseConfigError, logout, observeAuth, signedInUser, unverifiedUser } from "./data/firebase";
 import { guestDataSummary, isGuest, leaveGuestMode } from "./data/guestStore";
 import { STATIC_GAMES } from "./staticGames";
 import "./App.css";
@@ -81,7 +81,7 @@ function markTakeoverAsked(uid: string): void {
 }
 
 export default function App() {
-  const [authState, setAuthState] = useState<"checking" | "out" | "guest" | "in">("checking");
+  const [authState, setAuthState] = useState<"checking" | "out" | "guest" | "unverified" | "in">("checking");
   // Nach dem Anmelden noch offene Zwischenschritte.
   const [takeover, setTakeover] = useState<{ profiles: number; matches: number } | null>(null);
   // Das Profil-Gate haengt an der TATSAECHLICHEN Datenlage, nicht an
@@ -90,13 +90,23 @@ export default function App() {
   // trifft das nur frisch registrierte Konten - wer schon ein Profil
   // hat, landet ohne Zwischenschritt in der App.
   const [needsFirstProfile, setNeedsFirstProfile] = useState(false);
-  // Konto angelegt bzw. angemeldet, aber E-Mail noch nicht bestaetigt.
-  const [pendingVerification, setPendingVerification] = useState<{ email: string; password: string } | null>(null);
+  // Nur fuer den einen Fall, in dem es KEINE Sitzung gibt und der
+  // Warte-Bildschirm trotzdem erscheinen muss: die Adresse war beim
+  // Registrieren schon vergeben. Bewusst nur die Adresse - ein
+  // Passwort wird hier nirgends aufbewahrt.
+  const [pendingEmail, setPendingEmail] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
     function sync() {
       if (cancelled) return;
+      // Unbestaetigte Sitzung (auch eine gespeicherte, nach dem
+      // Rueckweg aus der Bestaetigungsmail): direkt auf den
+      // Warte-Bildschirm, nicht auf das Login-Formular.
+      if (unverifiedUser()) {
+        setAuthState("unverified");
+        return;
+      }
       const user = signedInUser();
       if (user) {
         if (isGuest()) leaveGuestMode();
@@ -108,7 +118,7 @@ export default function App() {
         if ((summary.profiles > 0 || summary.matches > 0) && !takeoverAsked(user.uid)) {
           setTakeover(summary);
         }
-        setPendingVerification(null);
+        setPendingEmail(null);
         setAuthState("in");
         profilesDb
           .listProfiles()
@@ -151,20 +161,28 @@ export default function App() {
     );
   }
   if (authState === "checking") return <div className="app-boot">One moment…</div>;
+  // Warte-Bildschirm: entweder aus einer bestehenden unbestaetigten
+  // Sitzung, oder - ohne Sitzung - weil die Adresse beim Registrieren
+  // schon vergeben war. Beide Faelle sehen identisch aus.
+  const pending = unverifiedUser();
+  if (authState === "unverified" || pendingEmail) {
+    return (
+      <VerifyEmailScreen
+        email={pending?.email ?? pendingEmail ?? ""}
+        onBackToLogin={() => {
+          setPendingEmail(null);
+          void logout();
+          setAuthState("out");
+        }}
+      />
+    );
+  }
+
   if (authState === "out") {
-    if (pendingVerification) {
-      return (
-        <VerifyEmailScreen
-          email={pendingVerification.email}
-          password={pendingVerification.password}
-          onBackToLogin={() => setPendingVerification(null)}
-        />
-      );
-    }
     return (
       <AuthScreen
         onGuestStart={() => setAuthState("guest")}
-        onNeedsVerification={(email, password) => setPendingVerification({ email, password })}
+        onNeedsVerification={(email) => setPendingEmail(email)}
       />
     );
   }

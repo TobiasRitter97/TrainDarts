@@ -16,7 +16,7 @@ const LEGACY_ACK_KEY = "darts-legacy-session-acknowledged";
 
 type Mode = "login" | "register" | "guest";
 
-type Props = { onGuestStart: () => void; onNeedsVerification: (email: string, password: string) => void };
+type Props = { onGuestStart: () => void; onNeedsVerification: (email: string) => void };
 
 // Anmeldung per E-Mail und Passwort, alternativ ein rein lokaler
 // Gast-Modus ohne Konto (Tobias-Anforderung 17.09.2026).
@@ -72,8 +72,8 @@ export function AuthScreen({ onGuestStart, onNeedsVerification }: Props) {
     setError(null);
     setBusy(true);
     // Das Passwort wird nach dem Absenden aus dem Formularzustand
-    // entfernt - es liegt danach nur noch dort, wo es wirklich
-    // gebraucht wird (Warte-Bildschirm, fuer "erneut senden").
+    // entfernt und nirgendwohin weitergereicht: der Warte-Bildschirm
+    // arbeitet auf der bestehenden Sitzung, nicht auf Zugangsdaten.
     const submitted = password;
     setPassword("");
     try {
@@ -81,12 +81,17 @@ export function AuthScreen({ onGuestStart, onNeedsVerification }: Props) {
         // Auch eine bereits vergebene Adresse fuehrt hierher, ohne dass
         // etwas angelegt wurde - der Bildschirm sieht identisch aus.
         await registerWithEmail(email, submitted);
-        onNeedsVerification(email.trim(), submitted);
+        // Bei Erfolg besteht jetzt eine unbestaetigte Sitzung und der
+        // Auth-Beobachter in App.tsx uebernimmt. War die Adresse schon
+        // vergeben, gibt es keine Sitzung - dann sorgt dieser Aufruf
+        // dafuer, dass trotzdem derselbe Bildschirm erscheint.
+        onNeedsVerification(email.trim());
         return;
       }
       const result = await loginWithEmail(email, submitted);
       if (result.status === "unverified") {
-        onNeedsVerification(result.email, submitted);
+        // Sitzung bleibt bestehen, App.tsx leitet auf den
+        // Warte-Bildschirm - hier ist nichts weiter zu tun.
         return;
       }
       // Ab hier uebernimmt der Auth-Beobachter in App.tsx.

@@ -7,18 +7,20 @@ const COOLDOWN_SECONDS = 60;
 
 type Props = {
   email: string;
-  // Wird nur fuer "erneut senden" und "ich habe bestaetigt" gebraucht:
-  // beides verlangt eine kurzzeitige Anmeldung. Liegt ausschliesslich
-  // im Arbeitsspeicher dieser Komponente - nichts davon wird
-  // gespeichert, geloggt oder verschickt.
-  password: string;
+  // Meldet ab und fuehrt zurueck zum Login. Der einzige Ort, an dem
+  // die unbestaetigte Sitzung beendet wird.
   onBackToLogin: () => void;
 };
 
 // Wartebildschirm nach der Registrierung bzw. nach dem Anmeldeversuch
 // mit unbestaetigter Adresse (Sicherheits-Update 18.09.2026). Die App
 // selbst ist von hier aus nicht erreichbar.
-export function VerifyEmailScreen({ email, password, onBackToLogin }: Props) {
+//
+// Die Firebase-Sitzung bleibt hier bewusst bestehen: "erneut senden"
+// und "ich habe bestaetigt" arbeiten damit auf auth.currentUser,
+// weshalb hier KEIN Passwort durchgereicht wird. Die Sitzung ist
+// wertlos, solange die Adresse unbestaetigt ist.
+export function VerifyEmailScreen({ email, onBackToLogin }: Props) {
   const [cooldown, setCooldown] = useState(COOLDOWN_SECONDS);
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
@@ -36,7 +38,7 @@ export function VerifyEmailScreen({ email, password, onBackToLogin }: Props) {
     setError(null);
     setNotice(null);
     try {
-      await resendVerification(email, password);
+      await resendVerification();
       setNotice("Sent. Check your inbox — and your spam folder.");
       setCooldown(COOLDOWN_SECONDS);
     } catch (err) {
@@ -52,7 +54,7 @@ export function VerifyEmailScreen({ email, password, onBackToLogin }: Props) {
     setError(null);
     setNotice(null);
     try {
-      const verified = await refreshVerification(email, password);
+      const verified = await refreshVerification();
       // Bei Erfolg uebernimmt der Auth-Beobachter in App.tsx.
       if (!verified) {
         setError("Not confirmed yet. Open the link in the email, then try again.");

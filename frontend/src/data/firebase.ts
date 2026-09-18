@@ -124,13 +124,28 @@ export function legacyAnonymousUser(): User | null {
   return currentUser?.isAnonymous ? currentUser : null;
 }
 
+// Angemeldet, aber E-Mail-Adresse noch nicht bestaetigt. Genau dieser
+// Zustand fuehrt auf den Warte-Bildschirm - die Sitzung bleibt dabei
+// bewusst bestehen (siehe Kopf dieser Datei), damit "erneut senden"
+// und "ich habe bestaetigt" ein User-Objekt haben und kein Passwort
+// irgendwo aufbewahrt werden muss.
+export function unverifiedUser(): User | null {
+  if (!currentUser || currentUser.isAnonymous) return null;
+  return currentUser.emailVerified ? null : currentUser;
+}
+
 // Muss vor jedem Firestore-Zugriff abgewartet werden. Meldet sich
-// NICHT mehr von selbst an - die Screens liegen hinter dem Login.
+// NICHT von selbst an - die Screens liegen hinter dem Login.
+//
+// Die Pruefung laeuft in BEIDEN Zweigen ueber signedInUser(): der
+// Fallback hatte die Bestaetigung der Adresse vorher nicht geprueft
+// und haette eine unbestaetigte Sitzung durchgelassen.
 export function ensureSignedIn(): Promise<User> {
   const user = signedInUser();
   if (user) return Promise.resolve(user);
-  return authReady().then((resolved) => {
-    if (resolved && !resolved.isAnonymous) return resolved;
+  return authReady().then(() => {
+    const resolved = signedInUser();
+    if (resolved) return resolved;
     throw new Error("Not signed in.");
   });
 }
@@ -177,12 +192,17 @@ export function authErrorText(error: unknown, context: "login" | "register" = "l
 
 export type RegisterOutcome = "verification_sent";
 
-// Legt ein Konto an, verschickt die Bestaetigungsmail und meldet SOFORT
-// wieder ab - ein unbestaetigtes Konto darf nie in der App landen.
+// Legt ein Konto an und verschickt die Bestaetigungsmail. Die Sitzung
+// bleibt danach BESTEHEN - sie ist wertlos, solange die Adresse
+// unbestaetigt ist: signedInUser() liefert null, die App zeigt nur den
+// Warte-Bildschirm, und die Firestore-Regeln verlangen
+// email_verified. Dadurch braucht der Warte-Bildschirm kein Passwort
+// mehr, um erneut senden oder nachpruefen zu koennen.
 //
-// Ist die Adresse bereits vergeben, wird NICHTS angelegt und trotzdem
-// dasselbe Ergebnis gemeldet wie bei Erfolg. Sonst waere die
-// Registrierung ein Werkzeug, um vorhandene Adressen abzufragen.
+// Ist die Adresse bereits vergeben, wird NICHTS angelegt, es entsteht
+// keine Sitzung - und trotzdem wird dasselbe Ergebnis gemeldet wie bei
+// Erfolg. Sonst waere die Registrierung ein Werkzeug, um vorhandene
+// Adressen abzufragen.
 export async function registerWithEmail(email: string, password: string): Promise<RegisterOutcome> {
   if (auth.currentUser) await signOut(auth);
   try {
@@ -195,51 +215,44 @@ export async function registerWithEmail(email: string, password: string): Promis
       throw err;
     }
   }
-  if (auth.currentUser) await signOut(auth);
   return "verification_sent";
 }
 
 // ---------------------------------------------------------------- Anmeldung
 
-export type LoginOutcome = { status: "ok" } | { status: "unverified"; email: string };
+export type LoginOutcome = { status: "ok" } | { status: "unverified" };
 
 // Meldet an und prueft SOFORT, ob die Adresse bestaetigt ist. Ist sie
-// es nicht, wird direkt wieder abgemeldet - zwischen Anmeldung und
-// Pruefung wird kein App-Inhalt gerendert.
+// es nicht, bleibt die Sitzung bestehen und der Aufrufer leitet auf den
+// Warte-Bildschirm. App-Inhalt kann dabei nicht erscheinen, weil
+// signedInUser() eine unbestaetigte Sitzung als "nicht angemeldet"
+// behandelt.
 export async function loginWithEmail(email: string, password: string): Promise<LoginOutcome> {
   if (auth.currentUser) await signOut(auth);
   const credential = await signInWithEmailAndPassword(auth, email.trim(), password);
-  if (!credential.user.emailVerified) {
-    const address = credential.user.email ?? email.trim();
-    await signOut(auth);
-    return { status: "unverified", email: address };
-  }
-  return { status: "ok" };
+  return credential.user.emailVerified ? { status: "ok" } : { status: "unverified" };
 }
 
-// Verschickt die Bestaetigungsmail erneut. Dafuer wird kurz angemeldet
-// und danach sofort wieder abgemeldet.
-export async function resendVerification(email: string, password: string): Promise<void> {
-  const credential = await signInWithEmailAndPassword(auth, email.trim(), password);
-  try {
-    await sendEmailVerification(credential.user, actionCodeSettings());
-  } finally {
-    await signOut(auth);
-  }
+// Verschickt die Bestaetigungsmail erneut - fuer die laufende,
+// unbestaetigte Sitzung. Ohne Sitzung (das passiert nur, wenn die
+// Adresse bereits vergeben war) passiert bewusst nichts: der
+// Bildschirm muss in beiden Faellen gleich aussehen.
+export async function resendVerification(): Promise<void> {
+  const user = auth.currentUser;
+  if (!user || user.emailVerified) return;
+  await sendEmailVerification(user, actionCodeSettings());
 }
 
 // "Ich habe bestaetigt": emailVerified steckt im ID-Token und wird bis
-// zu einer Stunde zwischengespeichert. Ohne reload() + erzwungenen
+// zu einer Stunde zwischengespeichert. Ohne reload() und erzwungenen
 // Token-Neubezug bliebe der Nutzer nach dem Klick in der Mail
-// ausgesperrt. Stimmt es, bleibt die Sitzung bestehen und die App
-// laesst ihn hinein; sonst wird wieder abgemeldet.
-export async function refreshVerification(email: string, password: string): Promise<boolean> {
-  const credential = await signInWithEmailAndPassword(auth, email.trim(), password);
-  await credential.user.reload();
-  await credential.user.getIdToken(true);
-  if (auth.currentUser?.emailVerified) return true;
-  await signOut(auth);
-  return false;
+// ausgesperrt.
+export async function refreshVerification(): Promise<boolean> {
+  const user = auth.currentUser;
+  if (!user) return false;
+  await user.reload();
+  await user.getIdToken(true);
+  return Boolean(auth.currentUser?.emailVerified);
 }
 
 export async function logout(): Promise<void> {

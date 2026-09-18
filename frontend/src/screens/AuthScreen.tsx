@@ -16,11 +16,11 @@ const LEGACY_ACK_KEY = "darts-legacy-session-acknowledged";
 
 type Mode = "login" | "register" | "guest";
 
-type Props = { onGuestStart: () => void };
+type Props = { onGuestStart: () => void; onNeedsVerification: (email: string, password: string) => void };
 
 // Anmeldung per E-Mail und Passwort, alternativ ein rein lokaler
 // Gast-Modus ohne Konto (Tobias-Anforderung 17.09.2026).
-export function AuthScreen({ onGuestStart }: Props) {
+export function AuthScreen({ onGuestStart, onNeedsVerification }: Props) {
   const [mode, setMode] = useState<Mode>("register");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -71,15 +71,27 @@ export function AuthScreen({ onGuestStart }: Props) {
     if (busy) return;
     setError(null);
     setBusy(true);
+    // Das Passwort wird nach dem Absenden aus dem Formularzustand
+    // entfernt - es liegt danach nur noch dort, wo es wirklich
+    // gebraucht wird (Warte-Bildschirm, fuer "erneut senden").
+    const submitted = password;
+    setPassword("");
     try {
       if (mode === "register") {
-        await registerWithEmail(email, password);
-      } else {
-        await loginWithEmail(email, password);
+        // Auch eine bereits vergebene Adresse fuehrt hierher, ohne dass
+        // etwas angelegt wurde - der Bildschirm sieht identisch aus.
+        await registerWithEmail(email, submitted);
+        onNeedsVerification(email.trim(), submitted);
+        return;
+      }
+      const result = await loginWithEmail(email, submitted);
+      if (result.status === "unverified") {
+        onNeedsVerification(result.email, submitted);
+        return;
       }
       // Ab hier uebernimmt der Auth-Beobachter in App.tsx.
     } catch (err) {
-      setError(authErrorText(err));
+      setError(authErrorText(err, mode === "register" ? "register" : "login"));
     } finally {
       setBusy(false);
     }

@@ -1,0 +1,28 @@
+// Firestore-Sicherheitsregeln fuer TrainDarts.
+//
+// Bis zum 18.09.2026 lagen diese Regeln nur als Textblock in
+// docs/DEPLOY.md. Sie stehen ab jetzt hier als eigene Datei im Repo,
+// damit Aenderungen nachvollziehbar sind.
+//
+// ACHTUNG: Diese Datei wird NICHT automatisch ausgerollt. Sie muss
+// bewusst in der Firebase Console (Firestore Database -> Rules)
+// eingefuegt und veroeffentlicht werden.
+//
+// Aenderung 18.09.2026 (Sicherheits-Update): zusaetzlich zur Anmeldung
+// wird jetzt eine BESTAETIGTE E-Mail-Adresse verlangt
+// (request.auth.token.email_verified == true). Damit haengt die
+// Absicherung nicht mehr allein am Client: selbst wenn jemand die
+// Pruefung im Frontend umgeht, laesst die Datenbank ein unbestaetigtes
+// Konto weder lesen noch schreiben.
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Jeder Nutzer sieht und schreibt ausschliesslich seinen eigenen
+    // Bereich - und nur mit bestaetigter E-Mail-Adresse.
+    match /users/{uid}/{document=**} {
+      allow read, write: if request.auth != null
+                         && request.auth.uid == uid
+                         && request.auth.token.email_verified == true;
+    }
+  }
+}

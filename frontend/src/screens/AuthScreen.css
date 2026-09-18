@@ -274,3 +274,42 @@
   outline: 2px solid var(--c-brand);
   outline-offset: 2px;
 }
+
+/* ---------- Bestaetigung der E-Mail-Adresse ---------- */
+
+.auth-mail {
+  word-break: break-all;
+}
+
+.auth-notice {
+  margin: 0;
+  padding: var(--sp-3);
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--c-success) 20%, var(--c-bg));
+  border: 1px solid var(--c-success-strong);
+  color: var(--c-text);
+  font-size: var(--fs-sm);
+  line-height: 1.45;
+}
+
+.auth-link {
+  background: none;
+  border: none;
+  padding: var(--sp-2);
+  color: var(--c-text-muted);
+  font-family: inherit;
+  font-size: var(--fs-sm);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+
+.auth-link:hover {
+  color: var(--c-brand);
+}
+
+.auth-link:focus-visible {
+  outline: 2px solid var(--c-brand);
+  outline-offset: 2px;
+  border-radius: var(--radius-sm);
+}

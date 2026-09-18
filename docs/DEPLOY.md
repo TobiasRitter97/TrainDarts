@@ -55,14 +55,15 @@ Firebase-Web-API-Keys sind kein Geheimnis) in
 Zugriff auf den eigenen `users/{uid}`-Pfad:
 
 ```
-rules_version = '2';
-service cloud.firestore {
-  match /databases/{database}/documents {
-    match /users/{uid}/{document=**} {
-      allow read, write: if request.auth != null && request.auth.uid == uid;
-    }
-  }
-}
+Die Firestore-Regeln stehen seit dem 18.09.2026 als eigene Datei im
+Repo: `firestore.rules`. Sie werden NICHT automatisch ausgerollt -
+Inhalt kopieren und in der Firebase Console unter
+"Firestore Database -> Rules" veroeffentlichen.
+
+WICHTIG zur Reihenfolge: die Regeln verlangen seit dem
+Sicherheits-Update eine BESTAETIGTE E-Mail-Adresse. Erst das Frontend
+ausrollen und das eigene Konto ueber den Link in der Mail bestaetigen,
+DANN die Regeln veroeffentlichen - sonst sperrt man sich selbst aus.
 ```
 
 Zusaetzlich Realtime Database (Region `europe-west1`, explizite

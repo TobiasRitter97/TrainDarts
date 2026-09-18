@@ -7,6 +7,7 @@ import { LocalGameScreen } from "./screens/LocalGameScreen";
 import { AuthScreen } from "./screens/AuthScreen";
 import { FirstProfileScreen } from "./screens/FirstProfileScreen";
 import { GuestTakeoverScreen } from "./screens/GuestTakeoverScreen";
+import { VerifyEmailScreen } from "./screens/VerifyEmailScreen";
 import { ProfileScreen } from "./screens/ProfileScreen";
 import { StatsScreen } from "./screens/StatsScreen";
 import { PiSettingsModal } from "./screens/PiSettingsModal";
@@ -58,18 +59,6 @@ function useShouldSuggestPiSettings(): boolean {
 // WICHTIG: geprueft wird nur die LOKALE Sitzung, es wird nichts online
 // nachgefragt. Ein Internetausfall meldet also niemand ab - am Board
 // kann weitergespielt werden (Tobias-Vorgabe 17.09.2026).
-// Konten, fuer die der einmalige "Profil anlegen"-Schritt schon
-// erledigt bzw. uebersprungen wurde.
-const FIRST_PROFILE_KEY = "darts-first-profile-done";
-
-function firstProfileDone(uid: string): boolean {
-  try {
-    return (JSON.parse(localStorage.getItem(FIRST_PROFILE_KEY) ?? "[]") as string[]).includes(uid);
-  } catch {
-    return true; // im Zweifel nicht nerven
-  }
-}
-
 // Konten, denen die Uebernahmefrage schon gestellt wurde - egal wie
 // sie beantwortet wurde. Sie soll nicht bei jedem Login wiederkommen.
 const TAKEOVER_ASKED_KEY = "darts-guest-takeover-asked";
@@ -91,20 +80,18 @@ function markTakeoverAsked(uid: string): void {
   }
 }
 
-function markFirstProfileDone(uid: string): void {
-  try {
-    const list = JSON.parse(localStorage.getItem(FIRST_PROFILE_KEY) ?? "[]") as string[];
-    if (!list.includes(uid)) localStorage.setItem(FIRST_PROFILE_KEY, JSON.stringify([...list, uid]));
-  } catch {
-    // Privates Fenster - dann kommt der Schritt eben noch einmal.
-  }
-}
-
 export default function App() {
   const [authState, setAuthState] = useState<"checking" | "out" | "guest" | "in">("checking");
   // Nach dem Anmelden noch offene Zwischenschritte.
   const [takeover, setTakeover] = useState<{ profiles: number; matches: number } | null>(null);
+  // Das Profil-Gate haengt an der TATSAECHLICHEN Datenlage, nicht an
+  // einem Merker: hat das Konto noch kein Profil in Firestore, ist der
+  // Weg in die Spiele gesperrt, bis eines existiert. In der Praxis
+  // trifft das nur frisch registrierte Konten - wer schon ein Profil
+  // hat, landet ohne Zwischenschritt in der App.
   const [needsFirstProfile, setNeedsFirstProfile] = useState(false);
+  // Konto angelegt bzw. angemeldet, aber E-Mail noch nicht bestaetigt.
+  const [pendingVerification, setPendingVerification] = useState<{ email: string; password: string } | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -121,8 +108,18 @@ export default function App() {
         if ((summary.profiles > 0 || summary.matches > 0) && !takeoverAsked(user.uid)) {
           setTakeover(summary);
         }
-        setNeedsFirstProfile(!firstProfileDone(user.uid));
+        setPendingVerification(null);
         setAuthState("in");
+        profilesDb
+          .listProfiles()
+          .then((list) => {
+            if (!cancelled) setNeedsFirstProfile(list.length === 0);
+          })
+          .catch(() => {
+            // Offline: nicht aussperren, der Gate greift beim naechsten
+            // erfolgreichen Lesen.
+            if (!cancelled) setNeedsFirstProfile(false);
+          });
         return;
       }
       setAuthState(isGuest() ? "guest" : "out");
@@ -154,7 +151,23 @@ export default function App() {
     );
   }
   if (authState === "checking") return <div className="app-boot">One moment…</div>;
-  if (authState === "out") return <AuthScreen onGuestStart={() => setAuthState("guest")} />;
+  if (authState === "out") {
+    if (pendingVerification) {
+      return (
+        <VerifyEmailScreen
+          email={pendingVerification.email}
+          password={pendingVerification.password}
+          onBackToLogin={() => setPendingVerification(null)}
+        />
+      );
+    }
+    return (
+      <AuthScreen
+        onGuestStart={() => setAuthState("guest")}
+        onNeedsVerification={(email, password) => setPendingVerification({ email, password })}
+      />
+    );
+  }
 
   if (authState === "in") {
     if (takeover) {
@@ -170,16 +183,7 @@ export default function App() {
       );
     }
     if (needsFirstProfile) {
-      const user = signedInUser();
-      return (
-        <FirstProfileScreen
-          email={user?.email ?? ""}
-          onDone={() => {
-            if (user) markFirstProfileDone(user.uid);
-            setNeedsFirstProfile(false);
-          }}
-        />
-      );
+      return <FirstProfileScreen email={signedInUser()?.email ?? ""} onDone={() => setNeedsFirstProfile(false)} />;
     }
   }
 

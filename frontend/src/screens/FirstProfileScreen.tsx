@@ -6,9 +6,13 @@ import "./AuthScreen.css";
 type Props = { email: string; onDone: () => void };
 
 // Direkt nach der Registrierung: gleich ein Spielerprofil anlegen,
-// statt erst in die Profilverwaltung zu muessen (Tobias-Anforderung
-// 17.09.2026). Ueberspringbar, und er erscheint nur beim ERSTEN Start
-// eines Kontos - App.tsx merkt sich das pro Konto.
+// statt erst in die Profilverwaltung zu muessen.
+//
+// Sicherheits-/Onboarding-Update 18.09.2026: der Schritt ist nicht mehr
+// ueberspringbar, sondern sperrt den Weg in die Spiele, solange das
+// Konto kein Profil hat. Ob er erscheint, entscheidet App.tsx anhand
+// der tatsaechlichen Datenlage in Firestore - nicht anhand eines
+// Merkers. Wer schon ein Profil hat, sieht ihn nie.
 export function FirstProfileScreen({ email, onDone }: Props) {
   // Vorbelegung aus der E-Mail (Teil vor dem @), aber frei aenderbar.
   const [name, setName] = useState(() => {
@@ -25,7 +29,7 @@ export function FirstProfileScreen({ email, onDone }: Props) {
     if (busy) return;
     const trimmed = name.trim();
     if (!trimmed) {
-      setError("Please enter a name — or choose “Later”.");
+      setError("Please enter a name to continue.");
       return;
     }
     setBusy(true);
@@ -53,8 +57,8 @@ export function FirstProfileScreen({ email, onDone }: Props) {
 
         <h1 className="auth-title">Create player profile</h1>
         <p className="auth-lede">
-          This is the name you play under. It shows up in the game screen and in your statistics — you can add more
-          players at any time.
+          One more step before you start: this is the name you play under. It shows up in the game screen and in your
+          statistics — you can add more players at any time.
         </p>
 
         <form className="auth-form" onSubmit={handleSubmit}>
@@ -78,9 +82,6 @@ export function FirstProfileScreen({ email, onDone }: Props) {
 
           <button type="submit" className="btn-primary auth-submit" disabled={busy}>
             {busy ? "One moment…" : "Create profile and start"}
-          </button>
-          <button type="button" className="btn-secondary auth-submit" onClick={onDone} disabled={busy}>
-            Later
           </button>
         </form>
       </div>

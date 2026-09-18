@@ -13,9 +13,11 @@
 // werden, auch wenn Firestore gerade nicht erreichbar ist.
 import { initializeApp } from "firebase/app";
 import {
+  type ActionCodeSettings,
   createUserWithEmailAndPassword,
   getAuth,
   onAuthStateChanged,
+  sendEmailVerification,
   signInWithEmailAndPassword,
   signOut,
   type User,
@@ -56,6 +58,21 @@ const app = initializeApp(firebaseConfig);
 export const db = getFirestore(app);
 export const auth = getAuth(app);
 
+// Muss VOR dem ersten Mailversand gesetzt sein: Firebase verschickt die
+// Bestaetigungsmail dann auf Deutsch. Betrifft nur die von Firebase
+// gehostete Mail, nicht die (englische) Oberflaeche.
+auth.languageCode = "de";
+
+// Wohin die Bestaetigungsmail zurueckfuehrt - die eigene Login-Route.
+// handleCodeInApp bleibt false: die Bestaetigung selbst erledigt die von
+// Firebase gehostete Seite, wir bekommen den Nutzer nur zurueck.
+function actionCodeSettings(): ActionCodeSettings {
+  return {
+    url: import.meta.env.VITE_AUTH_ACTION_URL || window.location.origin,
+    handleCodeInApp: false,
+  };
+}
+
 // Realtime Database (Phase F, Online-Multiplayer): fuer den EPHEMEREN
 // Raum-Zustand waehrend einer laufenden Online-Partie besser geeignet
 // als Firestore. Dauerhafte Daten (Profile/Statistiken) bleiben in
@@ -90,12 +107,14 @@ export function observeAuth(listener: (user: User | null) => void): () => void {
   return onAuthStateChanged(auth, listener);
 }
 
-// Ein angemeldeter Nutzer im Sinne der App. Eine wiederhergestellte
-// ANONYME Sitzung aus der Zeit vor dem Login zaehlt bewusst nicht -
-// sie wird nur noch fuer den einmaligen Hinweis beim ersten Start
-// ausgewertet (siehe legacyAnonymousUser()).
+// Ein angemeldeter Nutzer im Sinne der App. Drei Faelle zaehlen
+// bewusst NICHT: kein Nutzer, eine wiederhergestellte ANONYME Sitzung
+// aus der Zeit vor dem Login, und - seit dem Sicherheits-Update
+// 18.09.2026 - ein Konto mit unbestaetigter E-Mail-Adresse. Dadurch
+// kann zwischen Anmeldung und Pruefung nie App-Inhalt erscheinen.
 export function signedInUser(): User | null {
-  return currentUser && !currentUser.isAnonymous ? currentUser : null;
+  if (!currentUser || currentUser.isAnonymous) return null;
+  return currentUser.emailVerified ? currentUser : null;
 }
 
 // Die alte anonyme Sitzung, falls der Browser sie noch hat. Ihre Daten
@@ -125,43 +144,102 @@ export function currentUid(): string {
 // ---------------------------------------------------------------- An-/Abmelden
 
 // Firebase liefert technische Codes wie "auth/invalid-credential".
-// Angezeigt werden lesbare Saetze, keine Fehlercodes. Die Oberflaeche
-// der Plattform ist durchgehend englisch (Tobias-Vorgabe), deshalb
-// auch diese Texte.
-const AUTH_ERRORS: Record<string, string> = {
-  "auth/invalid-email": "That does not look like a valid email address.",
-  "auth/missing-email": "Please enter your email address.",
-  "auth/missing-password": "Please enter a password.",
-  "auth/email-already-in-use": "There is already an account for this email address. Sign in instead.",
-  "auth/weak-password": "That password is too short — it needs at least 6 characters.",
-  "auth/invalid-credential": "Email address or password is not correct.",
-  "auth/wrong-password": "Email address or password is not correct.",
-  "auth/user-not-found": "There is no account for this email address.",
-  "auth/user-disabled": "This account has been disabled.",
+// Sicherheits-Update 18.09.2026: beim ANMELDEN bekommen alle
+// zugangsbezogenen Fehler denselben Text. Ein Angreifer soll nicht
+// unterscheiden koennen, ob eine Adresse existiert - genau das
+// verraeten getrennte Meldungen wie "kein Konto zu dieser Adresse".
+//
+// Eigene Texte gibt es nur, wo nichts ueber ein Konto verraten wird:
+// Zu-viele-Versuche und Netzwerkfehler (so vorgegeben), beim
+// REGISTRIEREN zusaetzlich ein zu kurzes Passwort - sonst koennte
+// niemand ein Konto anlegen, ohne den Grund zu erfahren.
+const NEUTRAL_CREDENTIAL_ERROR = "Email or password is incorrect.";
+
+const SHARED_ERRORS: Record<string, string> = {
   "auth/too-many-requests": "Too many attempts. Wait a moment, then try again.",
   "auth/network-request-failed": "No connection to the server. Check your internet connection.",
+};
+
+const REGISTER_ERRORS: Record<string, string> = {
+  ...SHARED_ERRORS,
+  "auth/weak-password": "That password is too short — it needs at least 6 characters.",
+  "auth/invalid-email": "That does not look like a valid email address.",
   "auth/operation-not-allowed": "Email sign-in is not enabled in the Firebase project.",
 };
 
-export function authErrorText(error: unknown): string {
+export function authErrorText(error: unknown, context: "login" | "register" = "login"): string {
   const code = typeof error === "object" && error !== null && "code" in error ? String((error as { code: unknown }).code) : "";
-  return AUTH_ERRORS[code] ?? "That did not work. Please try again.";
+  const table = context === "register" ? REGISTER_ERRORS : SHARED_ERRORS;
+  return table[code] ?? (context === "register" ? "That did not work. Please try again." : NEUTRAL_CREDENTIAL_ERROR);
 }
 
-// Bewusst OHNE linkWithCredential: eine noch vorhandene anonyme
-// Sitzung wird vorher beendet, damit ein frisches Konto mit eigener
-// UID entsteht (Tobias-Entscheidung 17.09.2026). Die alten Daten
-// bleiben unangetastet unter der alten UID liegen.
-export async function registerWithEmail(email: string, password: string): Promise<User> {
-  if (auth.currentUser?.isAnonymous) await signOut(auth);
-  const credential = await createUserWithEmailAndPassword(auth, email.trim(), password);
-  return credential.user;
+// ---------------------------------------------------------------- Registrierung
+
+export type RegisterOutcome = "verification_sent";
+
+// Legt ein Konto an, verschickt die Bestaetigungsmail und meldet SOFORT
+// wieder ab - ein unbestaetigtes Konto darf nie in der App landen.
+//
+// Ist die Adresse bereits vergeben, wird NICHTS angelegt und trotzdem
+// dasselbe Ergebnis gemeldet wie bei Erfolg. Sonst waere die
+// Registrierung ein Werkzeug, um vorhandene Adressen abzufragen.
+export async function registerWithEmail(email: string, password: string): Promise<RegisterOutcome> {
+  if (auth.currentUser) await signOut(auth);
+  try {
+    const credential = await createUserWithEmailAndPassword(auth, email.trim(), password);
+    await sendEmailVerification(credential.user, actionCodeSettings());
+  } catch (err) {
+    const code = typeof err === "object" && err !== null && "code" in err ? String((err as { code: unknown }).code) : "";
+    if (code !== "auth/email-already-in-use") {
+      if (auth.currentUser) await signOut(auth);
+      throw err;
+    }
+  }
+  if (auth.currentUser) await signOut(auth);
+  return "verification_sent";
 }
 
-export async function loginWithEmail(email: string, password: string): Promise<User> {
-  if (auth.currentUser?.isAnonymous) await signOut(auth);
+// ---------------------------------------------------------------- Anmeldung
+
+export type LoginOutcome = { status: "ok" } | { status: "unverified"; email: string };
+
+// Meldet an und prueft SOFORT, ob die Adresse bestaetigt ist. Ist sie
+// es nicht, wird direkt wieder abgemeldet - zwischen Anmeldung und
+// Pruefung wird kein App-Inhalt gerendert.
+export async function loginWithEmail(email: string, password: string): Promise<LoginOutcome> {
+  if (auth.currentUser) await signOut(auth);
   const credential = await signInWithEmailAndPassword(auth, email.trim(), password);
-  return credential.user;
+  if (!credential.user.emailVerified) {
+    const address = credential.user.email ?? email.trim();
+    await signOut(auth);
+    return { status: "unverified", email: address };
+  }
+  return { status: "ok" };
+}
+
+// Verschickt die Bestaetigungsmail erneut. Dafuer wird kurz angemeldet
+// und danach sofort wieder abgemeldet.
+export async function resendVerification(email: string, password: string): Promise<void> {
+  const credential = await signInWithEmailAndPassword(auth, email.trim(), password);
+  try {
+    await sendEmailVerification(credential.user, actionCodeSettings());
+  } finally {
+    await signOut(auth);
+  }
+}
+
+// "Ich habe bestaetigt": emailVerified steckt im ID-Token und wird bis
+// zu einer Stunde zwischengespeichert. Ohne reload() + erzwungenen
+// Token-Neubezug bliebe der Nutzer nach dem Klick in der Mail
+// ausgesperrt. Stimmt es, bleibt die Sitzung bestehen und die App
+// laesst ihn hinein; sonst wird wieder abgemeldet.
+export async function refreshVerification(email: string, password: string): Promise<boolean> {
+  const credential = await signInWithEmailAndPassword(auth, email.trim(), password);
+  await credential.user.reload();
+  await credential.user.getIdToken(true);
+  if (auth.currentUser?.emailVerified) return true;
+  await signOut(auth);
+  return false;
 }
 
 export async function logout(): Promise<void> {

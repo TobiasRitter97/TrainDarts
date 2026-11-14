@@ -24,6 +24,10 @@ type Callbacks = {
   onStatusChange?: (status: BoardStatus) => void;
   onThrow?: (label: string, raw: RawThrow) => void;
   onTakeout?: () => void;
+  // Nur fuer die Diagnose im Board Test: jede ankommende Nachricht
+  // ungefiltert und unveraendert (kann auch ein Blob/ArrayBuffer sein,
+  // falls ein Board-Manager binaere Frames schickt).
+  onRawMessage?: (data: unknown) => void;
 };
 
 const RECONNECT_DELAY_MS = 3000;
@@ -78,6 +82,21 @@ export class AutodartsAdapter {
       });
       if (!res.ok) return null;
       return await res.json();
+    } catch {
+      return null;
+    }
+  }
+
+  // GET /api/version - verifiziert am 14.11.2026 im Board-Manager-UI-
+  // Bundle (axios-Instanz mit baseURL ".../api", Aufruf get("/version"))
+  // und live am Pi (Antwort: Text "1.0.7"). Nur fuer die Diagnose.
+  async getVersion(): Promise<string | null> {
+    try {
+      const res = await fetch(`http://${this.boardHost}:${this.boardPort}/api/version`, {
+        signal: AbortSignal.timeout(3000),
+      });
+      if (!res.ok) return null;
+      return (await res.text()).trim();
     } catch {
       return null;
     }
@@ -142,7 +161,10 @@ export class AutodartsAdapter {
     this.ws = ws;
     this.seenThrows = 0;
     ws.onopen = () => this.setStatus("connected");
-    ws.onmessage = (event) => this.handleMessage(event.data);
+    ws.onmessage = (event) => {
+      this.callbacks.onRawMessage?.(event.data);
+      this.handleMessage(event.data);
+    };
     ws.onclose = () => {
       if (this.stopped) return;
       this.setStatus("disconnected");

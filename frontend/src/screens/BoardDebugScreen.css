@@ -61,3 +61,23 @@
   font-weight: var(--fw-strong);
   font-size: var(--fs-lg);
 }
+
+.board-debug-raw {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  margin-top: var(--sp-4);
+}
+
+.board-debug-pre {
+  margin: 0;
+  padding: var(--sp-2) var(--sp-3);
+  background: var(--c-surface-raised);
+  border-radius: var(--radius-md);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: var(--fs-sm);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  max-height: 240px;
+  overflow-y: auto;
+}

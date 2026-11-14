@@ -84,6 +84,11 @@ UI-Bundle ebenfalls gefunden, aber NICHT nachgebaut — dafür öffnet die
 Anwendung stattdessen die echte Board-Manager-Oberfläche
 (`http://<board-host>:3180`) in einem neuen Tab.
 
+`GET /api/version` → Text mit der Board-Manager-Version (z.B. `1.0.7`),
+verifiziert am 14.11.2026 im Bundle (`axios.get("/version")` mit
+baseURL `.../api`) und live am Pi. Nur fuer die Diagnose im Board Test
+genutzt.
+
 `POST /api/restart` existiert laut Bundle ebenfalls, wurde aber nicht
 getestet (nicht angefragt, vermutlich einschneidender als Start/Stop/
 Reset) und wird bis auf Weiteres nicht verwendet.
